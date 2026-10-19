@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { api, ApiError } from './api'
-import { CAREER_ID, MOCK } from './config'
+import { MOCK } from './config'
 import { firebaseAuth } from './firebase'
 import type { Alert, Plan, Tree } from './types'
 
@@ -37,8 +37,9 @@ export function SesionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { const a = firebaseAuth(); if (!a) return; return onAuthStateChanged(a, u => { setUsuario(u ? { uid: u.uid, displayName: u.displayName, email: u.email } : null); setAuthListo(true) }) }, [])
 
-  // el plan es público y no cambia
-  useEffect(() => { api.plan(CAREER_ID).then(setPlan).catch(e => setError(`No pudimos cargar el plan: ${e.message}`)) }, [])
+  // el plan es el de la carrera del alumno; es público y no cambia
+  const careerId = tree?.career_id
+  useEffect(() => { if (careerId == null) return; api.plan(careerId).then(setPlan).catch(e => setError(`No pudimos cargar el plan: ${e.message}`)) }, [careerId])
 
   // con usuario: ¿ya tiene alumno?
   useEffect(() => {

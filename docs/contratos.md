@@ -35,9 +35,9 @@ Login con **Firebase Auth** (Google o email + contraseña), hecho por la app con
 Authorization: Bearer <Firebase ID token>
 ```
 
-El backend verifica el token con el Admin SDK y obtiene el `uid`. Cada alumno queda vinculado a un `uid`, y el `uid` tiene que ser dueño del `student_id` de la URL (o del body en `/api/chat` y `/api/schedule`). Token ausente o inválido → `401`; alumno de otro usuario → `403`. `GET /api/careers/{career_id}/plan` es público.
+El backend verifica el token con el Admin SDK y obtiene el `uid`. Cada alumno queda vinculado a un `uid`, y el `uid` tiene que ser dueño del `student_id` de la URL (o del body en `/api/chat` y `/api/schedule`). Token ausente o inválido → `401`; alumno de otro usuario → `403`. `GET /api/faculties` y `GET /api/careers/{career_id}/plan` son públicos.
 
-Flujo de la app: login con Firebase → `GET /api/me` → si `student_id` es `null`, onboarding y `POST /api/students`.
+Flujo de la app: login con Firebase → `GET /api/me` → si `student_id` es `null`, onboarding: elige facultad y carrera (`GET /api/faculties`), `POST /api/students` y carga de lo ya cursado con `PUT /api/students/{id}/subjects`.
 
 En desarrollo se usa el Firebase Auth Emulator; para la demo, el proyecto real.
 
@@ -174,7 +174,9 @@ Las alertas se recalculan en cada lectura o escritura del alumno. Una alerta des
 | Endpoint | Body | Respuesta |
 |---|---|---|
 | `GET /api/me` | — | `{ "student_id": "s-001" \| null }` |
-| `POST /api/students` | `{ "name", "career_id" }` | `{ "student_id" }`. Crea el alumno del `uid` del token; `409` si ese `uid` ya tiene uno |
+| `GET /api/faculties` | — | `[ { "faculty_id": "fceia", "name", "careers": [ { "career_id", "name" } ] } ]`. Solo las carreras con plan cargado |
+| `POST /api/students` | `{ "name", "faculty_id"?, "career_id" }` | `{ "student_id" }`. Crea el alumno del `uid` del token; `409` si ese `uid` ya tiene uno. `faculty_id` por defecto `fceia` |
+| `PUT /api/students/{id}/subjects` | `{ "subjects": [ { "subject_id", "state": "approved" \| "regular" \| "enrolled" } ] }` | árbol (2.2). Varias materias en un pedido (onboarding); las que no vienen quedan igual. Todo o nada: una materia ajena a la carrera → `404` |
 | `PUT /api/students/{id}/subjects/{subject_id}` | `{ "state": "approved" \| "regular" \| "enrolled" }` | árbol (2.2) |
 | `POST /api/students/{id}/activity` | `{ "type": "checkin" \| "exercise" \| "mock_exam" \| "exam", "subject_id"?, "topic"?, "result"?, "date"? }` | árbol (2.2) |
 | `POST /api/chat` | `{ "student_id", "message", "conversation_id"?, "image_base64"? }` | Stream SSE (ver 2.5) |

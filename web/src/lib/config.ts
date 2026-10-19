@@ -2,7 +2,6 @@
 const env = import.meta.env
 
 export const API_URL: string = (env.VITE_API_URL ?? '').replace(/\/+$/, '')
-export const CAREER_ID = Number(env.VITE_CAREER_ID ?? 1)
 
 export const FIREBASE = {
   apiKey: env.VITE_FIREBASE_API_KEY as string | undefined,

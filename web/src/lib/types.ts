@@ -26,6 +26,12 @@ export interface Plan {
   final_goal?: { subject_id: number; code: string; name: string; year: number; term: number; requires_all: boolean }
 }
 
+export interface Faculty {
+  faculty_id: string
+  name: string
+  careers: { career_id: number; name: string }[]
+}
+
 export type SubjectState = 'approved' | 'regular' | 'enrolled' | 'available' | 'locked'
 export type HealthState = 'lush' | 'wilted' | 'withered'
 

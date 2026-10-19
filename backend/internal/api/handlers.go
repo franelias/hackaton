@@ -16,6 +16,37 @@ import (
 	"github.com/franelias/hackaton/backend/internal/tree"
 )
 
+// getFaculties lists the faculties and the careers each one has loaded, for onboarding.
+func (s *Server) getFaculties(w http.ResponseWriter, r *http.Request) {
+	type career struct {
+		CareerID int    `json:"career_id"`
+		Name     string `json:"name"`
+	}
+	type faculty struct {
+		FacultyID string   `json:"faculty_id"`
+		Name      string   `json:"name"`
+		Careers   []career `json:"careers"`
+	}
+	var careers []db.Career
+	if err := s.DB.Order("faculty, name").Find(&careers).Error; err != nil {
+		s.dbErr(w, err, "")
+		return
+	}
+	out := []faculty{}
+	for _, c := range careers {
+		if len(out) == 0 || out[len(out)-1].FacultyID != c.Faculty {
+			name := db.FacultyNames[c.Faculty]
+			if name == "" {
+				name = c.Faculty
+			}
+			out = append(out, faculty{FacultyID: c.Faculty, Name: name})
+		}
+		f := &out[len(out)-1]
+		f.Careers = append(f.Careers, career{CareerID: c.ID, Name: c.Name})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func (s *Server) getPlan(w http.ResponseWriter, r *http.Request) {
 	careerID, err := strconv.Atoi(chi.URLParam(r, "career_id"))
 	if err != nil {
@@ -77,8 +108,9 @@ func (s *Server) getMe(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createStudent(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name     string `json:"name"`
-		CareerID int    `json:"career_id"`
+		Name      string `json:"name"`
+		FacultyID string `json:"faculty_id"`
+		CareerID  int    `json:"career_id"`
 	}
 	if !decode(w, r, &body) {
 		return
@@ -87,12 +119,15 @@ func (s *Server) createStudent(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", "falta name")
 		return
 	}
-	if err := s.DB.First(&db.Career{}, "faculty = ? AND id = ?", db.Faculty, body.CareerID).Error; err != nil {
-		s.dbErr(w, err, "carrera inexistente")
+	if body.FacultyID == "" {
+		body.FacultyID = db.Faculty
+	}
+	if err := s.DB.First(&db.Career{}, "faculty = ? AND id = ?", body.FacultyID, body.CareerID).Error; err != nil {
+		s.dbErr(w, err, "carrera inexistente en esa facultad")
 		return
 	}
 	uid := r.Context().Value(uidKey).(string)
-	st := db.Student{FirebaseUID: uid, Name: body.Name, Faculty: db.Faculty, CareerID: body.CareerID}
+	st := db.Student{FirebaseUID: uid, Name: body.Name, Faculty: body.FacultyID, CareerID: body.CareerID}
 	// ON CONFLICT DO NOTHING leaves ID at 0 when this uid already has a student.
 	res := s.DB.Exec(`INSERT INTO students (firebase_uid, name, faculty, career_id) VALUES (?, ?, ?, ?) ON CONFLICT (firebase_uid) DO NOTHING`,
 		st.FirebaseUID, st.Name, st.Faculty, st.CareerID)
@@ -136,6 +171,55 @@ func (s *Server) putSubject(w http.ResponseWriter, r *http.Request) {
 	if err := s.DB.Save(&db.StudentSubject{StudentID: st.ID, SubjectID: subjectID, State: body.State}).Error; err != nil {
 		s.dbErr(w, err, "")
 		return
+	}
+	s.writeTree(w, st)
+}
+
+// putSubjects sets the state of several subjects at once (onboarding). Subjects
+// not in the body keep their state. All or nothing: one invalid entry rejects the request.
+func (s *Server) putSubjects(w http.ResponseWriter, r *http.Request) {
+	st := studentFrom(r)
+	var body struct {
+		Subjects []struct {
+			SubjectID int    `json:"subject_id"`
+			State     string `json:"state"`
+		} `json:"subjects"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	// keyed by subject so a repeated subject keeps its last state
+	states := map[int]string{}
+	for _, m := range body.Subjects {
+		switch m.State {
+		case tree.Approved, tree.Regular, tree.Enrolled:
+		default:
+			writeErr(w, http.StatusBadRequest, "invalid_argument", "state debe ser approved, regular o enrolled")
+			return
+		}
+		states[m.SubjectID] = m.State
+	}
+	rows := make([]db.StudentSubject, 0, len(states))
+	ids := make([]int, 0, len(states))
+	for id, state := range states {
+		rows = append(rows, db.StudentSubject{StudentID: st.ID, SubjectID: id, State: state})
+		ids = append(ids, id)
+	}
+	if len(rows) > 0 {
+		var n int64
+		if err := s.DB.Model(&db.Subject{}).Where("faculty = ? AND career_id = ? AND id IN ?", st.Faculty, st.CareerID, ids).Count(&n).Error; err != nil {
+			s.dbErr(w, err, "")
+			return
+		}
+		if int(n) != len(ids) {
+			writeErr(w, http.StatusNotFound, "not_found", "alguna materia no es de la carrera del alumno")
+			return
+		}
+		// one upsert statement, so it's all or nothing
+		if err := s.DB.Save(&rows).Error; err != nil {
+			s.dbErr(w, err, "")
+			return
+		}
 	}
 	s.writeTree(w, st)
 }

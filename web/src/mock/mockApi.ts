@@ -48,6 +48,7 @@ async function chat(body: { message: string; conversation_id?: string }, h: Chat
 }
 
 export const mockApi: Api = {
+  faculties: async () => [{ faculty_id: 'fceia', name: 'Facultad de Ciencias Exactas, Ingeniería y Agrimensura (UNR)', careers: [{ career_id: plan.career_id, name: plan.name }] }],
   plan: async () => { await espera(150); return plan },
   me: async () => ({ student_id: studentId }),
   createStudent: async () => { studentId = 's-001'; return { student_id: studentId } },
@@ -55,6 +56,7 @@ export const mockApi: Api = {
   alerts: async () => alertas,
   dismissAlert: async (_id, alertId) => { alertas = alertas.filter(a => a.id !== alertId) },
   setSubject: async (_id, subjectId, state) => { estados.set(subjectId, state); return arbol() },
+  setSubjects: async (_id, subjects) => { for (const s of subjects) estados.set(s.subject_id, s.state); return arbol() },
   activity: async (_id, a: Activity) => { if (a.subject_id) hojas.set(a.subject_id, (hojas.get(a.subject_id) ?? 0) + 1); return arbol() },
   conversation: async (_id, conversation_id) => ({ conversation_id, messages: conversaciones.get(conversation_id) ?? [] }),
   schedule: async (_sid, subject_ids) => {

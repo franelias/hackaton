@@ -2,7 +2,7 @@
 import { API_URL, MOCK } from './config'
 import { firebaseAuth } from './firebase'
 import { mockApi } from '../mock/mockApi'
-import type { Activity, Alert, ApiErrorBody, ChatMessage, Plan, ScheduleResult, SchedulePreferences, SubjectState, Tree } from './types'
+import type { Activity, Alert, ApiErrorBody, ChatMessage, Faculty, Plan, ScheduleResult, SchedulePreferences, SubjectState, Tree } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -70,14 +70,18 @@ async function chat(body: { student_id: string; message: string; conversation_id
   }
 }
 
+export type SubjectMark = { subject_id: number; state: Exclude<SubjectState, 'available' | 'locked'> }
+
 const real = {
+  faculties: () => pedir<Faculty[]>('/api/faculties'),
   plan: (careerId: number) => pedir<Plan>(`/api/careers/${careerId}/plan`),
   me: () => pedir<{ student_id: string | null }>('/api/me'),
-  createStudent: (name: string, career_id: number) => pedir<{ student_id: string }>('/api/students', { method: 'POST', body: JSON.stringify({ name, career_id }) }),
+  createStudent: (name: string, faculty_id: string, career_id: number) => pedir<{ student_id: string }>('/api/students', { method: 'POST', body: JSON.stringify({ name, faculty_id, career_id }) }),
   tree: (id: string) => pedir<Tree>(`/api/students/${id}/tree`),
   alerts: (id: string) => pedir<Alert[]>(`/api/students/${id}/alerts`),
   dismissAlert: (id: string, alertId: string) => pedir<void>(`/api/students/${id}/alerts/${alertId}/dismiss`, { method: 'POST' }),
-  setSubject: (id: string, subjectId: number, state: Exclude<SubjectState, 'available' | 'locked'>) => pedir<Tree>(`/api/students/${id}/subjects/${subjectId}`, { method: 'PUT', body: JSON.stringify({ state }) }),
+  setSubject: (id: string, subjectId: number, state: SubjectMark['state']) => pedir<Tree>(`/api/students/${id}/subjects/${subjectId}`, { method: 'PUT', body: JSON.stringify({ state }) }),
+  setSubjects: (id: string, subjects: SubjectMark[]) => pedir<Tree>(`/api/students/${id}/subjects`, { method: 'PUT', body: JSON.stringify({ subjects }) }),
   activity: (id: string, a: Activity) => pedir<Tree>(`/api/students/${id}/activity`, { method: 'POST', body: JSON.stringify(a) }),
   conversation: (id: string, conversationId: string) => pedir<{ conversation_id: string; messages: ChatMessage[] }>(`/api/students/${id}/conversations/${conversationId}`),
   schedule: (student_id: string, subject_ids: number[], preferences?: SchedulePreferences) => pedir<ScheduleResult>('/api/schedule', { method: 'POST', body: JSON.stringify({ student_id, subject_ids, preferences }) }),

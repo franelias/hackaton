@@ -22,7 +22,6 @@ Chequeo de tipos: `pnpm exec tsc -b`. Build: `pnpm build`.
 | `VITE_FIREBASE_API_KEY`, `_AUTH_DOMAIN`, `_PROJECT_ID`, `_APP_ID` | Config web del proyecto de Firebase (ya cargada) |
 | `VITE_FIREBASE_AUTH_EMULATOR_HOST` | `localhost:9099` para usar el emulador del backend (docker compose) |
 | `VITE_MOCK=1` | Fuerza el modo demo |
-| `VITE_CAREER_ID` | Carrera (1 = LCC) |
 
 **Modo demo:** si falta `VITE_API_URL` o Firebase, la app no llama a nada. Usa `src/mock/mockApi.ts`,
 con el plan real copiado en `src/mock/plan.json`, la alumna Ana y un tutor de ejemplo. Con

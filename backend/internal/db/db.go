@@ -18,6 +18,11 @@ import (
 // so others can be added without id collisions.
 const Faculty = "fceia"
 
+// FacultyNames are the names students see when picking their faculty.
+var FacultyNames = map[string]string{
+	Faculty: "Facultad de Ciencias Exactas, Ingeniería y Agrimensura (UNR)",
+}
+
 //go:embed migrations/*.sql
 var migrations embed.FS
 

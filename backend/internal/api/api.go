@@ -45,6 +45,7 @@ func (s *Server) Routes() http.Handler {
 		AllowedHeaders: []string{"Authorization", "Content-Type"},
 	}))
 
+	r.Get("/api/faculties", s.getFaculties)
 	r.Get("/api/careers/{career_id}/plan", s.getPlan)
 	r.Group(func(r chi.Router) {
 		r.Use(s.authenticate)
@@ -55,6 +56,7 @@ func (s *Server) Routes() http.Handler {
 		r.Route("/api/students/{student_id}", func(r chi.Router) {
 			r.Use(s.ownStudent)
 			r.Get("/tree", s.getTree)
+			r.Put("/subjects", s.putSubjects)
 			r.Put("/subjects/{subject_id}", s.putSubject)
 			r.Post("/activity", s.postActivity)
 			r.Get("/alerts", s.getAlerts)
