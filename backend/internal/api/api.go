@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/franelias/hackaton/backend/internal/db"
+	"github.com/franelias/hackaton/backend/internal/tutor"
 )
 
 // Verifier checks a Firebase ID token. *auth.Client implements it.
@@ -26,9 +27,12 @@ type Verifier interface {
 }
 
 type Server struct {
-	DB   *gorm.DB
-	Auth Verifier
-	Now  func() time.Time
+	DB    *gorm.DB
+	Auth  Verifier
+	Now   func() time.Time
+	Tutor *tutor.Tutor
+	// MCPURL is the FCEIA MCP server (Streamable HTTP).
+	MCPURL string
 }
 
 func (s *Server) Routes() http.Handler {
@@ -45,6 +49,8 @@ func (s *Server) Routes() http.Handler {
 		r.Use(s.authenticate)
 		r.Get("/api/me", s.getMe)
 		r.Post("/api/students", s.createStudent)
+		r.Post("/api/chat", s.chat)
+		r.Post("/api/schedule", s.schedule)
 		r.Route("/api/students/{student_id}", func(r chi.Router) {
 			r.Use(s.ownStudent)
 			r.Get("/tree", s.getTree)
@@ -52,6 +58,7 @@ func (s *Server) Routes() http.Handler {
 			r.Post("/activity", s.postActivity)
 			r.Get("/alerts", s.getAlerts)
 			r.Post("/alerts/{alert_id}/dismiss", s.dismissAlert)
+			r.Get("/conversations/{conversation_id}", s.getConversation)
 		})
 	})
 	return r
@@ -83,28 +90,40 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 // ownStudent loads {student_id} and checks the authenticated user owns it.
 func (s *Server) ownStudent(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id, ok := parseStudentID(chi.URLParam(r, "student_id"))
+		st, ok := s.owned(w, r, chi.URLParam(r, "student_id"))
 		if !ok {
-			writeErr(w, http.StatusNotFound, "not_found", "alumno inexistente")
 			return
 		}
-		var st db.Student
-		if err := s.DB.First(&st, id).Error; err != nil {
-			s.dbErr(w, err, "alumno inexistente")
-			return
-		}
-		if st.FirebaseUID != r.Context().Value(uidKey).(string) {
-			writeErr(w, http.StatusForbidden, "forbidden", "este alumno pertenece a otro usuario")
-			return
-		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), studentKey, &st)))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), studentKey, st)))
 	})
+}
+
+// owned loads the student with id raw ("s-001") if the authenticated user owns
+// it; otherwise it writes the error response.
+func (s *Server) owned(w http.ResponseWriter, r *http.Request, raw string) (*db.Student, bool) {
+	id, ok := parseStudentID(raw)
+	if !ok {
+		writeErr(w, http.StatusNotFound, "not_found", "alumno inexistente")
+		return nil, false
+	}
+	var st db.Student
+	if err := s.DB.First(&st, id).Error; err != nil {
+		s.dbErr(w, err, "alumno inexistente")
+		return nil, false
+	}
+	if st.FirebaseUID != r.Context().Value(uidKey).(string) {
+		writeErr(w, http.StatusForbidden, "forbidden", "este alumno pertenece a otro usuario")
+		return nil, false
+	}
+	return &st, true
 }
 
 func studentFrom(r *http.Request) *db.Student { return r.Context().Value(studentKey).(*db.Student) }
 
-func formatStudentID(id int) string { return fmt.Sprintf("s-%03d", id) }
-func formatAlertID(id int) string   { return fmt.Sprintf("al-%d", id) }
+func formatStudentID(id int) string    { return fmt.Sprintf("s-%03d", id) }
+func formatAlertID(id int) string      { return fmt.Sprintf("al-%d", id) }
+func formatConvID(id int) string       { return fmt.Sprintf("c-%d", id) }
+func parseConvID(s string) (int, bool) { return parseID(s, "c-") }
 
 func parseStudentID(s string) (int, bool) { return parseID(s, "s-") }
 func parseAlertID(s string) (int, bool)   { return parseID(s, "al-") }
