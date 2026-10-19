@@ -11,7 +11,7 @@
 | App | React (web) |
 | Persistencia | Postgres |
 | Streaming del chat | Contrato SSE desde el día 1; implementación en dos etapas (ver 2.5) |
-| Formato de errores | `{ "error": { "code": "string", "message": "string" } }` en backend y MCP |
+| Formato de errores | `{ "error": { "code": "string", "message": "string" } }` en backend y MCP. Códigos del MCP: `not_found`, `api_unavailable`, `invalid_argument` |
 
 ## 1. Convenciones
 
@@ -132,7 +132,7 @@ Solo el estado del alumno; nada que ya esté en el plan.
 
 ```
 event: estado
-data: {"tool": "ejercicios", "mensaje": "Buscando parciales de Lógica…"}
+data: {"tool": "exercises", "mensaje": "Buscando parciales de Lógica…"}
 
 event: texto
 data: {"delta": "Arranquemos por inducción, que apareció en 7 de los 10 parciales. "}
@@ -159,73 +159,68 @@ Para el cliente: `EventSource` no soporta `POST`, así que la app lee el stream 
 
 ## 3. Tools del MCP
 
-Todas devuelven JSON. Entre paréntesis, el endpoint de la API.
+Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; los valores que vienen de la API (`parcial`, `final`…) se dejan tal cual. Todas devuelven JSON (`structuredContent`) y las listas van dentro de un objeto. Las URLs de archivos (`file_url`, `url`, `pdf_url`) son siempre absolutas.
 
-### `buscar_materia(nombre: str, career_id?: int)`
-(`GET /subjects?q=&career_id=`)
+**Errores**: tool error (`isError: true`) con `{ "error": { "code", "message" } }`; `code` ∈ `not_found` · `api_unavailable` · `invalid_argument`. Un resultado vacío no es error.
+
+### `search_subject(name: str, career_id?: int)`
+(`GET /subjects?q=&career_id=`; `q` ignora tildes)
 ```json
-[ { "subject_id": 6, "code": "r123", "nombre": "Programación II", "career_id": 1, "anio": 1, "cuatrimestre": 2 } ]
+{ "subjects": [ { "subject_id": 12, "code": "r223", "name": "Lógica", "career_id": 1, "year": 2, "term": 4 } ] }
 ```
 
-### `temas_frecuentes(subject_id: int, desde?: int)`
-(`GET /exams?subject_id=&since=`; parsea `description` → "Temas: a; b; c")
+### `frequent_topics(subject_id: int, since?: int)`
+(`GET /exams?subject_id=`; parsea `description` → "Temas: a; b; c"; agrupa ignorando tildes, mayúsculas y el paréntesis final; muestra la variante más frecuente. Los exámenes sin fecha cuentan, pero no aportan `last_year`; `since` no los descarta)
 ```json
-{ "subject_id": 21, "examenes_analizados": 10, "sin_fecha": 4,
-  "temas": [ { "tema": "inducción", "apariciones": 7, "ultimo_anio": 2025 } ] }
+{ "subject_id": 21, "exams_analyzed": 10, "undated": 4,
+  "topics": [ { "topic": "inducción", "count": 7, "last_year": 2025 } ] }
 ```
 
-### `ejercicios(subject_id: int, tema?: str, categoria?: "parcial"|"final"|"recuperatorio"|"coloquio"|"quiz", limite?: int = 3)`
-(`GET /exams?subject_id=&text=&category=` + `GET /exams/{id}/text`)
+### `exercises(subject_id: int, topic?: str, category?: "parcial"|"final"|"recuperatorio"|"coloquio"|"quiz", limit?: int = 3)`
+(`GET /exams?subject_id=&category=` + `GET /exams/{id}/text`; `limit` máximo 10. El filtro por tema se hace en el MCP, sin tildes ni mayúsculas, sobre título + descripción, porque `text=` de la API distingue ambas. Más nuevos primero)
 ```json
-[ { "exam_id": 929, "titulo": "…", "categoria": "parcial", "fecha": "2026-05-14",
-    "texto": "…", "file_url": "/media/…", "tiene_resolucion": false, "solution_id": null } ]
+{ "exercises": [ { "exam_id": 929, "title": "…", "category": "parcial", "date": "2026-05-14",
+    "text": "…", "file_url": "https://fceia-api.ariloc.ar/media/…", "scanned": true,
+    "has_solution": false, "solution_id": null } ] }
+```
+`scanned` sale de la descripción ("Escaneo…"): mostrar también el PDF de `file_url`.
+
+### `solution(exam_id: int)`
+(`GET /exams/{id}` → `solution_id` → `GET /solutions/{id}/text`; **solo 25 de las 73 resoluciones tienen `exam_id`**)
+```json
+{ "exam_id": 929, "available": false, "text": "" }
 ```
 
-### `resolucion(exam_id: int)`
-(usa `solution_id` del examen; **solo 25 de las 73 resoluciones tienen `exam_id`**)
+### `search_materials(subject_id: int, topic: str, limit?: int = 3)`
+(`GET /materials?subject_id=&text=` probando `topic` tal cual, en minúscula y capitalizado, + `GET /materials/{id}/text`; `limit` máximo 10)
 ```json
-{ "exam_id": 929, "disponible": false, "texto": null }
+{ "materials": [ { "material_id": 3016, "title": "…", "kind": "apuntes", "snippet": "…", "url": "https://fceia-api.ariloc.ar/media/…" } ] }
 ```
+`snippet` son ~1500 caracteres alrededor de la primera coincidencia.
 
-### `buscar_apunte(subject_id: int, tema: str, limite?: int = 3)`
-(`GET /materials?subject_id=&text=` + `GET /materials/{id}/text`)
-```json
-[ { "material_id": 3157, "titulo": "…", "tipo": "apuntes", "fragmento": "…", "url": "/media/…" } ]
-```
-
-### `bibliografia(subject_id: int)`
+### `bibliography(subject_id: int)`
 (`GET /subjects/{id}/bibliography`)
 ```json
-[ { "titulo": "…", "autor": "…", "anio": 2005, "isbn": "…", "tipo": "basica" } ]
+{ "books": [ { "title": "…", "author": "…", "year": 2005, "isbn": "…", "kind": "basica" } ] }
 ```
 
-### `correlativas(subject_id: int)`
-(`GET /subjects/{id}/relations`)
+### `prerequisites(subject_id: int)`
+(`GET /subjects/{id}/relations`; `requirement: null` → `approved`, **a confirmar en #6**)
 ```json
 { "subject_id": 55,
-  "requiere": [ { "subject_id": 52, "code": "FB3", "condicion": "regular" } ],
-  "destraba": [ { "subject_id": 59, "nombre": "Cálculo III" } ] }
+  "requires": [ { "subject_id": 52, "code": "FB3", "condition": "regular" } ],
+  "unlocks": [ { "subject_id": 59, "name": "Cálculo III" } ] }
 ```
 
-### `fechas(career_id: int, anio?: int)`
-(`GET /calendar?year=` + `GET /exam-boards?career_id=`)
+### `dates(career_id: int, year?: int)`
+(`GET /calendar?year=` + `GET /exam-boards?career_id=`; `year` por defecto el año actual. Casi todos los eventos vienen con `from`/`to` en `null`: usar `notes` y `source_url`)
 ```json
-{ "eventos": [ { "tipo": "inscripcion", "titulo": "…", "desde": "2026-08-05", "hasta": "2026-12-18" } ],
-  "mesas": [ { "titulo": "Mesas flotantes 2do cuatrimestre 2026", "pdf_url": "…" } ] }
+{ "events": [ { "kind": "resolucion", "title": "…", "from": null, "to": null, "notes": "…", "source_url": "…" } ],
+  "exam_boards": [ { "title": "Mesas flotantes 2do cuatrimestre 2026", "session_kind": "flotante", "pdf_url": "…", "notes": "…" } ] }
 ```
 
-### `armar_horario(subject_ids: int[], preferencias?: { "turno"?: "mañana"|"tarde"|"noche", "dias_libres"?: int[] })`
-(`GET /sessions?subject_id=`)
-```json
-{ "opciones": [
-    { "comisiones": [ { "subject_id": 6, "comision": "610", "clases": [ { "dia": 2, "desde": "07:30", "hasta": "10:30", "sede": "Sede Pellegrini", "aula": "Lab. DCC" } ] } ],
-      "dias_en_facultad": 3, "horas_hueco": 1.5 } ],
-  "conflictos": [ { "materias": [6, 21], "dia": 4, "desde": "10:30", "hasta": "12:30" } ],
-  "sugerencia_postergar": 21 }
-```
-
-### `registrar_progreso(alumno_id: str, tipo: str, subject_id?: int, tema?: str, resultado?: object)` y `ver_mi_arbol(alumno_id: str)`
-Las dos van contra nuestro backend (no la API). `ver_mi_arbol` devuelve el árbol (2.2) con el `nombre` de cada materia agregado y las alertas abiertas, para que Claude tenga todo en una llamada.
+### `armar_horario(...)`, `registrar_progreso(...)` y `ver_mi_arbol(...)`
+No están en `mcp/` todavía: `armar_horario` es el issue #4 y las otras dos van contra nuestro backend (no la API). Se definirán en inglés con el mismo criterio. `ver_mi_arbol` devuelve el árbol (2.2) con el `nombre` de cada materia y las alertas abiertas.
 
 ---
 
@@ -237,8 +232,8 @@ Las dos van contra nuestro backend (no la API). `ver_mi_arbol` devuelve el árbo
 | `semester` en horarios mezcla `"2026-2S"` con `"última publicación"` | Filtrar por el cuatrimestre vigente y avisar si los horarios son viejos | Fran |
 | Solo el 83 % de las clases tiene sede | El aviso de traslados entre sedes es parcial | Fran |
 | **Las mesas de examen no traen fechas**, solo etiqueta y PDF | La alerta "cierra la inscripción a mesas" sale de `/calendar` (`kind = inscripcion`) o se carga a mano | Fran / Eugenio |
-| Solo 25 de las 73 resoluciones están vinculadas a un examen | `resolucion()` va a devolver `disponible: false` casi siempre; el tutor resuelve solo | Eugenio |
-| El texto de los materiales se busca por subcadena, no hay búsqueda semántica | `buscar_apunte` es búsqueda por texto, no RAG con embeddings (ajustar la propuesta) | Fran |
+| Solo 25 de las 73 resoluciones están vinculadas a un examen | `solution` va a devolver `available: false` casi siempre; el tutor resuelve solo | Eugenio |
+| El texto de los materiales se busca por subcadena, no hay búsqueda semántica | `search_materials` es búsqueda por texto, no RAG con embeddings (ajustar la propuesta) | Fran |
 | `requirement` en correlativas puede ser `"regular"` o `null` | Confirmar que `null` significa "aprobada" | Fran |
 | Materias compartidas entre carreras se reconocen por `code` | Resuelve la "reorientación": `GET /subjects?code=` | Fran |
 | `GET /subjects/{id}/overview` trae horarios, correlativas y conteos de exámenes en una llamada | Útil para armar el plan sin N llamadas | Fran |
