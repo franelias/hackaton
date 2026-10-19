@@ -113,3 +113,21 @@ type Alert struct {
 	Dismissed bool
 	CreatedAt time.Time
 }
+
+type Conversation struct {
+	ID            int
+	StudentID     int
+	MockSubjectID *int
+	MockMinutes   *int
+	MockStartedAt *time.Time
+	CreatedAt     time.Time
+}
+
+type ConversationMessage struct {
+	ID             int
+	ConversationID int
+	Role           string
+	Content        json.RawMessage `gorm:"type:jsonb"`
+	Text           *string
+	CreatedAt      time.Time
+}

@@ -210,7 +210,7 @@ func validateActivity(a *db.Activity, date *string) string {
 func (s *Server) careerSubject(w http.ResponseWriter, st *db.Student, raw string) (int, bool) {
 	id, err := strconv.Atoi(raw)
 	if err == nil {
-		err = s.DB.First(&db.Subject{}, "faculty = ? AND id = ? AND career_id = ?", st.Faculty, id, st.CareerID).Error
+		err = s.subjectInCareer(st, id)
 	}
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -382,4 +382,9 @@ func (s *Server) dismissAlert(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// subjectInCareer returns gorm.ErrRecordNotFound when the subject is not in the student's career.
+func (s *Server) subjectInCareer(st *db.Student, id int) error {
+	return s.DB.First(&db.Subject{}, "faculty = ? AND id = ? AND career_id = ?", st.Faculty, id, st.CareerID).Error
 }
