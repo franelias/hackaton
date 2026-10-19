@@ -212,8 +212,9 @@ func (s *Server) getConversation(w http.ResponseWriter, r *http.Request) {
 // schedule passes the request to the MCP build_schedule tool (contract §2.4).
 func (s *Server) schedule(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		StudentID  string `json:"student_id"`
-		SubjectIDs []int  `json:"subject_ids"`
+		StudentID   string          `json:"student_id"`
+		SubjectIDs  []int           `json:"subject_ids"`
+		Preferences json.RawMessage `json:"preferences"`
 	}
 	if !decode(w, r, &body) {
 		return
@@ -242,8 +243,12 @@ func (s *Server) schedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer session.Close()
-	args, _ := json.Marshal(map[string]any{"subject_ids": body.SubjectIDs, "approved_subject_ids": approved, "regular_subject_ids": regular})
-	out, isErr := tutor.CallMCP(r.Context(), session, "build_schedule", args)
+	args := map[string]any{"subject_ids": body.SubjectIDs, "approved_subject_ids": approved, "regular_subject_ids": regular}
+	if len(body.Preferences) > 0 {
+		args["preferences"] = body.Preferences // validated by the MCP tool
+	}
+	raw, _ := json.Marshal(args)
+	out, isErr := tutor.CallMCP(r.Context(), session, "build_schedule", raw)
 	if isErr {
 		var e struct {
 			Error struct{ Code, Message string }
