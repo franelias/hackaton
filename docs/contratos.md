@@ -11,6 +11,7 @@
 | App | React (web) |
 | Backend | Go + Chi |
 | Persistencia | Postgres (reemplaza la mención a SQLite del issue #9) |
+| Autenticación | Firebase Auth (Google y email + contraseña); el backend verifica el ID token |
 | Streaming del chat | Contrato SSE desde el día 1; implementación en dos etapas (ver 2.5) |
 | Formato de errores | `{ "error": { "code": "string", "message": "string" } }` en backend y MCP. Códigos del MCP: `not_found`, `api_unavailable`, `invalid_argument` |
 | Idioma | **Todo lo que viaja por el cable va en inglés**: rutas, campos, valores de enums propios, eventos SSE y nombres de tools del MCP. La documentación queda en español. Los textos que lee el alumno (`message` de una alerta, respuestas del tutor) van en español |
@@ -27,13 +28,17 @@
 
 ## 1.1 Autenticación
 
-`POST /api/students` devuelve un `token`. Todos los demás endpoints `/api/students/...`, `/api/chat` y `/api/schedule` lo exigen en el header:
+Login con **Firebase Auth** (Google o email + contraseña), hecho por la app con el SDK de Firebase. Todos los endpoints `/api/me`, `/api/students...`, `/api/chat` y `/api/schedule` exigen el ID token de Firebase en el header:
 
 ```
-Authorization: Bearer <token>
+Authorization: Bearer <Firebase ID token>
 ```
 
-El token tiene que corresponder al `student_id` de la URL (o del body en `/api/chat` y `/api/schedule`). Si falta o es inválido → `401`; si es de otro alumno → `403`. `GET /api/careers/{career_id}/plan` es público.
+El backend verifica el token con el Admin SDK y obtiene el `uid`. Cada alumno queda vinculado a un `uid`, y el `uid` tiene que ser dueño del `student_id` de la URL (o del body en `/api/chat` y `/api/schedule`). Token ausente o inválido → `401`; alumno de otro usuario → `403`. `GET /api/careers/{career_id}/plan` es público.
+
+Flujo de la app: login con Firebase → `GET /api/me` → si `student_id` es `null`, onboarding y `POST /api/students`.
+
+En desarrollo se usa el Firebase Auth Emulator; para la demo, el proyecto real.
 
 ---
 
@@ -147,7 +152,8 @@ Solo el estado del alumno; nada que ya esté en el plan.
 
 | Endpoint | Body | Respuesta |
 |---|---|---|
-| `POST /api/students` | `{ "name", "career_id" }` | `{ "student_id", "token" }` |
+| `GET /api/me` | — | `{ "student_id": "s-001" \| null }` |
+| `POST /api/students` | `{ "name", "career_id" }` | `{ "student_id" }`. Crea el alumno del `uid` del token; `409` si ese `uid` ya tiene uno |
 | `PUT /api/students/{id}/subjects/{subject_id}` | `{ "state": "approved" \| "regular" \| "enrolled" }` | árbol (2.2) |
 | `POST /api/students/{id}/activity` | `{ "type": "checkin" \| "exercise" \| "mock_exam" \| "exam", "subject_id"?, "topic"?, "result"?, "date"? }` | árbol (2.2) |
 | `POST /api/chat` | `{ "student_id", "message", "conversation_id"?, "image_base64"? }` | Stream SSE (ver 2.5) |
