@@ -41,6 +41,8 @@ Igual para todos los alumnos de la carrera. Se calcula una vez desde la API (con
 {
   "career_id": 1,
   "nombre": "Licenciatura en Ciencias de la Computación",
+  "cuatrimestres_minimos": 9,
+  "camino_critico": [1, 4, 7, 10, 15, 17, 23, 22, 25],
   "materias": [
     {
       "subject_id": 6,
@@ -50,8 +52,11 @@ Igual para todos los alumnos de la carrera. Se calcula una vez desde la API (con
       "cuatrimestre": 2,
       "requiere": [ { "subject_id": 3, "condicion": "aprobada" } ],
       "destraba": [12, 15],
-      "destraba_total": 9,
-      "cuello_de_botella": true
+      "destraba_total": 17,
+      "cuello_de_botella": true,
+      "opcional": false,
+      "holgura": 0,
+      "atraso_posponer_anio": 2
     }
   ]
 }
@@ -62,7 +67,11 @@ Igual para todos los alumnos de la carrera. Se calcula una vez desde la API (con
 | `requiere[].condicion` | `aprobada` · `regular`. Sale de `requirement` en `/relations` (`null` → `aprobada`, **a confirmar**) |
 | `destraba` | Directas (de `required_by`) |
 | `destraba_total` | Directas + indirectas; la app lo usa para el grosor del tronco |
-| `cuello_de_botella` | Según el umbral que defina el frente 1 |
+| `cuello_de_botella` | `destraba_total >= 8` (ver `camino-critico.md`) |
+| `opcional` | `true` en las electivas: no entran en el plan base; se suman al camino crítico cuando el alumno las elige |
+| `holgura` | Cuatrimestres que se puede demorar sin atrasar la carrera (0 = camino crítico) |
+| `atraso_posponer_anio` | Cuatrimestres que se atrasa la carrera si se pospone un año |
+| `cuatrimestres_minimos`, `camino_critico` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga |
 
 La app calcula el layout (posición de cada rama) a partir de `requiere` y `destraba`. El backend no manda coordenadas.
 
