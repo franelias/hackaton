@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 
@@ -223,26 +224,43 @@ func (s *Server) careerSubject(w http.ResponseWriter, st *db.Student, raw string
 }
 
 func (s *Server) writeTree(w http.ResponseWriter, st *db.Student) {
+	t, _, err := s.state(st)
+	if err != nil {
+		s.dbErr(w, err, "")
+		return
+	}
+	writeJSON(w, http.StatusOK, struct {
+		StudentID string `json:"student_id"`
+		CareerID  int    `json:"career_id"`
+		tree.Tree
+	}{formatStudentID(st.ID), st.CareerID, t})
+}
+
+// state builds the student's tree, syncs the alerts table with the conditions
+// that hold now and returns the open (not dismissed) alerts.
+func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
 	var subjects []db.Subject
 	var prereqs []db.Prerequisite
 	var states []db.StudentSubject
 	var acts []db.Activity
+	var periods []db.Period
 	q := s.DB.Model(&db.Subject{}).Select("id").Where("faculty = ? AND career_id = ?", st.Faculty, st.CareerID)
 	for _, err := range []error{
 		s.DB.Find(&subjects, "faculty = ? AND career_id = ?", st.Faculty, st.CareerID).Error,
 		s.DB.Find(&prereqs, "faculty = ? AND subject_id IN (?)", st.Faculty, q).Error,
 		s.DB.Find(&states, "student_id = ?", st.ID).Error,
 		s.DB.Find(&acts, "student_id = ?", st.ID).Error,
+		s.DB.Find(&periods, "faculty = ?", st.Faculty).Error,
 	} {
 		if err != nil {
-			s.dbErr(w, err, "")
-			return
+			return tree.Tree{}, nil, err
 		}
 	}
 
-	in := tree.Input{Plan: map[int][]tree.Prereq{}, States: map[int]string{}, Since: st.CreatedAt, Now: s.Now()}
+	in := tree.Input{Plan: map[int][]tree.Prereq{}, Info: map[int]tree.SubjectInfo{}, States: map[int]string{}, Since: st.CreatedAt, Now: s.Now()}
 	for _, m := range subjects {
 		in.Plan[m.ID] = nil
+		in.Info[m.ID] = tree.SubjectInfo{Name: m.Name, Bottleneck: m.Bottleneck, UnlocksTotal: m.UnlocksTotal}
 	}
 	for _, p := range prereqs {
 		in.Plan[p.SubjectID] = append(in.Plan[p.SubjectID], tree.Prereq{RequiresID: p.RequiresID, Condition: p.Condition})
@@ -251,15 +269,117 @@ func (s *Server) writeTree(w http.ResponseWriter, st *db.Student) {
 		in.States[x.SubjectID] = x.State
 	}
 	for _, a := range acts {
-		in.Activities = append(in.Activities, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Result: a.Result, CreatedAt: a.CreatedAt})
+		in.Activities = append(in.Activities, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Result: a.Result, Date: a.Date, CreatedAt: a.CreatedAt})
+	}
+	for _, p := range periods {
+		in.Periods = append(in.Periods, tree.Period{Kind: p.Kind, From: p.Starts, To: p.Ends})
 	}
 	t := tree.Build(in)
 	if t.Subjects == nil {
 		t.Subjects = []tree.Subject{}
 	}
-	writeJSON(w, http.StatusOK, struct {
-		StudentID string `json:"student_id"`
-		CareerID  int    `json:"career_id"`
-		tree.Tree
-	}{formatStudentID(st.ID), st.CareerID, t})
+
+	open, err := s.syncAlerts(st.ID, t.Alerts)
+	if err != nil {
+		return tree.Tree{}, nil, err
+	}
+	alerted := map[int]bool{}
+	for _, a := range open {
+		if a.SubjectID != nil {
+			alerted[*a.SubjectID] = true
+		}
+	}
+	tree.MarkDry(&t, alerted)
+	return t, open, nil
+}
+
+// shortcut: two concurrent syncs for the same student can race on the unique key (500); fine for one app per student.
+// syncAlerts makes the student's alert rows match want: new conditions are
+// inserted, a changed key reopens a dismissed alert, and conditions that no
+// longer hold are deleted.
+func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error) {
+	var open []db.Alert
+	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		var rows []db.Alert
+		if err := tx.Find(&rows, "student_id = ?", studentID).Error; err != nil {
+			return err
+		}
+		key := func(typ string, subject *int) string {
+			if subject == nil {
+				return typ
+			}
+			return typ + "/" + strconv.Itoa(*subject)
+		}
+		existing := map[string]db.Alert{}
+		for _, r := range rows {
+			existing[key(r.Type, r.SubjectID)] = r
+		}
+		for _, a := range want {
+			action, _ := json.Marshal(a.Action)
+			r, ok := existing[key(a.Type, a.SubjectID)]
+			delete(existing, key(a.Type, a.SubjectID))
+			switch {
+			case !ok:
+				r = db.Alert{StudentID: studentID, Type: a.Type, SubjectID: a.SubjectID}
+			case r.CondKey == a.Key:
+				// Same condition: keep it dismissed if it was, refresh the text.
+			default:
+				r.Dismissed = false
+			}
+			r.Level, r.Message, r.Action, r.CondKey = a.Level, a.Message, action, a.Key
+			if err := tx.Save(&r).Error; err != nil {
+				return err
+			}
+			if !r.Dismissed {
+				open = append(open, r)
+			}
+		}
+		for _, r := range existing {
+			if err := tx.Delete(&r).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	sort.Slice(open, func(i, j int) bool {
+		return levelRank[open[i].Level] > levelRank[open[j].Level] || (open[i].Level == open[j].Level && open[i].ID < open[j].ID)
+	})
+	return open, err
+}
+
+var levelRank = map[string]int{tree.Low: 0, tree.Medium: 1, tree.High: 2}
+
+func (s *Server) getAlerts(w http.ResponseWriter, r *http.Request) {
+	_, open, err := s.state(studentFrom(r))
+	if err != nil {
+		s.dbErr(w, err, "")
+		return
+	}
+	type alert struct {
+		ID        string          `json:"id"`
+		Level     string          `json:"level"`
+		Type      string          `json:"type"`
+		SubjectID *int            `json:"subject_id"`
+		Message   string          `json:"message"`
+		Action    json.RawMessage `json:"action"`
+	}
+	out := []alert{}
+	for _, a := range open {
+		out = append(out, alert{formatAlertID(a.ID), a.Level, a.Type, a.SubjectID, a.Message, a.Action})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) dismissAlert(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseAlertID(chi.URLParam(r, "alert_id"))
+	res := s.DB.Model(&db.Alert{}).Where("id = ? AND student_id = ?", id, studentFrom(r).ID).Update("dismissed", true)
+	if res.Error != nil {
+		s.dbErr(w, res.Error, "")
+		return
+	}
+	if !ok || res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not_found", "alerta inexistente")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

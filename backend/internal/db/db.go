@@ -94,3 +94,25 @@ type Activity struct {
 	Date      *time.Time      `gorm:"type:date"`
 	CreatedAt time.Time
 }
+
+type Period struct {
+	ID      int
+	Faculty string
+	Kind    string // recess | exams
+	Label   string
+	Starts  time.Time `gorm:"type:date"`
+	Ends    time.Time `gorm:"type:date"`
+}
+
+type Alert struct {
+	ID        int
+	StudentID int
+	Type      string
+	SubjectID *int
+	Level     string
+	Message   string
+	Action    json.RawMessage `gorm:"type:jsonb"`
+	CondKey   string
+	Dismissed bool
+	CreatedAt time.Time
+}

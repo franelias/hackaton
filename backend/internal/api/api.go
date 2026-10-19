@@ -50,6 +50,8 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/tree", s.getTree)
 			r.Put("/subjects/{subject_id}", s.putSubject)
 			r.Post("/activity", s.postActivity)
+			r.Get("/alerts", s.getAlerts)
+			r.Post("/alerts/{alert_id}/dismiss", s.dismissAlert)
 		})
 	})
 	return r
@@ -102,9 +104,13 @@ func (s *Server) ownStudent(next http.Handler) http.Handler {
 func studentFrom(r *http.Request) *db.Student { return r.Context().Value(studentKey).(*db.Student) }
 
 func formatStudentID(id int) string { return fmt.Sprintf("s-%03d", id) }
+func formatAlertID(id int) string   { return fmt.Sprintf("al-%d", id) }
 
-func parseStudentID(s string) (int, bool) {
-	n, ok := strings.CutPrefix(s, "s-")
+func parseStudentID(s string) (int, bool) { return parseID(s, "s-") }
+func parseAlertID(s string) (int, bool)   { return parseID(s, "al-") }
+
+func parseID(s, prefix string) (int, bool) {
+	n, ok := strings.CutPrefix(s, prefix)
 	if !ok {
 		return 0, false
 	}

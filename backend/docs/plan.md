@@ -44,8 +44,8 @@ Fran ya creó el módulo `github.com/franelias/hackaton/backend` con `cmd/plan`,
 
 ## Orden: rama + PR por issue
 0. ✅ **Directo a main** (3fed708, 8560b50: auth con Firebase): actualizar `docs/contratos.md`: pasar a inglés todo lo que viaja por el cable (rutas, campos, enums, SSE, tools MCP) dejando la prosa en español, más (conversacion_id en chat y `fin` + GET conversación; token en `POST /api/alumnos` + header; tipo `parcial` en `/actividad`; Postgres; ids reales: Lógica = 12, AM I = 2).
-1. `backend/9-estado-alumno`: esqueleto, compose, migraciones, import-plan (JSON de Fran), middleware Firebase, `GET /api/me`, `POST /api/students`, PUT materias, POST actividad, GET árbol y plan.
-2. `backend/10-salud-alertas`: periodos, salud, racha, motor de alertas, GET alertas y descartar.
+1. ✅ `backend/9-estado-alumno` (PR #19): esqueleto, compose, migraciones, import-plan (JSON de Fran), middleware Firebase, `GET /api/me`, `POST /api/students`, PUT materias, POST actividad, GET árbol y plan.
+2. ✅ `backend/10-salud-alertas`: periodos, salud, racha, motor de alertas, GET alertas y descartar.
 3. `backend/7-chat-mcp`: cliente MCP, loop de tool use, tools locales, SSE etapa 1, conversaciones, horario.
 4. `backend/8-tutor`: system prompt (pistas antes que la solución, decir cuando no está seguro, foto vía `imagen_base64`, simulacro).
 5. `backend/11-seed-demo`: A (AM I id 2, frondoso, racha 6, parcial en 10 días) y B (Lógica id 12, 12 días inactivo → marchito + inactividad medio; parcial hace 3 días → `primer_parcial_no_rendido` alto, rama seca; racha 0, mejor 8). Fechas relativas a now(). Crea los usuarios de A y B en Firebase (email + contraseña, vía Admin SDK) y los vincula.

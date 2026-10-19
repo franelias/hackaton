@@ -38,3 +38,16 @@ func ImportPlan(g *gorm.DB, faculty string, p plan.Plan) error {
 		return tx.Create(&prereqs).Error
 	})
 }
+
+// ImportPeriods replaces a faculty's calendar periods (recess, exams).
+func ImportPeriods(g *gorm.DB, faculty string, periods []Period) error {
+	return g.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("faculty = ?", faculty).Delete(&Period{}).Error; err != nil {
+			return err
+		}
+		for i := range periods {
+			periods[i].Faculty = faculty
+		}
+		return tx.Create(&periods).Error
+	})
+}
