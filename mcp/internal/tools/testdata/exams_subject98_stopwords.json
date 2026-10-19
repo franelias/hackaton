@@ -1,0 +1,51 @@
+{
+ "items": [
+  {
+   "id": 1,
+   "career_id": 1,
+   "subject_id": 98,
+   "subject_name": "Sistemas Operativos II",
+   "category": "parcial",
+   "date": "2024-01-01",
+   "title": "Sistemas Operativos II — Parcial — 2026-05-14",
+   "original_filename": "1er parcial - 2026.pdf",
+   "description": "Temas: cálculo sobre sistemas; análisis entre modelos",
+   "file_url": "/media/examenes/lcc/Sistemas%20Operativos%202/exa%CC%81menes%20parciales/1er%20parcial%20-%202026.pdf",
+   "source_url": null,
+   "has_text": false,
+   "has_solution": false,
+   "solution_id": null,
+   "related_files": [
+    {
+     "path": "4to año/Sistemas Operativos 2/exámenes parciales/1er parcial - 2026.pdf",
+     "url": "/media/examenes/lcc/Sistemas%20Operativos%202/exa%CC%81menes%20parciales/1er%20parcial%20-%202026.pdf"
+    }
+   ]
+  },
+  {
+   "id": 2,
+   "career_id": 1,
+   "subject_id": 98,
+   "subject_name": "Sistemas Operativos II",
+   "category": "parcial",
+   "date": "2024-01-01",
+   "title": "Sistemas Operativos II — Parcial — 2026-05-14",
+   "original_filename": "1er parcial - 2026.pdf",
+   "description": "Temas: cálculo sobre sistemas; análisis entre modelos",
+   "file_url": "/media/examenes/lcc/Sistemas%20Operativos%202/exa%CC%81menes%20parciales/1er%20parcial%20-%202026.pdf",
+   "source_url": null,
+   "has_text": false,
+   "has_solution": false,
+   "solution_id": null,
+   "related_files": [
+    {
+     "path": "4to año/Sistemas Operativos 2/exámenes parciales/1er parcial - 2026.pdf",
+     "url": "/media/examenes/lcc/Sistemas%20Operativos%202/exa%CC%81menes%20parciales/1er%20parcial%20-%202026.pdf"
+    }
+   ]
+  }
+ ],
+ "total": 2,
+ "limit": 100,
+ "offset": 0
+}

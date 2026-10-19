@@ -42,7 +42,7 @@ Sistemas Operativos II y Análisis de Lenguajes figuran en los programas solo co
 - **Optativa I, II y III** no son materias: el plan solo prevé 225 h electivas (75 h en 5.º año 1.er cuat. y 150 h en el 2.º). Pasan a electivas (`optional`).
 - **Práctica Profesional** es una actividad de 200 h más un seminario de 50 h, sin orden fijo ni correlativas: queda en 5.º año 1.er cuatrimestre.
 - **Tesina** es el objetivo final: para presentarla hay que tener aprobadas todas las otras asignaturas. Queda **fuera del grafo** (`final_goal` en el plan, con `requires_all: true`): si dependiera de las 29 materias, todas sumarían +1 en `unlocks_total`. No cuenta en `min_terms`.
-- **Códigos**: la API tiene intercambiados Sistemas Operativos I (API `r322`, oficial R-313) y Análisis de Lenguajes (API `r313`, oficial R-322). No se tocan: el código es la identidad de la materia en la API. Los programas y el plan usan los códigos oficiales.
+- **Códigos**: la API tiene Sistemas Operativos I como `r322` y Análisis de Lenguajes como `r313`; el plan y los programas 2024 dicen lo contrario (R-313 SO I, R-322 Análisis de Lenguajes). El PDF de mesas de la facultad usa los de la API, así que la inconsistencia es de la facultad y no de la API. No se tocan: el código es la identidad de la materia en la API.
 - **Electivas**: de las 7, cinco tienen programa. Construcción Formal de Programas en Teoría de Tipos pide Lógica y Análisis de Lenguajes (la API no tiene esa correlativa); las otras no tienen previos, y Bases de Datos Avanzadas y Simulación de Sistemas Continuos no tienen programa. No se corrigen: son opcionales y quedan fuera del grafo base.
 
 ## Las 30 materias
