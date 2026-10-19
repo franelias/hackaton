@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: arbol
+      POSTGRES_PASSWORD: arbol
+      POSTGRES_DB: arbol
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+
+  # Firebase Auth Emulator for development and tests (no credentials needed).
+  auth:
+    image: node:22-alpine
+    working_dir: /emulator
+    command: npx -y firebase-tools@14 emulators:start --only auth --project demo-arbol
+    volumes: [./firebase.json:/emulator/firebase.json:ro]
+    ports: ["9099:9099"]
+
+volumes:
+  pgdata:
