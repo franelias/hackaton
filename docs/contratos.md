@@ -242,10 +242,11 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 ```
 
 ### `frequent_topics(subject_id: int, since?: int)`
-(`GET /exams?subject_id=`; parsea `description` → "Temas: a; b; c"; agrupa ignorando tildes, mayúsculas y el paréntesis final; muestra la variante más frecuente. Los exámenes sin fecha cuentan, pero no aportan `last_year`; `since` no los descarta)
+(`GET /exams?subject_id=`; parsea `description` → "Temas: a; b; c"; agrupa ignorando tildes, mayúsculas y el paréntesis final; muestra la variante más frecuente. Los exámenes sin fecha cuentan, pero no aportan `last_year`; `since` no los descarta. `keywords`: palabras (4 letras o más, sin tildes ni palabras vacías) y pares de palabras vecinas que aparecen en al menos 2 exámenes, con la cantidad de exámenes que los mencionan; una palabra suelta se omite si solo aparece dentro de un par igual de frecuente; hasta 15, y es lo que conviene usar cuando la materia tiene pocos exámenes)
 ```json
-{ "subject_id": 21, "exams_analyzed": 10, "undated": 4,
-  "topics": [ { "topic": "inducción", "count": 7, "last_year": 2025 } ] }
+{ "subject_id": 12, "exams_analyzed": 10, "undated": 0,
+  "topics": [ { "topic": "consecuencia semántica y contraejemplos", "count": 2, "last_year": 2017 } ],
+  "keywords": [ { "keyword": "deducción natural", "exams": 7, "last_year": 2022 } ] }
 ```
 
 ### `exercises(subject_id: int, topic?: str, category?: "parcial"|"final"|"recuperatorio"|"coloquio"|"quiz", limit?: int = 3)`
@@ -332,9 +333,11 @@ No están en el MCP: el backend las agrega al loop de tool use junto con las del
 |---|---|---|
 | **Los horarios no tienen un campo "comisión"**: viene en el texto libre de `notes` (ej. `"Com: 610 ciclo básico"`) | El armador tiene que parsear `notes` para agrupar clases por comisión; si no hay número, se asume una sola comisión | Fran |
 | `semester` en horarios mezcla `"2026-2S"` con `"última publicación"` | Filtrar por el cuatrimestre vigente y avisar si los horarios son viejos | Fran |
-| Solo el 83 % de las clases tiene sede | El aviso de traslados entre sedes es parcial | Fran |
-| **Las mesas de examen no traen fechas**, solo etiqueta y PDF | La alerta de inscripción a mesas queda fuera del MVP | Fran / Eugenio |
+| Solo el 83 % de las clases tiene sede (en LCC, el 100 % de `2026-2S`) | El aviso de traslados entre sedes es parcial y casi no aplica en LCC (ver `verificacion-datos.md`) | Fran |
+| **Las mesas de examen no traen fechas**, solo etiqueta y PDF (una por carrera, solo el 2.º llamado flotante 2026, que ya pasó; el PDF sí trae fecha por materia pero la API no la expone). Las 5 entradas de `inscripcion` de `/calendar` son del ingreso 2027, no de mesas | La alerta de inscripción a mesas queda fuera del MVP | Fran / Eugenio |
 | **`/calendar` no trae receso ni períodos de parciales** (solo ingreso 2027 y dos eventos sin fecha) | Receso y mesas 2026-27 cargados a mano desde el PDF del Calendario Académico (Res. DEC 1723/2025, Escuela de Ciencias Exactas y Naturales) en `backend/data/periods_fceia_2026.json`. Los parciales no están en el calendario: los carga el alumno | Eugenio |
+| **El 52 % de los exámenes no tiene fecha** (en LCC, el 23 %: 77 son los de Suficiencia de Inglés; sin ellos, el 6 %) | `frequent_topics` los cuenta pero no les pone `last_year`; no se infiere el año | Fran |
+| Los temas de las descripciones son texto libre: con pocos exámenes (Lógica: 10) casi todos aparecen una sola vez | `frequent_topics` devuelve además `keywords` (palabras y pares con la cantidad de exámenes que los mencionan) | Fran |
 | Solo 25 de las 73 resoluciones están vinculadas a un examen | `solution()` va a devolver `available: false` casi siempre; el tutor resuelve solo | Eugenio |
 | El texto de los materiales se busca por subcadena, no hay búsqueda semántica | `search_materials` es búsqueda por texto, no RAG con embeddings (ajustar la propuesta) | Fran |
 | `requirement` en correlativas puede ser `"regular"` o `null` | Confirmado para LCC: los programas 2024 solo tienen "Previos Aprobados", así que `null` = aprobada | Fran |
