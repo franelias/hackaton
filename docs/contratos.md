@@ -211,7 +211,7 @@ data: {"tree_changed": true, "conversation_id": "c-12"}
 
 | Evento | Cuándo | Qué hace la app |
 |---|---|---|
-| `status` | Cada vez que Claude llama a una tool | Muestra el mensaje como indicador ("Buscando…") hasta el próximo `text` |
+| `status` | Cada vez que el modelo llama a una tool | Muestra el mensaje como indicador ("Buscando…") hasta el próximo `text` |
 | `text` | Uno o más por respuesta | Agrega `delta` al final del mensaje del tutor |
 | `done` | Siempre, una vez, al final | Cierra el mensaje; guarda `conversation_id` para el próximo mensaje; si `tree_changed` es `true`, vuelve a pedir el árbol (2.2) y las alertas (2.3) |
 | `error` | Si algo falla | Muestra `{ "error": { "code", "message" } }` y cierra |
@@ -222,8 +222,8 @@ Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (m
 
 **Implementación en dos etapas (sin cambiar el contrato):**
 
-1. **Etapa 1, para integrar rápido:** el backend emite un `status` por cada tool que llama y, cuando Claude termina, manda **un solo** `text` con la respuesta entera y después `done`. La app ya muestra "Buscando parciales…" y el código del cliente es el definitivo.
-2. **Etapa 2, si sobra tiempo:** el backend usa el streaming de la API de Claude y reenvía cada fragmento como un `text`. La app no cambia nada.
+1. **Etapa 1 (la implementada):** el backend emite un `status` por cada tool que llama y, cuando el modelo termina, manda **un solo** `text` con la respuesta entera y después `done`. La app ya muestra "Buscando parciales…" y el código del cliente es el definitivo.
+2. **Etapa 2, si sobra tiempo:** el backend usa el streaming de OpenRouter y reenvía cada fragmento como un `text`. La app no cambia nada.
 
 Para el cliente: `EventSource` no soporta `POST` ni headers propios, así que la app lee el stream con `fetch` + `response.body.getReader()` (o una librería como `@microsoft/fetch-event-source`).
 
@@ -319,11 +319,11 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 
 ### Tools locales del backend: `record_progress`, `view_my_tree`, `start_mock_exam`
 
-No están en el MCP: el backend las agrega al loop de tool use junto con las del MCP. **No reciben `student_id`**: el backend lo inyecta desde el request autenticado, así Claude nunca puede tocar a otro alumno.
+No están en el MCP: el backend las agrega al loop de tool use junto con las del MCP. **No reciben `student_id`**: el backend lo inyecta desde el request autenticado, así el modelo nunca puede tocar a otro alumno.
 
 - `record_progress(type: str, subject_id?: int, topic?: str, result?: object, date?: str)`: mismo body que `POST /activity` (2.4).
-- `view_my_tree()`: devuelve el árbol (2.2) con el `name` de cada materia y las alertas abiertas, para que Claude tenga todo en una llamada.
-- `start_mock_exam(subject_id: int, minutes: int)`: guarda el inicio del simulacro en la conversación. Cuando el alumno entrega, el backend le pasa a Claude el tiempo transcurrido.
+- `view_my_tree()`: devuelve el árbol (2.2) con el `name` de cada materia, los temas practicados por materia (`topic`, `correct`, `attempts`, `mastered` a partir de 3 correctos) y las alertas abiertas, para que el modelo tenga todo en una llamada. Los temas solo los ve el tutor; no están en `GET /tree`.
+- `start_mock_exam(subject_id: int, minutes: int)`: guarda el inicio del simulacro en la conversación (10 a 300 minutos). Mientras dura, cada mensaje del alumno le pasa al modelo los minutos transcurridos.
 
 ---
 
@@ -343,3 +343,33 @@ No están en el MCP: el backend las agrega al loop de tool use junto con las del
 | `requirement` en correlativas puede ser `"regular"` o `null` | Confirmado para LCC: los programas 2024 solo tienen "Previos Aprobados", así que `null` = aprobada | Fran |
 | Materias compartidas entre carreras se reconocen por `code` | Resuelve la "reorientación": `GET /subjects?code=` | Fran |
 | `GET /subjects/{id}/overview` trae horarios, correlativas y conteos de exámenes en una llamada | Útil para armar el plan sin N llamadas | Fran |
+
+---
+
+## 5. Cambios respecto al kickoff
+
+Resumen para quien integró contra la versión del kickoff (issue #1). El detalle de cada punto está en su sección.
+
+**Para la app (Feli):**
+
+| Antes | Ahora | Sección |
+|---|---|---|
+| Rutas y campos en español (`/api/alumnos/{alumno_id}/arbol`, `salud`, `racha`, `hojas`…) | Todo en inglés: `/api/students/{student_id}/tree`, `/alerts`, `/careers/{id}/plan`, `/schedule`; `health`, `streak`, `leaves`, `flower`, `dry`… | 0, 2 |
+| Enums en español (`frondoso`, `cursando`, `alto`, `abrir_tutor`…) | `lush` · `wilted` · `withered`; `approved` · `regular` · `enrolled` · `available` · `locked`; `low` · `medium` · `high`; `open_tutor` · `build_schedule` · `view_dates` · `contact_tutor` | 2.2, 2.3 |
+| Plan: `nombre`, `materias`, `requiere`, `destraba`, `cuello_de_botella`… | `name`, `subjects`, `requires`, `unlocks`, `unlocks_total`, `bottleneck`, más `min_terms`, `critical_path`, `optional`, `slack`, `postpone_year_delay` y `final_goal` (la Tesina, fuera de `subjects`) | 2.1 |
+| Sin autenticación; `POST /api/alumnos` devolvía solo el id | **Firebase Auth** (Google o email + contraseña). Todos los endpoints salvo `/plan` piden `Authorization: Bearer <ID token de Firebase>` (`401` / `403`). Nuevo `GET /api/me` para saber si el usuario ya tiene alumno; `POST /api/students` crea el del usuario logueado (`409` si ya existe) | 1.1, 2.4 |
+| IDs de alumno `a-001` | `s-001` (conversaciones `c-N`, alertas `al-N`) | 1 |
+| `POST .../descartar` | `POST /api/students/{id}/alerts/{id}/dismiss` → `204` | 2.3 |
+| Actividad `checkin` · `ejercicio` · `simulacro` | `checkin` · `exercise` · `mock_exam` · `exam`. `exam` es nuevo: la fecha de un parcial del alumno (y, con `result`, que lo rindió) | 2.4 |
+| Chat sin conversaciones | `conversation_id` opcional en `POST /api/chat`; si no viene se crea una y vuelve en `done`. Nuevo `GET /api/students/{id}/conversations/{conversation_id}` para recargar los mensajes | 2.4, 2.5 |
+| Eventos SSE `estado` · `texto` · `fin` | `status` · `text` · `done` (`done` trae `tree_changed` y `conversation_id`); `error` igual | 2.5 |
+| — | Antes de abrir el stream, `/api/chat` puede responder JSON con `400`, `403`, `404` o `503 tutor_unavailable` | 2.5 |
+| `POST /api/horario` | `POST /api/schedule` (acepta `preferences`); el backend completa las materias aprobadas y regulares del alumno para chequear correlativas | 2.4, 3 |
+| Reglas de salud, racha y alertas sin definir | Definidas: umbrales, receso, época de parciales, comodines, cuándo aparece y se va cada alerta | 2.2, 2.3 |
+
+**Para el MCP y el backend:**
+
+- Tools del MCP en inglés (`search_subject`, `frequent_topics`, `exercises`, `solution`, `search_materials`, `bibliography`, `prerequisites`, `dates`, `build_schedule`), con listas envueltas en objetos y URLs absolutas. Los valores crudos de la API (`parcial`, `apuntes`…) pasan en español.
+- `registrar_progreso` y `ver_mi_arbol` pasaron a ser tools locales del backend (`record_progress`, `view_my_tree`) y se sumó `start_mock_exam`; no reciben `student_id`.
+- El tutor no llama a Claude directo: usa OpenRouter con un modelo principal y fallbacks de otros proveedores.
+- Persistencia en Postgres (no SQLite); el backend es Go + Chi.
