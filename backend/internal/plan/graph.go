@@ -7,7 +7,7 @@ import (
 
 // Condition values, as in docs/contratos.md §2.1.
 const (
-	Aprobada = "aprobada"
+	Approved = "approved"
 	Regular  = "regular"
 )
 

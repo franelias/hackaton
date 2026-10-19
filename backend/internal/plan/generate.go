@@ -63,7 +63,7 @@ func Generate(ctx context.Context, api *fceia.Client, careerID int, ov Overrides
 			if !inCareer[p.RelatedSubjectID] {
 				continue // belongs to another career
 			}
-			cond := Aprobada // the API leaves requirement null for plain approval (to confirm, issue #6)
+			cond := Approved // the API leaves requirement null for plain approval (to confirm, issue #6)
 			if p.Requirement == "regular" {
 				cond = Regular
 			}
@@ -112,10 +112,10 @@ func (ov Overrides) apply(in *Input) error {
 		}
 		cond := e.Condition
 		if cond == "" {
-			cond = Aprobada
+			cond = Approved
 		}
-		if cond != Aprobada && cond != Regular {
-			return fmt.Errorf("subject %d: condition must be %q or %q, got %q", e.SubjectID, Aprobada, Regular, cond)
+		if cond != Approved && cond != Regular {
+			return fmt.Errorf("subject %d: condition must be %q or %q, got %q", e.SubjectID, Approved, Regular, cond)
 		}
 		in.Prerequisites[e.SubjectID] = append(in.Prerequisites[e.SubjectID], Prerequisite{e.Requires, cond})
 	}

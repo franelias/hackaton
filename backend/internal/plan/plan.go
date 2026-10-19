@@ -25,34 +25,34 @@ const (
 
 type Requisito struct {
 	SubjectID int    `json:"subject_id"`
-	Condicion string `json:"condicion"`
+	Condicion string `json:"condition"`
 }
 
 type Materia struct {
 	SubjectID       int         `json:"subject_id"`
 	Code            string      `json:"code"`
-	Nombre          string      `json:"nombre"`
-	Anio            *int        `json:"anio"`
-	Cuatrimestre    *int        `json:"cuatrimestre"`
-	Opcional        bool        `json:"opcional"`
-	Requiere        []Requisito `json:"requiere"`
-	Destraba        []int       `json:"destraba"`
-	DestrabaTotal   int         `json:"destraba_total"`
-	CuelloDeBotella bool        `json:"cuello_de_botella"`
+	Nombre          string      `json:"name"`
+	Anio            *int        `json:"year"`
+	Cuatrimestre    *int        `json:"term"`
+	Opcional        bool        `json:"optional"`
+	Requiere        []Requisito `json:"requires"`
+	Destraba        []int       `json:"unlocks"`
+	DestrabaTotal   int         `json:"unlocks_total"`
+	CuelloDeBotella bool        `json:"bottleneck"`
 	// Holgura: cuatrimestres que se puede demorar sin atrasar la carrera.
 	// Es 0 en el camino crítico. Solo se calcula para las materias del plan base.
-	Holgura int `json:"holgura"`
+	Holgura int `json:"slack"`
 	// AtrasoPosponerAnio: cuatrimestres que se atrasa la carrera si la materia
 	// se pospone un año.
-	AtrasoPosponerAnio int `json:"atraso_posponer_anio"`
+	AtrasoPosponerAnio int `json:"postpone_year_delay"`
 }
 
 type Plan struct {
 	CareerID             int       `json:"career_id"`
-	Nombre               string    `json:"nombre"`
-	CuatrimestresMinimos int       `json:"cuatrimestres_minimos"`
-	CaminoCritico        []int     `json:"camino_critico"`
-	Materias             []Materia `json:"materias"`
+	Nombre               string    `json:"name"`
+	CuatrimestresMinimos int       `json:"min_terms"`
+	CaminoCritico        []int     `json:"critical_path"`
+	Materias             []Materia `json:"subjects"`
 }
 
 // Analysis is the critical path of the obligatory subjects plus the electives

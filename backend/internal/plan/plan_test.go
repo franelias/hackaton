@@ -264,7 +264,7 @@ func subject(id int, name string, elective bool) plan.Subject {
 func requires(ids ...int) []plan.Prerequisite {
 	var out []plan.Prerequisite
 	for _, id := range ids {
-		out = append(out, plan.Prerequisite{SubjectID: id, Condition: plan.Aprobada})
+		out = append(out, plan.Prerequisite{SubjectID: id, Condition: plan.Approved})
 	}
 	return out
 }
@@ -326,7 +326,7 @@ func TestPlanSerializesWithTheContractFieldNames(t *testing.T) {
 	}
 
 	var raw struct {
-		Materias []map[string]json.RawMessage `json:"materias"`
+		Materias []map[string]json.RawMessage `json:"subjects"`
 	}
 	if err := json.Unmarshal(b, &raw); err != nil {
 		t.Fatal(err)
@@ -335,7 +335,7 @@ func TestPlanSerializesWithTheContractFieldNames(t *testing.T) {
 	for k := range raw.Materias[0] {
 		keys = append(keys, k)
 	}
-	want := "anio atraso_posponer_anio code cuatrimestre cuello_de_botella destraba destraba_total holgura nombre opcional requiere subject_id"
+	want := "bottleneck code name optional postpone_year_delay requires slack subject_id term unlocks unlocks_total year"
 	if got := strings.Join(sorted2(keys), " "); got != want {
 		t.Fatalf("keys = %q, want %q", got, want)
 	}

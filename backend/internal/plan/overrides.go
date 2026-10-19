@@ -12,7 +12,7 @@ import (
 type Overrides struct {
 	// Subjects fixes year/term, keyed by subject_id.
 	Subjects map[int]SubjectOverride `json:"subjects"`
-	// AddPrerequisites adds a missing correlativa. Condition defaults to "aprobada".
+	// AddPrerequisites adds a missing correlativa. Condition defaults to "approved".
 	AddPrerequisites []PrerequisiteEdit `json:"add_prerequisites"`
 	// RemovePrerequisites drops a wrong correlativa.
 	RemovePrerequisites []PrerequisiteEdit `json:"remove_prerequisites"`

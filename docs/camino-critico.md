@@ -11,12 +11,12 @@ Issue #3. Código en `backend/internal/plan`; resultado en `backend/data/plan_ca
 
 | Métrica | Definición |
 |---|---|
-| `destraba` | Materias que la requieren directamente |
-| `destraba_total` | Directas + indirectas |
-| `cuello_de_botella` | `destraba_total >= 8` |
-| `holgura` | Cuatrimestres que se puede demorar sin atrasar la carrera; 0 = camino crítico |
-| `atraso_posponer_anio` | Cuatrimestres que se atrasa la carrera si la materia se pospone un año |
-| `cuatrimestres_minimos` / `camino_critico` | Largo y cadena de la ruta más larga (desempate por menor `subject_id`) |
+| `unlocks` | Materias que la requieren directamente |
+| `unlocks_total` | Directas + indirectas |
+| `bottleneck` | `unlocks_total >= 8` |
+| `slack` | Cuatrimestres que se puede demorar sin atrasar la carrera; 0 = camino crítico |
+| `postpone_year_delay` | Cuatrimestres que se atrasa la carrera si la materia se pospone un año |
+| `min_terms` / `critical_path` | Largo y cadena de la ruta más larga (desempate por menor `subject_id`) |
 
 ## Resultado para LCC
 
@@ -43,6 +43,6 @@ La carrera lleva **9 cuatrimestres como mínimo** (el plan oficial pone 10). Cam
 
 ## Límites
 - Piso optimista: no modela cuántas materias entran en un cuatrimestre, ni que se dicten solo en su cuatrimestre.
-- `requirement: null` en la API se trata como `aprobada` (a confirmar en #6).
+- `requirement: null` en la API se trata como `approved` (a confirmar en #6).
 - Tesina, Taller de Tesina, Práctica Profesional y las 3 optativas obligatorias no tienen correlativas en la API, así que no extienden el camino crítico. Si Tesina debe venir después de todo, se agrega con `add_prerequisites` en `backend/data/overrides/career_1.json` (#5).
 - Año y cuatrimestre de la API tienen errores (p. ej. Ingeniería de Software I figura en 1.er año): se corrigen en esa misma capa (#5).
