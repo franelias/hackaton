@@ -287,3 +287,29 @@ func (c *Client) Calendar(ctx context.Context, year int) ([]CalendarEvent, error
 func (c *Client) ExamBoards(ctx context.Context, careerID int) ([]ExamBoard, error) {
 	return list[ExamBoard](ctx, c, "/exam-boards", url.Values{"career_id": {strconv.Itoa(careerID)}})
 }
+
+type Session struct {
+	ID        int      `json:"id"`
+	SubjectID int      `json:"subject_id"`
+	Semester  string   `json:"semester"`
+	Weekday   int      `json:"weekday"`
+	StartTime string   `json:"start_time"`
+	EndTime   *string  `json:"end_time"`
+	Rooms     []string `json:"rooms"`
+	Campus    *string  `json:"campus"`
+	Notes     *string  `json:"notes"`
+}
+
+func (c *Client) Subject(ctx context.Context, id int) (Subject, error) {
+	var s Subject
+	err := c.get(ctx, "/subjects/"+strconv.Itoa(id), nil, &s)
+	return s, err
+}
+
+func (c *Client) CareerSubjects(ctx context.Context, careerID int) ([]Subject, error) {
+	return list[Subject](ctx, c, "/subjects", url.Values{"career_id": {strconv.Itoa(careerID)}})
+}
+
+func (c *Client) Sessions(ctx context.Context, subjectID int) ([]Session, error) {
+	return list[Session](ctx, c, "/subjects/"+strconv.Itoa(subjectID)+"/sessions", nil)
+}

@@ -453,7 +453,7 @@ func TestToolsAreListedWithEnglishNames(t *testing.T) {
 	for _, tool := range res.Tools {
 		names = append(names, tool.Name)
 	}
-	want := "bibliography dates exercises frequent_topics prerequisites search_materials search_subject solution"
+	want := "bibliography build_schedule dates exercises frequent_topics prerequisites search_materials search_subject solution"
 	if got := sortedJoin(names); got != want {
 		t.Fatalf("tools = %q, want %q", got, want)
 	}

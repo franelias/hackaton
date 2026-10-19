@@ -38,3 +38,13 @@ func TestLiveLogicaFlow(t *testing.T) {
 		t.Fatalf("exercises: %+v", ex)
 	}
 }
+
+func TestLiveBuildScheduleFindsTheLogicaAlgebraLinealClash(t *testing.T) {
+	cs := connect(t, strings.TrimSuffix(fceia.DefaultBase, "/api/v1"), nil)
+
+	got := ok[schedResult](t, cs, "build_schedule", map[string]any{"subject_ids": []int{7, 12}})
+
+	if len(got.Conflicts) == 0 || len(got.Postpone) != 1 || len(got.Options) == 0 {
+		t.Fatalf("unexpected result: %+v", got)
+	}
+}
