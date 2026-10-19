@@ -1,6 +1,6 @@
 # Contratos entre frentes — Árbol
 
-> Contratos acordados en el kickoff (issue #1).
+> Contratos acordados en el kickoff (issue #1), actualizados durante la planificación del backend.
 > Base de la API: `https://fceia-api.ariloc.ar/api/v1` (pública, solo lectura, sin auth).
 
 ## 0. Decisiones del kickoff
@@ -9,17 +9,31 @@
 |---|---|
 | Carrera de la demo | Licenciatura en Ciencias de la Computación (`career_id = 1`) |
 | App | React (web) |
-| Persistencia | Postgres |
+| Backend | Go + Chi |
+| Persistencia | Postgres (reemplaza la mención a SQLite del issue #9) |
 | Streaming del chat | Contrato SSE desde el día 1; implementación en dos etapas (ver 2.5) |
 | Formato de errores | `{ "error": { "code": "string", "message": "string" } }` en backend y MCP. Códigos del MCP: `not_found`, `api_unavailable`, `invalid_argument` |
+| Idioma | **Todo lo que viaja por el cable va en inglés**: rutas, campos, valores de enums propios, eventos SSE y nombres de tools del MCP. La documentación queda en español. Los textos que lee el alumno (`message` de una alerta, respuestas del tutor) van en español |
 
 ## 1. Convenciones
 
-- **IDs**: enteros, los mismos de la API (`subject_id`, `career_id`, `exam_id`, `session_id`). Ojo: **una materia tiene un `id` distinto en cada carrera**; lo que se comparte entre carreras es el `code` (ej. `FB11`).
+- **IDs de la API**: enteros, los mismos de la API (`subject_id`, `career_id`, `exam_id`, `session_id`). Ojo: **una materia tiene un `id` distinto en cada carrera**; lo que se comparte entre carreras es el `code` (ej. `FB11`).
+- **IDs propios**: strings con prefijo + serial: alumno `s-001`, conversación `c-12`, alerta `al-17`.
+- **IDs reales de la demo (LCC)**: Análisis Matemático I = `2`, Lógica = `12`, EDyA II = `15`, Arquitectura del Computador = `11`.
 - **Fechas**: ISO 8601 (`2026-11-15`, `2026-10-19T15:00:00-03:00`).
 - **Días de la semana**: ISO, `1` = lunes … `7` = domingo (igual que la API).
 - **Horas**: `"HH:MM"` (igual que la API).
-- **Idioma de los campos**: español en nuestros contratos; inglés en lo que viene crudo de la API.
+- **Valores que vienen crudos de la API** (`parcial`, `basica`, `apuntes`…) pasan tal cual, en español (así lo implementa el MCP). Los enums propios de nuestros contratos van en inglés.
+
+## 1.1 Autenticación
+
+`POST /api/students` devuelve un `token`. Todos los demás endpoints `/api/students/...`, `/api/chat` y `/api/schedule` lo exigen en el header:
+
+```
+Authorization: Bearer <token>
+```
+
+El token tiene que corresponder al `student_id` de la URL (o del body en `/api/chat` y `/api/schedule`). Si falta o es inválido → `401`; si es de otro alumno → `403`. `GET /api/careers/{career_id}/plan` es público.
 
 ---
 
@@ -29,34 +43,34 @@ La app hace tres pedidos y los cruza por `subject_id`:
 
 | Endpoint | Qué trae | Cambia | Dueño |
 |---|---|---|---|
-| `GET /api/carreras/{career_id}/plan` | Estructura del árbol: materias y correlativas | Nunca (cacheable) | Frente 1 (Fran) |
-| `GET /api/alumnos/{alumno_id}/arbol` | Estado del alumno sobre esa estructura | Con cada actividad | Frente 2 (Eugenio) |
-| `GET /api/alumnos/{alumno_id}/alertas` | Alertas abiertas | Aparecen y se descartan | Frente 2 (Eugenio) |
+| `GET /api/careers/{career_id}/plan` | Estructura del árbol: materias y correlativas | Nunca (cacheable) | Datos: Frente 1 (Fran) · Endpoint: Frente 2 (Eugenio) |
+| `GET /api/students/{student_id}/tree` | Estado del alumno sobre esa estructura | Con cada actividad | Frente 2 (Eugenio) |
+| `GET /api/students/{student_id}/alerts` | Alertas abiertas | Aparecen y se descartan | Frente 2 (Eugenio) |
 
-### 2.1 `GET /api/carreras/{career_id}/plan`
+### 2.1 `GET /api/careers/{career_id}/plan`
 
-Igual para todos los alumnos de la carrera. Se calcula una vez desde la API (con la revisión manual del plan aplicada).
+Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la revisión manual aplicada (`backend/cmd/plan` → `backend/data/plan_career_<id>.json`, ver `camino-critico.md`), el backend lo importa a Postgres y lo sirve desde la base.
 
 ```json
 {
   "career_id": 1,
-  "nombre": "Licenciatura en Ciencias de la Computación",
-  "cuatrimestres_minimos": 9,
-  "camino_critico": [1, 4, 7, 10, 15, 17, 23, 22, 25],
-  "materias": [
+  "name": "Licenciatura en Ciencias de la Computación",
+  "min_terms": 9,
+  "critical_path": [1, 4, 7, 10, 15, 17, 23, 22, 25],
+  "subjects": [
     {
       "subject_id": 6,
       "code": "r123",
-      "nombre": "Programación II",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "requiere": [ { "subject_id": 3, "condicion": "aprobada" } ],
-      "destraba": [12, 15],
-      "destraba_total": 17,
-      "cuello_de_botella": true,
-      "opcional": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "name": "Programación II",
+      "year": 1,
+      "term": 2,
+      "requires": [ { "subject_id": 3, "condition": "approved" } ],
+      "unlocks": [12, 15],
+      "unlocks_total": 17,
+      "bottleneck": true,
+      "optional": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     }
   ]
 }
@@ -64,105 +78,125 @@ Igual para todos los alumnos de la carrera. Se calcula una vez desde la API (con
 
 | Campo | Notas |
 |---|---|
-| `requiere[].condicion` | `aprobada` · `regular`. Sale de `requirement` en `/relations` (`null` → `aprobada`, **a confirmar**) |
-| `destraba` | Directas (de `required_by`) |
-| `destraba_total` | Directas + indirectas; la app lo usa para el grosor del tronco |
-| `cuello_de_botella` | `destraba_total >= 8` (ver `camino-critico.md`) |
-| `opcional` | `true` en las electivas: no entran en el plan base; se suman al camino crítico cuando el alumno las elige |
-| `holgura` | Cuatrimestres que se puede demorar sin atrasar la carrera (0 = camino crítico) |
-| `atraso_posponer_anio` | Cuatrimestres que se atrasa la carrera si se pospone un año |
-| `cuatrimestres_minimos`, `camino_critico` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga |
+| `requires[].condition` | `approved` · `regular`. Sale de `requirement` en `/relations` (`null` → `approved`, **a confirmar**) |
+| `unlocks` | Materias que la requieren directamente (de `required_by`) |
+| `unlocks_total` | Directas + indirectas; la app lo usa para el grosor del tronco |
+| `bottleneck` | Cuello de botella: `unlocks_total >= 8` (ver `camino-critico.md`) |
+| `optional` | `true` en las electivas: no entran en el plan base; se suman al camino crítico cuando el alumno las elige |
+| `slack` | Holgura: cuatrimestres que se puede demorar sin atrasar la carrera (0 = camino crítico) |
+| `postpone_year_delay` | Cuatrimestres que se atrasa la carrera si se pospone un año |
+| `term` | Cuatrimestre dentro del año (`1` o `2`) |
+| `min_terms`, `critical_path` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga |
 
-La app calcula el layout (posición de cada rama) a partir de `requiere` y `destraba`. El backend no manda coordenadas.
+La app calcula el layout (posición de cada rama) a partir de `requires` y `unlocks`. El backend no manda coordenadas.
 
-### 2.2 `GET /api/alumnos/{alumno_id}/arbol`
+### 2.2 `GET /api/students/{student_id}/tree`
 
 Solo el estado del alumno; nada que ya esté en el plan.
 
 ```json
 {
-  "alumno_id": "a-001",
+  "student_id": "s-001",
   "career_id": 1,
-  "salud": { "estado": "mustio", "ultima_actividad": "2026-10-08T21:10:00-03:00" },
-  "racha": { "semanas": 0, "mejor": 8, "comodines": 1 },
-  "materias": [
-    { "subject_id": 6,  "estado": "aprobada", "hojas": 14, "flor": false, "seca": false },
-    { "subject_id": 21, "estado": "cursando", "hojas": 2,  "flor": false, "seca": true }
+  "health": { "state": "wilted", "last_activity": "2026-10-08T21:10:00-03:00" },
+  "streak": { "weeks": 0, "best": 8, "wildcards": 1 },
+  "subjects": [
+    { "subject_id": 6,  "state": "approved", "leaves": 14, "flower": false, "dry": false },
+    { "subject_id": 12, "state": "enrolled", "leaves": 2,  "flower": false, "dry": true }
   ]
 }
 ```
 
 | Campo | Valores | Notas |
 |---|---|---|
-| `salud.estado` | `frondoso` · `mustio` · `marchito` | Lo decide el backend (umbrales iniciales 5 / 10 / 15 días, pausados en receso). Nunca `muerto`. La app solo lo dibuja |
-| `salud.ultima_actividad` | fecha | Para mostrar "hace 11 días" si hace falta |
-| `racha.semanas` | entero ≥ 0 | Semanas seguidas con al menos 1 sesión de estudio |
-| `racha.mejor` | entero | La app muestra esta cuando `semanas` = 0 |
-| `materias[].estado` | `aprobada` · `regular` · `cursando` · `disponible` · `bloqueada` | Solo vienen las materias con estado distinto de `bloqueada`; la app asume `bloqueada` para el resto |
-| `hojas` | entero | Ejercicios y sesiones registradas en esa materia |
-| `flor` | bool | Simulacro aprobado: lista para rendir |
-| `seca` | bool | Hay una alerta abierta sobre esa materia. **Una materia aprobada nunca se seca** |
+| `health.state` | `lush` (frondoso) · `wilted` (mustio) · `withered` (marchito) | Lo decide el backend (umbrales iniciales 5 / 10 días; 3 / 6 en época de parciales o mesas; pausados en receso). Nunca "muerto". La app solo lo dibuja |
+| `health.last_activity` | fecha | Para mostrar "hace 11 días" si hace falta |
+| `streak.weeks` | entero ≥ 0 | Semanas ISO seguidas con al menos 1 sesión de estudio (ejercicio, simulacro o chat) |
+| `streak.best` | entero | La app muestra esta cuando `weeks` = 0 |
+| `streak.wildcards` | entero 0–2 | Comodines: se gana 1 cada 4 semanas seguidas |
+| `subjects[].state` | `approved` · `regular` · `enrolled` (cursando) · `available` · `locked` | Solo vienen las materias con estado distinto de `locked`; la app asume `locked` para el resto |
+| `leaves` | entero | Hojas: ejercicios y sesiones registradas en esa materia |
+| `flower` | bool | Flor: simulacro aprobado (≥ 60/100) y la materia no está aprobada; lista para rendir |
+| `dry` | bool | Rama seca: hay una alerta abierta sobre esa materia. **Una materia aprobada nunca se seca** |
 
-### 2.3 `GET /api/alumnos/{alumno_id}/alertas`
+### 2.3 `GET /api/students/{student_id}/alerts`
 
 ```json
 [
   {
     "id": "al-17",
-    "nivel": "alto",
-    "tipo": "primer_parcial_no_rendido",
-    "subject_id": 21,
-    "mensaje": "Se viene el parcial de Lógica, ¿practicamos 1 ejercicio?",
-    "accion": { "tipo": "abrir_tutor", "subject_id": 21 }
+    "level": "high",
+    "type": "first_exam_missed",
+    "subject_id": 12,
+    "message": "Se viene el parcial de Lógica, ¿practicamos 1 ejercicio?",
+    "action": { "type": "open_tutor", "subject_id": 12 }
   }
 ]
 ```
 
 | Campo | Valores | Notas |
 |---|---|---|
-| `nivel` | `bajo` · `medio` · `alto` | **No hay puntaje de abandono en el contrato, a propósito** |
-| `accion.tipo` | `abrir_tutor` · `armar_horario` · `ver_fechas` · `contactar_tutor` | Lo que hace el botón de la alerta |
+| `level` | `low` · `medium` · `high` | **No hay puntaje de abandono en el contrato, a propósito** |
+| `type` | `inactivity` · `first_exam_missed` | Las señales del MVP. Inactividad: 5 días → `low`, 10 → `medium` (`open_tutor`), 15 → `high` (`contact_tutor`) |
+| `message` | texto | En español, lo lee el alumno |
+| `action.type` | `open_tutor` · `build_schedule` · `view_dates` · `contact_tutor` | Lo que hace el botón de la alerta |
 
-`POST /api/alumnos/{alumno_id}/alertas/{id}/descartar` → `204`.
+`POST /api/students/{student_id}/alerts/{id}/dismiss` → `204`.
 
 ### 2.4 Escritura y chat
 
 | Endpoint | Body | Respuesta |
 |---|---|---|
-| `POST /api/alumnos` | `{ "nombre", "career_id" }` | `{ "alumno_id" }` |
-| `PUT /api/alumnos/{id}/materias/{subject_id}` | `{ "estado": "aprobada" \| "regular" \| "cursando" }` | árbol (2.2) |
-| `POST /api/alumnos/{id}/actividad` | `{ "tipo": "checkin" \| "ejercicio" \| "simulacro", "subject_id"?, "tema"?, "resultado"? }` | árbol (2.2) |
-| `POST /api/chat` | `{ "alumno_id", "mensaje", "imagen_base64"? }` | Stream SSE (ver 2.5) |
-| `POST /api/horario` | `{ "alumno_id", "subject_ids": [..] }` | mismo formato que `armar_horario` |
+| `POST /api/students` | `{ "name", "career_id" }` | `{ "student_id", "token" }` |
+| `PUT /api/students/{id}/subjects/{subject_id}` | `{ "state": "approved" \| "regular" \| "enrolled" }` | árbol (2.2) |
+| `POST /api/students/{id}/activity` | `{ "type": "checkin" \| "exercise" \| "mock_exam" \| "exam", "subject_id"?, "topic"?, "result"?, "date"? }` | árbol (2.2) |
+| `POST /api/chat` | `{ "student_id", "message", "conversation_id"?, "image_base64"? }` | Stream SSE (ver 2.5) |
+| `GET /api/students/{id}/conversations/{conversation_id}` | — | `{ "conversation_id", "messages": [ { "role": "user" \| "assistant", "text", "created_at" } ] }` |
+| `POST /api/schedule` | `{ "student_id", "subject_ids": [..] }` | mismo formato que `build_schedule` |
+
+Notas de `activity`:
+
+| `type` | Qué es | Campos |
+|---|---|---|
+| `checkin` | Acción chica que revive el árbol. No suma a la racha | — |
+| `exercise` | Ejercicio practicado | `subject_id`, `topic`, `result: { "correct": bool }`. 3 correctos del mismo tema = tema dominado |
+| `mock_exam` | Simulacro | `subject_id`, `result: { "score": 0-100 }`. Aprobado con ≥ 60 |
+| `exam` | Fecha de un parcial del alumno (la API solo tiene parciales viejos) | `subject_id`, `date`. Si pasa la fecha sin `result`, se dispara `first_exam_missed` |
+
+Cualquier `activity` o mensaje de chat cuenta como actividad (resetea `last_activity`). Abrir la app (un GET) no.
+
+`PUT /subjects` permite corregir errores de carga, incluso bajar de `approved`.
 
 ### 2.5 Chat: formato SSE
 
 `POST /api/chat` responde con `Content-Type: text/event-stream`. Hay cuatro tipos de evento (`error` solo si algo falla):
 
 ```
-event: estado
-data: {"tool": "exercises", "mensaje": "Buscando parciales de Lógica…"}
+event: status
+data: {"tool": "exercises", "message": "Buscando parciales de Lógica…"}
 
-event: texto
+event: text
 data: {"delta": "Arranquemos por inducción, que apareció en 7 de los 10 parciales. "}
 
-event: fin
-data: {"arbol_cambio": true}
+event: done
+data: {"tree_changed": true, "conversation_id": "c-12"}
 ```
 
 | Evento | Cuándo | Qué hace la app |
 |---|---|---|
-| `estado` | Cada vez que Claude llama a una tool | Muestra el mensaje como indicador ("Buscando…") hasta el próximo `texto` |
-| `texto` | Uno o más por respuesta | Agrega `delta` al final del mensaje del tutor |
-| `fin` | Siempre, una vez, al final | Cierra el mensaje; si `arbol_cambio` es `true`, vuelve a pedir el árbol (2.2) y las alertas (2.3) |
+| `status` | Cada vez que Claude llama a una tool | Muestra el mensaje como indicador ("Buscando…") hasta el próximo `text` |
+| `text` | Uno o más por respuesta | Agrega `delta` al final del mensaje del tutor |
+| `done` | Siempre, una vez, al final | Cierra el mensaje; guarda `conversation_id` para el próximo mensaje; si `tree_changed` es `true`, vuelve a pedir el árbol (2.2) y las alertas (2.3) |
 | `error` | Si algo falla | Muestra `{ "error": { "code", "message" } }` y cierra |
+
+**Conversaciones:** `conversation_id` es opcional. Si no viene, el backend crea una conversación nueva y devuelve su id en `done`. Para seguir la misma, la app lo manda en los mensajes siguientes.
 
 **Implementación en dos etapas (sin cambiar el contrato):**
 
-1. **Etapa 1, para integrar rápido:** el backend emite un `estado` por cada tool que llama y, cuando Claude termina, manda **un solo** `texto` con la respuesta entera y después `fin`. La app ya muestra "Buscando parciales…" y el código del cliente es el definitivo.
-2. **Etapa 2, si sobra tiempo:** el backend usa el streaming de la API de Claude y reenvía cada fragmento como un `texto`. La app no cambia nada.
+1. **Etapa 1, para integrar rápido:** el backend emite un `status` por cada tool que llama y, cuando Claude termina, manda **un solo** `text` con la respuesta entera y después `done`. La app ya muestra "Buscando parciales…" y el código del cliente es el definitivo.
+2. **Etapa 2, si sobra tiempo:** el backend usa el streaming de la API de Claude y reenvía cada fragmento como un `text`. La app no cambia nada.
 
-Para el cliente: `EventSource` no soporta `POST`, así que la app lee el stream con `fetch` + `response.body.getReader()` (o una librería como `@microsoft/fetch-event-source`).
+Para el cliente: `EventSource` no soporta `POST` ni headers propios, así que la app lee el stream con `fetch` + `response.body.getReader()` (o una librería como `@microsoft/fetch-event-source`).
 
 ---
 
@@ -228,8 +262,16 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
   "exam_boards": [ { "title": "Mesas flotantes 2do cuatrimestre 2026", "session_kind": "flotante", "pdf_url": "…", "notes": "…" } ] }
 ```
 
-### `armar_horario(...)`, `registrar_progreso(...)` y `ver_mi_arbol(...)`
-No están en `mcp/` todavía: `armar_horario` es el issue #4 y las otras dos van contra nuestro backend (no la API). Se definirán en inglés con el mismo criterio. `ver_mi_arbol` devuelve el árbol (2.2) con el `nombre` de cada materia y las alertas abiertas.
+### `build_schedule(...)`
+Issue #4 (Fran), todavía no está en `mcp/`. Se define en inglés con el mismo criterio. `POST /api/schedule` lo llama tal cual.
+
+### Tools locales del backend: `record_progress`, `view_my_tree`, `start_mock_exam`
+
+No están en el MCP: el backend las agrega al loop de tool use junto con las del MCP. **No reciben `student_id`**: el backend lo inyecta desde el request autenticado, así Claude nunca puede tocar a otro alumno.
+
+- `record_progress(type: str, subject_id?: int, topic?: str, result?: object, date?: str)`: mismo body que `POST /activity` (2.4).
+- `view_my_tree()`: devuelve el árbol (2.2) con el `name` de cada materia y las alertas abiertas, para que Claude tenga todo en una llamada.
+- `start_mock_exam(subject_id: int, minutes: int)`: guarda el inicio del simulacro en la conversación. Cuando el alumno entrega, el backend le pasa a Claude el tiempo transcurrido.
 
 ---
 
@@ -240,8 +282,9 @@ No están en `mcp/` todavía: `armar_horario` es el issue #4 y las otras dos van
 | **Los horarios no tienen un campo "comisión"**: viene en el texto libre de `notes` (ej. `"Com: 610 ciclo básico"`) | El armador tiene que parsear `notes` para agrupar clases por comisión; si no hay número, se asume una sola comisión | Fran |
 | `semester` en horarios mezcla `"2026-2S"` con `"última publicación"` | Filtrar por el cuatrimestre vigente y avisar si los horarios son viejos | Fran |
 | Solo el 83 % de las clases tiene sede | El aviso de traslados entre sedes es parcial | Fran |
-| **Las mesas de examen no traen fechas**, solo etiqueta y PDF | La alerta "cierra la inscripción a mesas" sale de `/calendar` (`kind = inscripcion`) o se carga a mano | Fran / Eugenio |
-| Solo 25 de las 73 resoluciones están vinculadas a un examen | `solution` va a devolver `available: false` casi siempre; el tutor resuelve solo | Eugenio |
+| **Las mesas de examen no traen fechas**, solo etiqueta y PDF | La alerta de inscripción a mesas queda fuera del MVP | Fran / Eugenio |
+| **`/calendar` no trae receso ni períodos de parciales** (solo ingreso 2027 y dos eventos sin fecha) | Los períodos 2026 se cargan a mano desde el PDF del Calendario Académico (Res. DEC 1723/2025) | Eugenio |
+| Solo 25 de las 73 resoluciones están vinculadas a un examen | `solution()` va a devolver `available: false` casi siempre; el tutor resuelve solo | Eugenio |
 | El texto de los materiales se busca por subcadena, no hay búsqueda semántica | `search_materials` es búsqueda por texto, no RAG con embeddings (ajustar la propuesta) | Fran |
 | `requirement` en correlativas puede ser `"regular"` o `null` | Confirmar que `null` significa "aprobada" | Fran |
 | Materias compartidas entre carreras se reconocen por `code` | Resuelve la "reorientación": `GET /subjects?code=` | Fran |
