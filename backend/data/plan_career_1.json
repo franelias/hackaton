@@ -1,17 +1,15 @@
 {
   "career_id": 1,
   "name": "Licenciatura en Ciencias de la Computación",
-  "min_terms": 9,
+  "min_terms": 7,
   "critical_path": [
     1,
     4,
     7,
     10,
     15,
-    17,
-    23,
-    22,
-    25
+    21,
+    24
   ],
   "subjects": [
     {
@@ -25,7 +23,7 @@
       "unlocks": [
         4
       ],
-      "unlocks_total": 14,
+      "unlocks_total": 13,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -43,7 +41,7 @@
       ],
       "unlocks_total": 5,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 3,
       "postpone_year_delay": 0
     },
     {
@@ -51,7 +49,7 @@
       "code": "r113",
       "name": "Programación I",
       "year": 1,
-      "term": 2,
+      "term": 1,
       "optional": false,
       "requires": [],
       "unlocks": [
@@ -78,7 +76,7 @@
       "unlocks": [
         7
       ],
-      "unlocks_total": 13,
+      "unlocks_total": 12,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -103,7 +101,7 @@
       ],
       "unlocks_total": 4,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 3,
       "postpone_year_delay": 0
     },
     {
@@ -130,124 +128,6 @@
       "postpone_year_delay": 2
     },
     {
-      "subject_id": 8,
-      "code": "r212",
-      "name": "Estructuras de Datos y Algoritmos I",
-      "year": 1,
-      "term": 2,
-      "optional": false,
-      "requires": [
-        {
-          "subject_id": 6,
-          "condition": "approved"
-        }
-      ],
-      "unlocks": [
-        10,
-        11,
-        15
-      ],
-      "unlocks_total": 12,
-      "bottleneck": true,
-      "slack": 0,
-      "postpone_year_delay": 2
-    },
-    {
-      "subject_id": 10,
-      "code": "r221",
-      "name": "Complementos de Matemática I",
-      "year": 1,
-      "term": 2,
-      "optional": false,
-      "requires": [
-        {
-          "subject_id": 7,
-          "condition": "approved"
-        },
-        {
-          "subject_id": 8,
-          "condition": "approved"
-        }
-      ],
-      "unlocks": [
-        15
-      ],
-      "unlocks_total": 9,
-      "bottleneck": true,
-      "slack": 0,
-      "postpone_year_delay": 2
-    },
-    {
-      "subject_id": 18,
-      "code": "r313",
-      "name": "Análisis de Lenguajes de Programación",
-      "year": 1,
-      "term": 2,
-      "optional": false,
-      "requires": [
-        {
-          "subject_id": 12,
-          "condition": "approved"
-        }
-      ],
-      "unlocks": [
-        17,
-        26
-      ],
-      "unlocks_total": 6,
-      "bottleneck": false,
-      "slack": 1,
-      "postpone_year_delay": 1
-    },
-    {
-      "subject_id": 22,
-      "code": "r411",
-      "name": "Ingeniería de Software I",
-      "year": 1,
-      "term": 2,
-      "optional": false,
-      "requires": [
-        {
-          "subject_id": 12,
-          "condition": "approved"
-        },
-        {
-          "subject_id": 15,
-          "condition": "approved"
-        },
-        {
-          "subject_id": 16,
-          "condition": "approved"
-        },
-        {
-          "subject_id": 23,
-          "condition": "approved"
-        }
-      ],
-      "unlocks": [
-        25,
-        30
-      ],
-      "unlocks_total": 2,
-      "bottleneck": false,
-      "slack": 0,
-      "postpone_year_delay": 2
-    },
-    {
-      "subject_id": 28,
-      "code": "r513",
-      "name": "Práctica Profesional",
-      "year": 1,
-      "term": 2,
-      "optional": false,
-      "requires": [],
-      "unlocks": [],
-      "unlocks_total": 0,
-      "bottleneck": false,
-      "slack": 8,
-      "postpone_year_delay": 0
-    },
-    {
       "subject_id": 7,
       "code": "r211",
       "name": "Álgebra Lineal",
@@ -264,6 +144,29 @@
         10,
         13,
         27
+      ],
+      "unlocks_total": 11,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
+    },
+    {
+      "subject_id": 8,
+      "code": "r212",
+      "name": "Estructuras de Datos y Algoritmos I",
+      "year": 2,
+      "term": 1,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 6,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        10,
+        11,
+        15
       ],
       "unlocks_total": 12,
       "bottleneck": true,
@@ -288,8 +191,33 @@
       ],
       "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 3,
       "postpone_year_delay": 0
+    },
+    {
+      "subject_id": 10,
+      "code": "r221",
+      "name": "Complementos de Matemática I",
+      "year": 2,
+      "term": 2,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 7,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 8,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        15
+      ],
+      "unlocks_total": 8,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 11,
@@ -308,7 +236,7 @@
         20,
         23
       ],
-      "unlocks_total": 5,
+      "unlocks_total": 2,
       "bottleneck": false,
       "slack": 2,
       "postpone_year_delay": 0
@@ -336,8 +264,8 @@
       ],
       "unlocks_total": 10,
       "bottleneck": true,
-      "slack": 1,
-      "postpone_year_delay": 1
+      "slack": 2,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 13,
@@ -359,15 +287,15 @@
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 3,
       "postpone_year_delay": 0
     },
     {
       "subject_id": 14,
       "code": "r311",
       "name": "Probabilidad y Estadística",
-      "year": 2,
-      "term": 2,
+      "year": 3,
+      "term": 1,
       "optional": false,
       "requires": [
         {
@@ -380,15 +308,15 @@
       ],
       "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 3,
       "postpone_year_delay": 0
     },
     {
       "subject_id": 15,
       "code": "r312",
       "name": "Estructuras de Datos y Algoritmos II",
-      "year": 2,
-      "term": 2,
+      "year": 3,
+      "term": 1,
       "optional": false,
       "requires": [
         {
@@ -401,14 +329,14 @@
         }
       ],
       "unlocks": [
-        17,
+        18,
         21,
         22,
         24,
         26
       ],
-      "unlocks_total": 8,
-      "bottleneck": true,
+      "unlocks_total": 7,
+      "bottleneck": false,
       "slack": 0,
       "postpone_year_delay": 2
     },
@@ -416,8 +344,8 @@
       "subject_id": 16,
       "code": "r314",
       "name": "Examen de Suficiencia de Inglés",
-      "year": 2,
-      "term": 2,
+      "year": 3,
+      "term": 1,
       "optional": false,
       "requires": [],
       "unlocks": [
@@ -429,13 +357,34 @@
       ],
       "unlocks_total": 7,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 4,
       "postpone_year_delay": 0
     },
     {
       "subject_id": 17,
       "code": "r322",
       "name": "Sistemas Operativos I",
+      "year": 3,
+      "term": 1,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 12,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        23
+      ],
+      "unlocks_total": 1,
+      "bottleneck": false,
+      "slack": 2,
+      "postpone_year_delay": 0
+    },
+    {
+      "subject_id": 18,
+      "code": "r313",
+      "name": "Análisis de Lenguajes de Programación",
       "year": 3,
       "term": 2,
       "optional": false,
@@ -447,16 +396,12 @@
         {
           "subject_id": 15,
           "condition": "approved"
-        },
-        {
-          "subject_id": 18,
-          "condition": "approved"
         }
       ],
       "unlocks": [
-        23
+        26
       ],
-      "unlocks_total": 4,
+      "unlocks_total": 1,
       "bottleneck": false,
       "slack": 0,
       "postpone_year_delay": 2
@@ -477,7 +422,7 @@
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 3,
       "postpone_year_delay": 0
     },
     {
@@ -496,7 +441,7 @@
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 4,
+      "slack": 2,
       "postpone_year_delay": 0
     },
     {
@@ -521,8 +466,38 @@
       ],
       "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 2,
-      "postpone_year_delay": 0
+      "slack": 0,
+      "postpone_year_delay": 2
+    },
+    {
+      "subject_id": 22,
+      "code": "r411",
+      "name": "Ingeniería de Software I",
+      "year": 4,
+      "term": 1,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 12,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 15,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 16,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        25,
+        30
+      ],
+      "unlocks_total": 2,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 23,
@@ -545,13 +520,11 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [
-        22
-      ],
-      "unlocks_total": 3,
+      "unlocks": [],
+      "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 0,
-      "postpone_year_delay": 2
+      "slack": 2,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 24,
@@ -581,8 +554,8 @@
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 2,
-      "postpone_year_delay": 0
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 25,
@@ -631,8 +604,8 @@
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 3,
-      "postpone_year_delay": 0
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 27,
@@ -662,7 +635,21 @@
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 5,
+      "slack": 3,
+      "postpone_year_delay": 0
+    },
+    {
+      "subject_id": 28,
+      "code": "r513",
+      "name": "Práctica Profesional",
+      "year": 5,
+      "term": 1,
+      "optional": false,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 6,
       "postpone_year_delay": 0
     },
     {
@@ -676,7 +663,7 @@
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 8,
+      "slack": 6,
       "postpone_year_delay": 0
     },
     {
@@ -704,12 +691,12 @@
       "name": "Optativa I",
       "year": 5,
       "term": 1,
-      "optional": false,
+      "optional": true,
       "requires": [],
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 8,
+      "slack": 0,
       "postpone_year_delay": 0
     },
     {
@@ -718,26 +705,12 @@
       "name": "Optativa II",
       "year": 5,
       "term": 1,
-      "optional": false,
+      "optional": true,
       "requires": [],
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 8,
-      "postpone_year_delay": 0
-    },
-    {
-      "subject_id": 31,
-      "code": "r523",
-      "name": "Tesina",
-      "year": 5,
-      "term": 2,
-      "optional": false,
-      "requires": [],
-      "unlocks": [],
-      "unlocks_total": 0,
-      "bottleneck": false,
-      "slack": 8,
+      "slack": 0,
       "postpone_year_delay": 0
     },
     {
@@ -746,12 +719,12 @@
       "name": "Optativa III",
       "year": 5,
       "term": 2,
-      "optional": false,
+      "optional": true,
       "requires": [],
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
-      "slack": 8,
+      "slack": 0,
       "postpone_year_delay": 0
     },
     {
@@ -852,5 +825,13 @@
       "slack": 0,
       "postpone_year_delay": 0
     }
-  ]
+  ],
+  "final_goal": {
+    "subject_id": 31,
+    "code": "r523",
+    "name": "Tesina",
+    "year": 5,
+    "term": 2,
+    "requires_all": true
+  }
 }

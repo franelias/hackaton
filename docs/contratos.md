@@ -12,6 +12,7 @@
 | Backend | Go + Chi |
 | Persistencia | Postgres (reemplaza la mención a SQLite del issue #9) |
 | Autenticación | Firebase Auth (Google y email + contraseña); el backend verifica el ID token |
+| Modelos del tutor | OpenRouter (formato OpenAI Chat Completions): modelo principal `anthropic/claude-sonnet-5.5` y fallbacks de otros proveedores (`openai/gpt-6-astra`, `google/gemini-3.1-pro-preview`), configurables en el backend |
 | Streaming del chat | Contrato SSE desde el día 1; implementación en dos etapas (ver 2.5) |
 | Formato de errores | `{ "error": { "code": "string", "message": "string" } }` en backend y MCP. Códigos del MCP: `not_found`, `api_unavailable`, `invalid_argument` |
 | Idioma | **Todo lo que viaja por el cable va en inglés**: rutas, campos, valores de enums propios, eventos SSE y nombres de tools del MCP. La documentación queda en español. Los textos que lee el alumno (`message` de una alerta, respuestas del tutor) van en español |
@@ -60,8 +61,8 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
 {
   "career_id": 1,
   "name": "Licenciatura en Ciencias de la Computación",
-  "min_terms": 9,
-  "critical_path": [1, 4, 7, 10, 15, 17, 23, 22, 25],
+  "min_terms": 7,
+  "critical_path": [1, 4, 7, 10, 15, 21, 24],
   "subjects": [
     {
       "subject_id": 6,
@@ -77,13 +78,21 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
       "slack": 0,
       "postpone_year_delay": 2
     }
-  ]
+  ],
+  "final_goal": {
+    "subject_id": 31,
+    "code": "r523",
+    "name": "Tesina",
+    "year": 5,
+    "term": 2,
+    "requires_all": true
+  }
 }
 ```
 
 | Campo | Notas |
 |---|---|
-| `requires[].condition` | `approved` · `regular`. Sale de `requirement` en `/relations` (`null` → `approved`, **a confirmar**) |
+| `requires[].condition` | `approved` · `regular`. Sale de `requirement` en `/relations` (`null` → `approved`, confirmado para LCC con los programas 2024) |
 | `unlocks` | Materias que la requieren directamente (de `required_by`) |
 | `unlocks_total` | Directas + indirectas; la app lo usa para el grosor del tronco |
 | `bottleneck` | Cuello de botella: `unlocks_total >= 8` (ver `camino-critico.md`) |
@@ -92,6 +101,7 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
 | `postpone_year_delay` | Cuatrimestres que se atrasa la carrera si se pospone un año |
 | `term` | Cuatrimestre dentro del año (`1` o `2`) |
 | `min_terms`, `critical_path` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga |
+| `final_goal` | La Tesina, objetivo final: fuera de `subjects` y de las correlativas; `requires_all: true` = hay que tener aprobadas todas las demás para presentarla. No cuenta en `min_terms` ni en `unlocks_total` |
 
 La app calcula el layout (posición de cada rama) a partir de `requires` y `unlocks`. El backend no manda coordenadas.
 
@@ -114,9 +124,9 @@ Solo el estado del alumno; nada que ya esté en el plan.
 
 | Campo | Valores | Notas |
 |---|---|---|
-| `health.state` | `lush` (frondoso) · `wilted` (mustio) · `withered` (marchito) | Lo decide el backend (umbrales iniciales 5 / 10 días; 3 / 6 en época de parciales o mesas; pausados en receso). Nunca "muerto". La app solo lo dibuja |
+| `health.state` | `lush` (frondoso) · `wilted` (mustio) · `withered` (marchito) | Lo decide el backend según los días sin actividad, sin contar los días de receso: menos de 5 → `lush`, desde 5 → `wilted`, desde 10 → `withered`. En **época de parciales** (semana de mesas del calendario, o el alumno tiene un `exam` cargado en los próximos 7 días) los umbrales bajan a 3 / 6. Nunca "muerto". La app solo lo dibuja |
 | `health.last_activity` | fecha | Para mostrar "hace 11 días" si hace falta |
-| `streak.weeks` | entero ≥ 0 | Semanas ISO seguidas con al menos 1 sesión de estudio (ejercicio, simulacro o chat) |
+| `streak.weeks` | entero ≥ 0 | Semanas ISO seguidas (hora de Argentina) con al menos 1 sesión de estudio (ejercicio, simulacro o chat; el checkin no cuenta). Una semana vacía gasta un comodín o corta la racha; las semanas de receso la congelan; la semana en curso suma recién cuando tiene una sesión |
 | `streak.best` | entero | La app muestra esta cuando `weeks` = 0 |
 | `streak.wildcards` | entero 0–2 | Comodines: se gana 1 cada 4 semanas seguidas |
 | `subjects[].state` | `approved` · `regular` · `enrolled` (cursando) · `available` · `locked` | Solo vienen las materias con estado distinto de `locked`; la app asume `locked` para el resto |
@@ -142,11 +152,22 @@ Solo el estado del alumno; nada que ya esté en el plan.
 | Campo | Valores | Notas |
 |---|---|---|
 | `level` | `low` · `medium` · `high` | **No hay puntaje de abandono en el contrato, a propósito** |
-| `type` | `inactivity` · `first_exam_missed` | Las señales del MVP. Inactividad: 5 días → `low`, 10 → `medium` (`open_tutor`), 15 → `high` (`contact_tutor`) |
+| `type` | `inactivity` · `first_exam_missed` | Las señales del MVP (ver abajo) |
 | `message` | texto | En español, lo lee el alumno |
 | `action.type` | `open_tutor` · `build_schedule` · `view_dates` · `contact_tutor` | Lo que hace el botón de la alerta |
 
-`POST /api/students/{student_id}/alerts/{id}/dismiss` → `204`.
+`POST /api/students/{student_id}/alerts/{id}/dismiss` → `204` (`404` si no existe o es de otro alumno).
+
+Reglas del MVP (umbrales iniciales, a calibrar):
+
+| `type` | Cuándo | `level` | `action` |
+|---|---|---|---|
+| `inactivity` | 5 días sin actividad (3 en época de parciales) | `low` | `open_tutor` |
+| `inactivity` | 10 días (6) | `medium` | `open_tutor` con la materia cursando que tiene el parcial más cercano o, si no hay, la que más destraba. Esa materia queda seca (`dry`) |
+| `inactivity` | 15 días (10) | `high` | `contact_tutor` |
+| `first_exam_missed` | Pasó la fecha de un `exam` cargado y no hay un `exam` con `result` para esa materia y fecha (y la materia no está regular ni aprobada) | `high` si es cuello de botella, si no `medium` | `open_tutor` con la materia |
+
+Las alertas se recalculan en cada lectura o escritura del alumno. Una alerta descartada no vuelve mientras la condición sea la misma; reaparece si cambia (otro nivel de inactividad u otra fecha de parcial). Cuando la condición deja de cumplirse (por ejemplo, el alumno vuelve a tener actividad), la alerta desaparece sola.
 
 ### 2.4 Escritura y chat
 
@@ -167,7 +188,7 @@ Notas de `activity`:
 | `checkin` | Acción chica que revive el árbol. No suma a la racha | — |
 | `exercise` | Ejercicio practicado | `subject_id`, `topic`, `result: { "correct": bool }`. 3 correctos del mismo tema = tema dominado |
 | `mock_exam` | Simulacro | `subject_id`, `result: { "score": 0-100 }`. Aprobado con ≥ 60 |
-| `exam` | Fecha de un parcial del alumno (la API solo tiene parciales viejos) | `subject_id`, `date`. Si pasa la fecha sin `result`, se dispara `first_exam_missed` |
+| `exam` | Fecha de un parcial del alumno (la API solo tiene parciales viejos) | `subject_id`, `date`. Para registrar que lo rindió, se manda otro `exam` con la misma fecha y `result` (ej. `{ "score": 70 }`). Si pasa la fecha sin un `result`, se dispara `first_exam_missed` |
 
 Cualquier `activity` o mensaje de chat cuenta como actividad (resetea `last_activity`). Abrir la app (un GET) no.
 
@@ -195,6 +216,8 @@ data: {"tree_changed": true, "conversation_id": "c-12"}
 | `done` | Siempre, una vez, al final | Cierra el mensaje; guarda `conversation_id` para el próximo mensaje; si `tree_changed` es `true`, vuelve a pedir el árbol (2.2) y las alertas (2.3) |
 | `error` | Si algo falla | Muestra `{ "error": { "code", "message" } }` y cierra |
 
+Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (mensaje vacío o imagen inválida, máx. 5 MB), `403`/`404` (alumno o conversación) o `503` con `code: "tutor_unavailable"` si el backend no tiene configurada la key de OpenRouter.
+
 **Conversaciones:** `conversation_id` es opcional. Si no viene, el backend crea una conversación nueva y devuelve su id en `done`. Para seguir la misma, la app lo manda en los mensajes siguientes.
 
 **Implementación en dos etapas (sin cambiar el contrato):**
@@ -219,10 +242,11 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 ```
 
 ### `frequent_topics(subject_id: int, since?: int)`
-(`GET /exams?subject_id=`; parsea `description` → "Temas: a; b; c"; agrupa ignorando tildes, mayúsculas y el paréntesis final; muestra la variante más frecuente. Los exámenes sin fecha cuentan, pero no aportan `last_year`; `since` no los descarta)
+(`GET /exams?subject_id=`; parsea `description` → "Temas: a; b; c"; agrupa ignorando tildes, mayúsculas y el paréntesis final; muestra la variante más frecuente. Los exámenes sin fecha cuentan, pero no aportan `last_year`; `since` no los descarta. `keywords`: palabras (4 letras o más, sin tildes ni palabras vacías) y pares de palabras vecinas que aparecen en al menos 2 exámenes, con la cantidad de exámenes que los mencionan; una palabra suelta se omite si solo aparece dentro de un par igual de frecuente; hasta 15, y es lo que conviene usar cuando la materia tiene pocos exámenes)
 ```json
-{ "subject_id": 21, "exams_analyzed": 10, "undated": 4,
-  "topics": [ { "topic": "inducción", "count": 7, "last_year": 2025 } ] }
+{ "subject_id": 12, "exams_analyzed": 10, "undated": 0,
+  "topics": [ { "topic": "consecuencia semántica y contraejemplos", "count": 2, "last_year": 2017 } ],
+  "keywords": [ { "keyword": "deducción natural", "exams": 7, "last_year": 2022 } ] }
 ```
 
 ### `exercises(subject_id: int, topic?: str, category?: "parcial"|"final"|"recuperatorio"|"coloquio"|"quiz", limit?: int = 3)`
@@ -254,7 +278,7 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 ```
 
 ### `prerequisites(subject_id: int)`
-(`GET /subjects/{id}/relations`; `requirement: null` → `approved`, **a confirmar en #6**)
+(`GET /subjects/{id}/relations` con la revisión manual aplicada (`corrections/`, ver `revision-plan-lcc.md`): hay 3 correlativas de LCC que la API tiene mal y se corrigen; `requirement: null` → `approved`, confirmado)
 ```json
 { "subject_id": 55,
   "requires": [ { "subject_id": 52, "code": "FB3", "condition": "regular" } ],
@@ -276,7 +300,7 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 - **Semestre**: por materia, el más reciente (`2026-2S`); si solo tiene "última publicación" va con `stale: true` y un aviso. `semester` fuerza uno.
 - **Fin de clase vacío**: se asumen 180 min y la clase sale con `end_estimated: true`.
 - **Orden** (hasta 3 opciones): menos clases fuera del turno pedido (por hora de inicio: `morning` < 13:00, `afternoon` 13:00–18:59, `evening` desde 19:00), menos días en la facultad, menos horas de hueco, menor comisión. `free_days` es restricción dura; si ninguna combinación la cumple se ignora con un aviso.
-- **Sin combinación**: `conflicts` lista los pares que chocan en todas sus comisiones; `suggest_postpone` es el conjunto a postergar que menos cuellos de botella (`destraba_total >= 8`) toca, después el más chico, después el que menos destraba; `options` arma el resto. Los cuellos de botella se calculan en el MCP desde `/relations`.
+- **Sin combinación**: `conflicts` lista los pares que chocan en todas sus comisiones; `suggest_postpone` es el conjunto a postergar que menos cuellos de botella (`unlocks_total >= 8`) toca, después el más chico, después el que menos destraba; `options` arma el resto. Los cuellos de botella se calculan en el MCP desde `/relations`, con la revisión manual aplicada.
 - **Traslados**: `warnings` avisa dos clases seguidas en sedes distintas con menos de 60 min entre ellas (solo si ambas sedes están informadas). No influye en el orden.
 
 ```json
@@ -309,11 +333,13 @@ No están en el MCP: el backend las agrega al loop de tool use junto con las del
 |---|---|---|
 | **Los horarios no tienen un campo "comisión"**: viene en el texto libre de `notes` (ej. `"Com: 610 ciclo básico"`) | El armador tiene que parsear `notes` para agrupar clases por comisión; si no hay número, se asume una sola comisión | Fran |
 | `semester` en horarios mezcla `"2026-2S"` con `"última publicación"` | Filtrar por el cuatrimestre vigente y avisar si los horarios son viejos | Fran |
-| Solo el 83 % de las clases tiene sede | El aviso de traslados entre sedes es parcial | Fran |
-| **Las mesas de examen no traen fechas**, solo etiqueta y PDF | La alerta de inscripción a mesas queda fuera del MVP | Fran / Eugenio |
-| **`/calendar` no trae receso ni períodos de parciales** (solo ingreso 2027 y dos eventos sin fecha) | Los períodos 2026 se cargan a mano desde el PDF del Calendario Académico (Res. DEC 1723/2025) | Eugenio |
+| Solo el 83 % de las clases tiene sede (en LCC, el 100 % de `2026-2S`) | El aviso de traslados entre sedes es parcial y casi no aplica en LCC (ver `verificacion-datos.md`) | Fran |
+| **Las mesas de examen no traen fechas**, solo etiqueta y PDF (una por carrera, solo el 2.º llamado flotante 2026, que ya pasó; el PDF sí trae fecha por materia pero la API no la expone). Las 5 entradas de `inscripcion` de `/calendar` son del ingreso 2027, no de mesas | La alerta de inscripción a mesas queda fuera del MVP | Fran / Eugenio |
+| **`/calendar` no trae receso ni períodos de parciales** (solo ingreso 2027 y dos eventos sin fecha) | Receso y mesas 2026-27 cargados a mano desde el PDF del Calendario Académico (Res. DEC 1723/2025, Escuela de Ciencias Exactas y Naturales) en `backend/data/periods_fceia_2026.json`. Los parciales no están en el calendario: los carga el alumno | Eugenio |
+| **El 52 % de los exámenes no tiene fecha** (en LCC, el 23 %: 77 son los de Suficiencia de Inglés; sin ellos, el 6 %) | `frequent_topics` los cuenta pero no les pone `last_year`; no se infiere el año | Fran |
+| Los temas de las descripciones son texto libre: con pocos exámenes (Lógica: 10) casi todos aparecen una sola vez | `frequent_topics` devuelve además `keywords` (palabras y pares con la cantidad de exámenes que los mencionan) | Fran |
 | Solo 25 de las 73 resoluciones están vinculadas a un examen | `solution()` va a devolver `available: false` casi siempre; el tutor resuelve solo | Eugenio |
 | El texto de los materiales se busca por subcadena, no hay búsqueda semántica | `search_materials` es búsqueda por texto, no RAG con embeddings (ajustar la propuesta) | Fran |
-| `requirement` en correlativas puede ser `"regular"` o `null` | Confirmar que `null` significa "aprobada" | Fran |
+| `requirement` en correlativas puede ser `"regular"` o `null` | Confirmado para LCC: los programas 2024 solo tienen "Previos Aprobados", así que `null` = aprobada | Fran |
 | Materias compartidas entre carreras se reconocen por `code` | Resuelve la "reorientación": `GET /subjects?code=` | Fran |
 | `GET /subjects/{id}/overview` trae horarios, correlativas y conteos de exámenes en una llamada | Útil para armar el plan sin N llamadas | Fran |

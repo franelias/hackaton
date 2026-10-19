@@ -17,3 +17,7 @@ require (
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
+
+require github.com/franelias/hackaton/corrections v0.0.0
+
+replace github.com/franelias/hackaton/corrections => ../corrections
