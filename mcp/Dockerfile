@@ -1,8 +1,10 @@
+# Build from the repository root: docker build -f mcp/Dockerfile -t fceia-mcp .
 FROM golang:1.26 AS build
 WORKDIR /src
-COPY go.mod go.sum ./
+COPY corrections ./corrections
+COPY mcp ./mcp
+WORKDIR /src/mcp
 RUN go mod download
-COPY . .
 RUN CGO_ENABLED=0 go build -o /fceia-mcp ./cmd/fceia-mcp
 
 FROM gcr.io/distroless/static-debian12

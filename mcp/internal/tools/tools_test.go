@@ -367,7 +367,10 @@ func TestBibliographyListsBooksWithISBN(t *testing.T) {
 
 func TestPrerequisitesTreatNullRequirementAsApproved(t *testing.T) {
 	t.Parallel()
-	api := stubAPI(t, map[string]string{"/subjects/55/relations": "relations_s55.json"})
+	api := stubAPI(t, map[string]string{
+		"/subjects/55":           "subject55.json",
+		"/subjects/55/relations": "relations_s55.json",
+	})
 	cs := connect(t, api.URL, nil)
 
 	got := ok[struct {

@@ -1,332 +1,260 @@
 {
   "career_id": 1,
-  "nombre": "Licenciatura en Ciencias de la Computación",
-  "cuatrimestres_minimos": 9,
-  "camino_critico": [
+  "name": "Licenciatura en Ciencias de la Computación",
+  "min_terms": 7,
+  "critical_path": [
     1,
     4,
     7,
     10,
     15,
-    17,
-    23,
-    22,
-    25
+    21,
+    24
   ],
-  "materias": [
+  "subjects": [
     {
       "subject_id": 1,
       "code": "r111",
-      "nombre": "Álgebra y Geometría Analítica I",
-      "anio": 1,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [
+      "name": "Álgebra y Geometría Analítica I",
+      "year": 1,
+      "term": 1,
+      "optional": false,
+      "requires": [],
+      "unlocks": [
         4
       ],
-      "destraba_total": 14,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks_total": 13,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 2,
       "code": "r112",
-      "nombre": "Análisis Matemático I",
-      "anio": 1,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [
+      "name": "Análisis Matemático I",
+      "year": 1,
+      "term": 1,
+      "optional": false,
+      "requires": [],
+      "unlocks": [
         5
       ],
-      "destraba_total": 5,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 5,
+      "bottleneck": false,
+      "slack": 3,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 3,
       "code": "r113",
-      "nombre": "Programación I",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [
+      "name": "Programación I",
+      "year": 1,
+      "term": 1,
+      "optional": false,
+      "requires": [],
+      "unlocks": [
         6
       ],
-      "destraba_total": 18,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks_total": 18,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 4,
       "code": "r121",
-      "nombre": "Álgebra y Geometría Analítica II",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Álgebra y Geometría Analítica II",
+      "year": 1,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 1,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         7
       ],
-      "destraba_total": 13,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks_total": 12,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 5,
       "code": "r122",
-      "nombre": "Análisis Matemático II",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Análisis Matemático II",
+      "year": 1,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 2,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         13,
         14,
         27
       ],
-      "destraba_total": 4,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 4,
+      "bottleneck": false,
+      "slack": 3,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 6,
       "code": "r123",
-      "nombre": "Programación II",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Programación II",
+      "year": 1,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 3,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         8,
         9,
         12
       ],
-      "destraba_total": 17,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
-    },
-    {
-      "subject_id": 8,
-      "code": "r212",
-      "nombre": "Estructuras de Datos y Algoritmos I",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
-        {
-          "subject_id": 6,
-          "condicion": "aprobada"
-        }
-      ],
-      "destraba": [
-        10,
-        11,
-        15
-      ],
-      "destraba_total": 12,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
-    },
-    {
-      "subject_id": 10,
-      "code": "r221",
-      "nombre": "Complementos de Matemática I",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
-        {
-          "subject_id": 7,
-          "condicion": "aprobada"
-        },
-        {
-          "subject_id": 8,
-          "condicion": "aprobada"
-        }
-      ],
-      "destraba": [
-        15
-      ],
-      "destraba_total": 9,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
-    },
-    {
-      "subject_id": 18,
-      "code": "r313",
-      "nombre": "Análisis de Lenguajes de Programación",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
-        {
-          "subject_id": 12,
-          "condicion": "aprobada"
-        }
-      ],
-      "destraba": [
-        17,
-        26
-      ],
-      "destraba_total": 6,
-      "cuello_de_botella": false,
-      "holgura": 1,
-      "atraso_posponer_anio": 1
-    },
-    {
-      "subject_id": 22,
-      "code": "r411",
-      "nombre": "Ingeniería de Software I",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
-        {
-          "subject_id": 12,
-          "condicion": "aprobada"
-        },
-        {
-          "subject_id": 15,
-          "condicion": "aprobada"
-        },
-        {
-          "subject_id": 16,
-          "condicion": "aprobada"
-        },
-        {
-          "subject_id": 23,
-          "condicion": "aprobada"
-        }
-      ],
-      "destraba": [
-        25,
-        30
-      ],
-      "destraba_total": 2,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
-    },
-    {
-      "subject_id": 28,
-      "code": "r513",
-      "nombre": "Práctica Profesional",
-      "anio": 1,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 8,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 17,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 7,
       "code": "r211",
-      "nombre": "Álgebra Lineal",
-      "anio": 2,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [
+      "name": "Álgebra Lineal",
+      "year": 2,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 4,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         10,
         13,
         27
       ],
-      "destraba_total": 12,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks_total": 11,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
+    },
+    {
+      "subject_id": 8,
+      "code": "r212",
+      "name": "Estructuras de Datos y Algoritmos I",
+      "year": 2,
+      "term": 1,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 6,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        10,
+        11,
+        15
+      ],
+      "unlocks_total": 12,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 9,
       "code": "r213",
-      "nombre": "Lenguajes Formales y Computabilidad",
-      "anio": 2,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [
+      "name": "Lenguajes Formales y Computabilidad",
+      "year": 2,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 6,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         26
       ],
-      "destraba_total": 1,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 1,
+      "bottleneck": false,
+      "slack": 3,
+      "postpone_year_delay": 0
+    },
+    {
+      "subject_id": 10,
+      "code": "r221",
+      "name": "Complementos de Matemática I",
+      "year": 2,
+      "term": 2,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 7,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 8,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        15
+      ],
+      "unlocks_total": 8,
+      "bottleneck": true,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 11,
       "code": "r222",
-      "nombre": "Arquitectura del Computador",
-      "anio": 2,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Arquitectura del Computador",
+      "year": 2,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 8,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         20,
         23
       ],
-      "destraba_total": 5,
-      "cuello_de_botella": false,
-      "holgura": 2,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 2,
+      "bottleneck": false,
+      "slack": 2,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 12,
       "code": "r223",
-      "nombre": "Lógica",
-      "anio": 2,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Lógica",
+      "year": 2,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 6,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         17,
         18,
         21,
@@ -334,523 +262,576 @@
         24,
         27
       ],
-      "destraba_total": 10,
-      "cuello_de_botella": true,
-      "holgura": 1,
-      "atraso_posponer_anio": 1
+      "unlocks_total": 10,
+      "bottleneck": true,
+      "slack": 2,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 13,
       "code": "r224",
-      "nombre": "Métodos Numéricos",
-      "anio": 2,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Métodos Numéricos",
+      "year": 2,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 5,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 7,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 3,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 14,
       "code": "r311",
-      "nombre": "Probabilidad y Estadística",
-      "anio": 2,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Probabilidad y Estadística",
+      "year": 3,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 5,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         19
       ],
-      "destraba_total": 1,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 1,
+      "bottleneck": false,
+      "slack": 3,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 15,
       "code": "r312",
-      "nombre": "Estructuras de Datos y Algoritmos II",
-      "anio": 2,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Estructuras de Datos y Algoritmos II",
+      "year": 3,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 8,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 10,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
-        17,
+      "unlocks": [
+        18,
         21,
         22,
         24,
         26
       ],
-      "destraba_total": 8,
-      "cuello_de_botella": true,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks_total": 7,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 16,
       "code": "r314",
-      "nombre": "Examen de Suficiencia de Inglés",
-      "anio": 2,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [
+      "name": "Examen de Suficiencia de Inglés",
+      "year": 3,
+      "term": 1,
+      "optional": false,
+      "requires": [],
+      "unlocks": [
         22,
         23,
         24,
         26,
         27
       ],
-      "destraba_total": 7,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 7,
+      "bottleneck": false,
+      "slack": 4,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 17,
       "code": "r322",
-      "nombre": "Sistemas Operativos I",
-      "anio": 3,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Sistemas Operativos I",
+      "year": 3,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 12,
-          "condicion": "aprobada"
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        23
+      ],
+      "unlocks_total": 1,
+      "bottleneck": false,
+      "slack": 2,
+      "postpone_year_delay": 0
+    },
+    {
+      "subject_id": 18,
+      "code": "r313",
+      "name": "Análisis de Lenguajes de Programación",
+      "year": 3,
+      "term": 2,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 12,
+          "condition": "approved"
         },
         {
           "subject_id": 15,
-          "condicion": "aprobada"
-        },
-        {
-          "subject_id": 18,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
-        23
+      "unlocks": [
+        26
       ],
-      "destraba_total": 4,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks_total": 1,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 19,
       "code": "r321",
-      "nombre": "Modelos Físicos",
-      "anio": 3,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Modelos Físicos",
+      "year": 3,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 14,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 3,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 20,
       "code": "r323",
-      "nombre": "Comunicaciones",
-      "anio": 3,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Comunicaciones",
+      "year": 3,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 11,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 4,
-      "atraso_posponer_anio": 0
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 2,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 21,
       "code": "r324",
-      "nombre": "Teoría de Base de Datos",
-      "anio": 3,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Teoría de Base de Datos",
+      "year": 3,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 12,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 15,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
+      "unlocks": [
         24
       ],
-      "destraba_total": 1,
-      "cuello_de_botella": false,
-      "holgura": 2,
-      "atraso_posponer_anio": 0
+      "unlocks_total": 1,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
+    },
+    {
+      "subject_id": 22,
+      "code": "r411",
+      "name": "Ingeniería de Software I",
+      "year": 4,
+      "term": 1,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 12,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 15,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 16,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        25,
+        30
+      ],
+      "unlocks_total": 2,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 23,
       "code": "r412",
-      "nombre": "Sistemas Operativos II",
-      "anio": 4,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [
+      "name": "Sistemas Operativos II",
+      "year": 4,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 11,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 16,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 17,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [
-        22
-      ],
-      "destraba_total": 3,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 2,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 24,
       "code": "r413",
-      "nombre": "Introducción a la Inteligencia Artificial",
-      "anio": 4,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [
+      "name": "Introducción a la Inteligencia Artificial",
+      "year": 4,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 12,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 15,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 16,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 21,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 2,
-      "atraso_posponer_anio": 0
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 25,
       "code": "r421",
-      "nombre": "Ingeniería de Software II",
-      "anio": 4,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Ingeniería de Software II",
+      "year": 4,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 22,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 26,
       "code": "r422",
-      "nombre": "Compiladores",
-      "anio": 4,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Compiladores",
+      "year": 4,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 9,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 15,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 16,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 18,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 3,
-      "atraso_posponer_anio": 0
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 27,
       "code": "r423",
-      "nombre": "Complementos de Matemática II",
-      "anio": 4,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [
+      "name": "Complementos de Matemática II",
+      "year": 4,
+      "term": 2,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 5,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 7,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 12,
-          "condicion": "aprobada"
+          "condition": "approved"
         },
         {
           "subject_id": 16,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 5,
-      "atraso_posponer_anio": 0
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 3,
+      "postpone_year_delay": 0
+    },
+    {
+      "subject_id": 28,
+      "code": "r513",
+      "name": "Práctica Profesional",
+      "year": 5,
+      "term": 1,
+      "optional": false,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 6,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 29,
       "code": "r514",
-      "nombre": "Taller de Tesina",
-      "anio": 5,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 8,
-      "atraso_posponer_anio": 0
+      "name": "Taller de Tesina",
+      "year": 5,
+      "term": 1,
+      "optional": false,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 6,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 30,
       "code": "r511",
-      "nombre": "Seguridad Informática",
-      "anio": 5,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [
+      "name": "Seguridad Informática",
+      "year": 5,
+      "term": 1,
+      "optional": false,
+      "requires": [
         {
           "subject_id": 22,
-          "condicion": "aprobada"
+          "condition": "approved"
         }
       ],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 2
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 197,
       "code": "R512",
-      "nombre": "Optativa I",
-      "anio": 5,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 8,
-      "atraso_posponer_anio": 0
+      "name": "Optativa I",
+      "year": 5,
+      "term": 1,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 198,
       "code": "R521",
-      "nombre": "Optativa II",
-      "anio": 5,
-      "cuatrimestre": 1,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 8,
-      "atraso_posponer_anio": 0
-    },
-    {
-      "subject_id": 31,
-      "code": "r523",
-      "nombre": "Tesina",
-      "anio": 5,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 8,
-      "atraso_posponer_anio": 0
+      "name": "Optativa II",
+      "year": 5,
+      "term": 1,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 199,
       "code": "R522",
-      "nombre": "Optativa III",
-      "anio": 5,
-      "cuatrimestre": 2,
-      "opcional": false,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 8,
-      "atraso_posponer_anio": 0
+      "name": "Optativa III",
+      "year": 5,
+      "term": 2,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 32,
       "code": "521a",
-      "nombre": "Programación con Categorías",
-      "anio": null,
-      "cuatrimestre": 1,
-      "opcional": true,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 0
+      "name": "Programación con Categorías",
+      "year": null,
+      "term": 1,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 33,
       "code": "521f",
-      "nombre": "Bases de Datos Avanzadas",
-      "anio": null,
-      "cuatrimestre": 1,
-      "opcional": true,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 0
+      "name": "Bases de Datos Avanzadas",
+      "year": null,
+      "term": 1,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 34,
       "code": "521i",
-      "nombre": "Simulación de Sistemas Continuos",
-      "anio": null,
-      "cuatrimestre": 1,
-      "opcional": true,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 0
+      "name": "Simulación de Sistemas Continuos",
+      "year": null,
+      "term": 1,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 35,
       "code": "521b",
-      "nombre": "Procesamiento Digital de Imágenes",
-      "anio": null,
-      "cuatrimestre": 2,
-      "opcional": true,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 0
+      "name": "Procesamiento Digital de Imágenes",
+      "year": null,
+      "term": 2,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 36,
       "code": "521h",
-      "nombre": "Construcción Formal de Programas en Teoría de Tipos",
-      "anio": null,
-      "cuatrimestre": 2,
-      "opcional": true,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 0
+      "name": "Construcción Formal de Programas en Teoría de Tipos",
+      "year": null,
+      "term": 2,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 37,
       "code": "521j",
-      "nombre": "Tópicos de Minería de Datos",
-      "anio": null,
-      "cuatrimestre": 2,
-      "opcional": true,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 0
+      "name": "Tópicos de Minería de Datos",
+      "year": null,
+      "term": 2,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     },
     {
       "subject_id": 38,
       "code": "521k",
-      "nombre": "Robótica Móvil",
-      "anio": null,
-      "cuatrimestre": 2,
-      "opcional": true,
-      "requiere": [],
-      "destraba": [],
-      "destraba_total": 0,
-      "cuello_de_botella": false,
-      "holgura": 0,
-      "atraso_posponer_anio": 0
+      "name": "Robótica Móvil",
+      "year": null,
+      "term": 2,
+      "optional": true,
+      "requires": [],
+      "unlocks": [],
+      "unlocks_total": 0,
+      "bottleneck": false,
+      "slack": 0,
+      "postpone_year_delay": 0
     }
-  ]
+  ],
+  "final_goal": {
+    "subject_id": 31,
+    "code": "r523",
+    "name": "Tesina",
+    "year": 5,
+    "term": 2,
+    "requires_all": true
+  }
 }

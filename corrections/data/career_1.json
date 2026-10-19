@@ -1,0 +1,95 @@
+{
+  "subjects": {
+    "3": {
+      "year": 1,
+      "term": 1,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-113 Programación I es de 1.º año, 1.º cuatrimestre"
+    },
+    "8": {
+      "year": 2,
+      "term": 3,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-212 Estructuras de Datos y Algoritmos I es de 2.º año, 1.º cuatrimestre"
+    },
+    "10": {
+      "year": 2,
+      "term": 4,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-221 Complementos de Matemática I es de 2.º año, 2.º cuatrimestre"
+    },
+    "14": {
+      "year": 3,
+      "term": 5,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-311 Probabilidad y Estadística es de 3.º año, 1.º cuatrimestre"
+    },
+    "15": {
+      "year": 3,
+      "term": 5,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-312 Estructuras de Datos y Algoritmos II es de 3.º año, 1.º cuatrimestre"
+    },
+    "16": {
+      "year": 3,
+      "term": 5,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-314 Examen de Suficiencia de Inglés está en 3.º año, 1.º cuatrimestre"
+    },
+    "17": {
+      "year": 3,
+      "term": 5,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-313 Sistemas Operativos I es de 3.º año, 1.º cuatrimestre (la API lo llama r322)"
+    },
+    "18": {
+      "year": 3,
+      "term": 6,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-322 Análisis de Lenguajes de Programación es de 3.º año, 2.º cuatrimestre (la API lo llama r313)"
+    },
+    "22": {
+      "year": 4,
+      "term": 7,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-411 Ingeniería de Software I es de 4.º año, 1.º cuatrimestre"
+    },
+    "28": {
+      "year": 5,
+      "term": 9,
+      "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-512 Práctica Profesional está en 5.º año, 1.º cuatrimestre: es una actividad de 200 h más un seminario de 50 h, sin orden fijo ni correlativas"
+    },
+    "197": {
+      "elective": true,
+      "note": "Optativa I no es una materia del plan: el plan oficial solo prevé 225 horas electivas (75 h en 5.º año 1.º cuatrimestre y 150 h en el 2.º)"
+    },
+    "198": {
+      "elective": true,
+      "note": "Optativa II no es una materia del plan: el plan oficial solo prevé 225 horas electivas (75 h en 5.º año 1.º cuatrimestre y 150 h en el 2.º)"
+    },
+    "199": {
+      "elective": true,
+      "note": "Optativa III no es una materia del plan: el plan oficial solo prevé 225 horas electivas (75 h en 5.º año 1.º cuatrimestre y 150 h en el 2.º)"
+    },
+    "31": {
+      "final_goal": true,
+      "note": "R-521 Tesina es el objetivo final: para presentarla hay que tener aprobadas todas las otras asignaturas (Reglamento de la Tesina). Queda fuera del grafo de correlativas"
+    }
+  },
+  "add_prerequisites": [
+    {
+      "subject_id": 18,
+      "requires": 15,
+      "condition": "approved",
+      "note": "Programa 2024 de la materia, Espacios Curriculares Relacionados: Previos Aprobados de R-322 Análisis de Lenguajes = R-223 Lógica, R-312 EDA II"
+    }
+  ],
+  "remove_prerequisites": [
+    {
+      "subject_id": 17,
+      "requires": 15,
+      "note": "Programa 2024 de la materia, Espacios Curriculares Relacionados: Previos Aprobados de R-313 Sistemas Operativos I = R-223 Lógica solamente"
+    },
+    {
+      "subject_id": 17,
+      "requires": 18,
+      "note": "Programa 2024 de la materia, Espacios Curriculares Relacionados: Análisis de Lenguajes es solo 'simultáneo recomendado' de Sistemas Operativos I"
+    },
+    {
+      "subject_id": 22,
+      "requires": 23,
+      "note": "Programa 2024 de la materia, Espacios Curriculares Relacionados: Previos Aprobados de R-411 Ingeniería de Software I = R-223, R-312, R-314; Sistemas Operativos II es solo 'simultáneo recomendado'"
+    }
+  ]
+}

@@ -12,11 +12,12 @@ import (
 
 	"github.com/franelias/hackaton/backend/internal/fceia"
 	"github.com/franelias/hackaton/backend/internal/plan"
+	"github.com/franelias/hackaton/corrections"
 )
 
 func main() {
 	career := flag.Int("career", 1, "career_id")
-	overrides := flag.String("overrides", "data/overrides/career_1.json", "manual-review overrides file ('' for none)")
+	overrides := flag.String("overrides", "", "manual-review file to use instead of the embedded corrections/data/career_<id>.json")
 	out := flag.String("out", "data/plan_career_1.json", "output file ('-' for stdout)")
 	flag.Parse()
 
@@ -27,7 +28,13 @@ func main() {
 	if base == "" {
 		base = fceia.DefaultBase
 	}
-	ov, err := plan.LoadOverrides(*overrides)
+	ov, err := corrections.For(*career)
+	if *overrides != "" {
+		var raw []byte
+		if raw, err = os.ReadFile(*overrides); err == nil {
+			ov, err = corrections.Parse(raw)
+		}
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,5 +54,5 @@ func main() {
 	if err := os.WriteFile(*out, b, 0o644); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("wrote %s (%d subjects, %d cuatrimestres minimos)", *out, len(res.Plan.Materias), res.Plan.CuatrimestresMinimos)
+	log.Printf("wrote %s (%d subjects, %d cuatrimestres minimos)", *out, len(res.Plan.Subjects), res.Plan.MinTerms)
 }
