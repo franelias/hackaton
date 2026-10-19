@@ -114,9 +114,9 @@ Solo el estado del alumno; nada que ya esté en el plan.
 
 | Campo | Valores | Notas |
 |---|---|---|
-| `health.state` | `lush` (frondoso) · `wilted` (mustio) · `withered` (marchito) | Lo decide el backend (umbrales iniciales 5 / 10 días; 3 / 6 en época de parciales o mesas; pausados en receso). Nunca "muerto". La app solo lo dibuja |
+| `health.state` | `lush` (frondoso) · `wilted` (mustio) · `withered` (marchito) | Lo decide el backend según los días sin actividad, sin contar los días de receso: menos de 5 → `lush`, desde 5 → `wilted`, desde 10 → `withered`. En **época de parciales** (semana de mesas del calendario, o el alumno tiene un `exam` cargado en los próximos 7 días) los umbrales bajan a 3 / 6. Nunca "muerto". La app solo lo dibuja |
 | `health.last_activity` | fecha | Para mostrar "hace 11 días" si hace falta |
-| `streak.weeks` | entero ≥ 0 | Semanas ISO seguidas con al menos 1 sesión de estudio (ejercicio, simulacro o chat) |
+| `streak.weeks` | entero ≥ 0 | Semanas ISO seguidas (hora de Argentina) con al menos 1 sesión de estudio (ejercicio, simulacro o chat; el checkin no cuenta). Una semana vacía gasta un comodín o corta la racha; las semanas de receso la congelan; la semana en curso suma recién cuando tiene una sesión |
 | `streak.best` | entero | La app muestra esta cuando `weeks` = 0 |
 | `streak.wildcards` | entero 0–2 | Comodines: se gana 1 cada 4 semanas seguidas |
 | `subjects[].state` | `approved` · `regular` · `enrolled` (cursando) · `available` · `locked` | Solo vienen las materias con estado distinto de `locked`; la app asume `locked` para el resto |
@@ -142,11 +142,22 @@ Solo el estado del alumno; nada que ya esté en el plan.
 | Campo | Valores | Notas |
 |---|---|---|
 | `level` | `low` · `medium` · `high` | **No hay puntaje de abandono en el contrato, a propósito** |
-| `type` | `inactivity` · `first_exam_missed` | Las señales del MVP. Inactividad: 5 días → `low`, 10 → `medium` (`open_tutor`), 15 → `high` (`contact_tutor`) |
+| `type` | `inactivity` · `first_exam_missed` | Las señales del MVP (ver abajo) |
 | `message` | texto | En español, lo lee el alumno |
 | `action.type` | `open_tutor` · `build_schedule` · `view_dates` · `contact_tutor` | Lo que hace el botón de la alerta |
 
-`POST /api/students/{student_id}/alerts/{id}/dismiss` → `204`.
+`POST /api/students/{student_id}/alerts/{id}/dismiss` → `204` (`404` si no existe o es de otro alumno).
+
+Reglas del MVP (umbrales iniciales, a calibrar):
+
+| `type` | Cuándo | `level` | `action` |
+|---|---|---|---|
+| `inactivity` | 5 días sin actividad (3 en época de parciales) | `low` | `open_tutor` |
+| `inactivity` | 10 días (6) | `medium` | `open_tutor` con la materia cursando que tiene el parcial más cercano o, si no hay, la que más destraba. Esa materia queda seca (`dry`) |
+| `inactivity` | 15 días (10) | `high` | `contact_tutor` |
+| `first_exam_missed` | Pasó la fecha de un `exam` cargado y no hay un `exam` con `result` para esa materia y fecha (y la materia no está regular ni aprobada) | `high` si es cuello de botella, si no `medium` | `open_tutor` con la materia |
+
+Las alertas se recalculan en cada lectura o escritura del alumno. Una alerta descartada no vuelve mientras la condición sea la misma; reaparece si cambia (otro nivel de inactividad u otra fecha de parcial). Cuando la condición deja de cumplirse (por ejemplo, el alumno vuelve a tener actividad), la alerta desaparece sola.
 
 ### 2.4 Escritura y chat
 
@@ -167,7 +178,7 @@ Notas de `activity`:
 | `checkin` | Acción chica que revive el árbol. No suma a la racha | — |
 | `exercise` | Ejercicio practicado | `subject_id`, `topic`, `result: { "correct": bool }`. 3 correctos del mismo tema = tema dominado |
 | `mock_exam` | Simulacro | `subject_id`, `result: { "score": 0-100 }`. Aprobado con ≥ 60 |
-| `exam` | Fecha de un parcial del alumno (la API solo tiene parciales viejos) | `subject_id`, `date`. Si pasa la fecha sin `result`, se dispara `first_exam_missed` |
+| `exam` | Fecha de un parcial del alumno (la API solo tiene parciales viejos) | `subject_id`, `date`. Para registrar que lo rindió, se manda otro `exam` con la misma fecha y `result` (ej. `{ "score": 70 }`). Si pasa la fecha sin un `result`, se dispara `first_exam_missed` |
 
 Cualquier `activity` o mensaje de chat cuenta como actividad (resetea `last_activity`). Abrir la app (un GET) no.
 
@@ -311,7 +322,7 @@ No están en el MCP: el backend las agrega al loop de tool use junto con las del
 | `semester` en horarios mezcla `"2026-2S"` con `"última publicación"` | Filtrar por el cuatrimestre vigente y avisar si los horarios son viejos | Fran |
 | Solo el 83 % de las clases tiene sede | El aviso de traslados entre sedes es parcial | Fran |
 | **Las mesas de examen no traen fechas**, solo etiqueta y PDF | La alerta de inscripción a mesas queda fuera del MVP | Fran / Eugenio |
-| **`/calendar` no trae receso ni períodos de parciales** (solo ingreso 2027 y dos eventos sin fecha) | Los períodos 2026 se cargan a mano desde el PDF del Calendario Académico (Res. DEC 1723/2025) | Eugenio |
+| **`/calendar` no trae receso ni períodos de parciales** (solo ingreso 2027 y dos eventos sin fecha) | Receso y mesas 2026-27 cargados a mano desde el PDF del Calendario Académico (Res. DEC 1723/2025, Escuela de Ciencias Exactas y Naturales) en `backend/data/periods_fceia_2026.json`. Los parciales no están en el calendario: los carga el alumno | Eugenio |
 | Solo 25 de las 73 resoluciones están vinculadas a un examen | `solution()` va a devolver `available: false` casi siempre; el tutor resuelve solo | Eugenio |
 | El texto de los materiales se busca por subcadena, no hay búsqueda semántica | `search_materials` es búsqueda por texto, no RAG con embeddings (ajustar la propuesta) | Fran |
 | `requirement` en correlativas puede ser `"regular"` o `null` | Confirmar que `null` significa "aprobada" | Fran |
