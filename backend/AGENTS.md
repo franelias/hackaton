@@ -11,6 +11,7 @@ Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/c
 - Migrate: `go run ./cmd/migrate` (goose, SQL in `internal/db/migrations/`)
 - Load a plan into the database: `go run ./cmd/import-plan` (flags `-file`, `-faculty`); re-running replaces that career's plan
 - Load calendar periods (recess, mesas): `go run ./cmd/import-periods` (`data/periods_fceia_2026.json`, read by hand from the official PDF)
+- Demo students: `go run ./cmd/seed` (re)creates Ana (`ana@arbol.demo`, lush, practicing Análisis I) and Beto (`beto@arbol.demo`, withered, dry Lógica branch, alerts) with dates relative to now; password `DEMO_PASSWORD` (default `arbol-demo`). Run it before each rehearsal; student ids change on every run
 - Serve the API: `go run ./cmd/server` (`DATABASE_URL`, `PORT`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_EMULATOR_HOST`, `MCP_URL`, `OPENROUTER_API_KEY`, `TUTOR_MODEL`, `TUTOR_FALLBACK_MODELS`); without the OpenRouter key `/api/chat` answers 503
 - Emulator ID token for curl: `curl -s -X POST 'http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake' -H 'Content-Type: application/json' -d '{"email":"x@arbol.dev","password":"secret123","returnSecureToken":true}'` → `idToken`
 
