@@ -18,7 +18,7 @@ func (s *Server) localTools(st *db.Student, conv *db.Conversation) []tutor.Tool 
 	return []tutor.Tool{
 		{
 			Name:        "view_my_tree",
-			Description: "The student's tree: health, weekly streak, each subject with its state (approved, regular, enrolled, available; locked ones are omitted), leaves (exercises and sessions), flower (mock exam passed) and the open alerts.",
+			Description: "The student's tree: health, weekly streak, each subject with its state (approved, regular, enrolled, available; locked ones are omitted), leaves (exercises and sessions), flower (mock exam passed), the topics practiced (correct/attempts, mastered after 3 correct) and the open alerts.",
 			Parameters:  map[string]any{"type": "object", "properties": map[string]any{}},
 			Status:      "Mirando tu árbol…",
 			Run:         func(context.Context, json.RawMessage) (string, bool) { return s.viewTree(st) },
@@ -57,15 +57,15 @@ func (s *Server) localTools(st *db.Student, conv *db.Conversation) []tutor.Tool 
 			},
 			Status: "Preparando el simulacro…",
 			Run: func(_ context.Context, args json.RawMessage) (string, bool) {
-				var in struct{ SubjectID, Minutes int }
-				if json.Unmarshal(args, &in) != nil || in.Minutes < 10 || in.Minutes > 300 {
-					return "subject_id and minutes (10-300) are required", true
+				subjectID, minutes, msg := parseMockExam(args)
+				if msg != "" {
+					return msg, true
 				}
-				if err := s.subjectInCareer(st, in.SubjectID); err != nil {
+				if err := s.subjectInCareer(st, subjectID); err != nil {
 					return "subject not in the student's career", true
 				}
 				now := s.Now()
-				conv.MockSubjectID, conv.MockMinutes, conv.MockStartedAt = &in.SubjectID, &in.Minutes, &now
+				conv.MockSubjectID, conv.MockMinutes, conv.MockStartedAt = &subjectID, &minutes, &now
 				if err := s.DB.Save(conv).Error; err != nil {
 					return err.Error(), true
 				}
@@ -88,13 +88,27 @@ func (s *Server) viewTree(st *db.Student) (string, bool) {
 	for _, m := range subjects {
 		names[m.ID] = m.Name
 	}
+	var exercises []db.Activity
+	if err := s.DB.Find(&exercises, "student_id = ? AND type = 'exercise'", st.ID).Error; err != nil {
+		return err.Error(), true
+	}
+	var acts []tree.Activity
+	for _, a := range exercises {
+		if a.Topic != nil {
+			acts = append(acts, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Topic: *a.Topic, Result: a.Result})
+		}
+	}
+	topics := tree.Topics(acts)
 	type subject struct {
 		tree.Subject
-		Name string `json:"name"`
+		Name   string           `json:"name"`
+		Topics []tree.TopicStat `json:"topics,omitempty"`
 	}
 	type alert struct {
-		Level, Type, Message string
-		SubjectID            *int
+		Level     string `json:"level"`
+		Type      string `json:"type"`
+		Message   string `json:"message"`
+		SubjectID *int   `json:"subject_id"`
 	}
 	out := struct {
 		Health   tree.Health `json:"health"`
@@ -103,7 +117,7 @@ func (s *Server) viewTree(st *db.Student) (string, bool) {
 		Alerts   []alert     `json:"alerts"`
 	}{Health: t.Health, Streak: t.Streak}
 	for _, x := range t.Subjects {
-		out.Subjects = append(out.Subjects, subject{x, names[x.SubjectID]})
+		out.Subjects = append(out.Subjects, subject{x, names[x.SubjectID], topics[x.SubjectID]})
 	}
 	for _, a := range alerts {
 		out.Alerts = append(out.Alerts, alert{a.Level, a.Type, a.Message, a.SubjectID})
@@ -161,4 +175,16 @@ func (s *Server) recordProgress(st *db.Student, conv *db.Conversation, args json
 		}
 	}
 	return "saved", false
+}
+
+// parseMockExam reads start_mock_exam's arguments; msg is set when they are invalid.
+func parseMockExam(args json.RawMessage) (subjectID, minutes int, msg string) {
+	var in struct {
+		SubjectID int `json:"subject_id"`
+		Minutes   int `json:"minutes"`
+	}
+	if json.Unmarshal(args, &in) != nil || in.SubjectID <= 0 || in.Minutes < 10 || in.Minutes > 300 {
+		return 0, 0, "subject_id and minutes (10-300) are required"
+	}
+	return in.SubjectID, in.Minutes, ""
 }
