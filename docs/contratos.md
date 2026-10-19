@@ -12,7 +12,7 @@
 | Backend | Go + Chi |
 | Persistencia | Postgres (reemplaza la mención a SQLite del issue #9) |
 | Autenticación | Firebase Auth (Google y email + contraseña); el backend verifica el ID token |
-| Modelos del tutor | Vercel AI Gateway (formato OpenAI Chat Completions): modelo principal `anthropic/claude-sonnet-5-5` y fallbacks de otros proveedores, configurables en el backend |
+| Modelos del tutor | OpenRouter (formato OpenAI Chat Completions): modelo principal `anthropic/claude-sonnet-5.5` y fallbacks de otros proveedores (`openai/gpt-6-astra`, `google/gemini-3.1-pro-preview`), configurables en el backend |
 | Streaming del chat | Contrato SSE desde el día 1; implementación en dos etapas (ver 2.5) |
 | Formato de errores | `{ "error": { "code": "string", "message": "string" } }` en backend y MCP. Códigos del MCP: `not_found`, `api_unavailable`, `invalid_argument` |
 | Idioma | **Todo lo que viaja por el cable va en inglés**: rutas, campos, valores de enums propios, eventos SSE y nombres de tools del MCP. La documentación queda en español. Los textos que lee el alumno (`message` de una alerta, respuestas del tutor) van en español |
@@ -216,7 +216,7 @@ data: {"tree_changed": true, "conversation_id": "c-12"}
 | `done` | Siempre, una vez, al final | Cierra el mensaje; guarda `conversation_id` para el próximo mensaje; si `tree_changed` es `true`, vuelve a pedir el árbol (2.2) y las alertas (2.3) |
 | `error` | Si algo falla | Muestra `{ "error": { "code", "message" } }` y cierra |
 
-Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (mensaje vacío o imagen inválida, máx. 5 MB), `403`/`404` (alumno o conversación) o `503` con `code: "tutor_unavailable"` si el backend no tiene configurado el gateway.
+Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (mensaje vacío o imagen inválida, máx. 5 MB), `403`/`404` (alumno o conversación) o `503` con `code: "tutor_unavailable"` si el backend no tiene configurada la key de OpenRouter.
 
 **Conversaciones:** `conversation_id` es opcional. Si no viene, el backend crea una conversación nueva y devuelve su id en `done`. Para seguir la misma, la app lo manda en los mensajes siguientes.
 
