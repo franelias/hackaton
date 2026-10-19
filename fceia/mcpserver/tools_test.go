@@ -1,4 +1,4 @@
-package tools_test
+package mcpserver_test
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/franelias/hackaton/fceia"
-	"github.com/franelias/hackaton/mcp/internal/tools"
+	"github.com/franelias/hackaton/fceia/mcpserver"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -53,7 +53,7 @@ func stubAPI(t *testing.T, routes map[string]string) *httptest.Server {
 
 func connect(t *testing.T, apiURL string, now func() time.Time) *mcp.ClientSession {
 	t.Helper()
-	server := tools.NewServer(fceia.New(apiURL+"/api/v1"), now)
+	server := mcpserver.NewServer(fceia.New(apiURL+"/api/v1"), now)
 	ct, st := mcp.NewInMemoryTransports()
 	ctx := context.Background()
 	ss, err := server.Connect(ctx, st, nil)

@@ -87,4 +87,4 @@ Correlativas oficiales (programas 2024) contra las de la API. Las columnas de co
 1. Bajar el `syllabus_pdf_url` de cada materia (`/careers/{id}/curriculum`) y leer "Previos Aprobados".
 2. Compararlo con `/subjects/{id}/relations`.
 3. Agregar la diferencia a `corrections/data/career_<id>.json` con su `note`; el módulo rechaza campos desconocidos y correcciones sobre materias o correlativas que no existen.
-4. `cd backend && go run ./cmd/plan -career <id>` regenera el plan.
+4. `cd backend && go run ./cmd/arbol plan --career <id>` regenera el plan.

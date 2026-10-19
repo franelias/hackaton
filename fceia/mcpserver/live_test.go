@@ -1,6 +1,6 @@
 //go:build live
 
-package tools_test
+package mcpserver_test
 
 import (
 	"strings"
@@ -9,7 +9,7 @@ import (
 	"github.com/franelias/hackaton/fceia"
 )
 
-// Run with: go test -tags live ./internal/tools
+// Run with: go test -tags live ./mcpserver
 func TestLiveLogicaFlow(t *testing.T) {
 	cs := connect(t, strings.TrimSuffix(fceia.DefaultBase, "/api/v1"), nil)
 

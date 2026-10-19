@@ -32,7 +32,7 @@
 
 ## Estructura (`backend/`)
 Fran ya creó el módulo `github.com/franelias/hackaton/backend` con `cmd/plan`, `internal/plan` (puro), `internal/fceia` y `data/plan_career_1.json`. Sigo sus convenciones (`backend/AGENTS.md`): `cmd/<binario>` + `internal/<paquete>`, paquetes puros sin HTTP y tests sin red.
-- `cmd/server`: API HTTP (Chi). `cmd/migrate`, `cmd/import-plan`, `cmd/seed`: subcomandos como binarios aparte, igual que `cmd/plan`.
+- `cmd/arbol`: un solo CLI (cobra) con `serve`, `migrate`, `import plan|periods`, `seed`, `plan` y `up` (levanta todo).
 - `internal/db`: migraciones goose (SQL embebido) y modelos GORM.
 - `internal/api`: router, middleware de auth, handlers del contrato y errores `{error:{code,message}}`.
 - `internal/tree`: funciones puras para el estado de materias, la salud, la racha y las reglas de alertas.

@@ -1,18 +1,22 @@
 # backend
 
-Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/contratos.md` §1.1 and §2 (student state, #9). Chat (#7) and alerts (#10) go here too. Plan: `docs/plan.md` (Spanish).
+Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/contratos.md` §1.1 and §2 (student state, #9). Chat (#7) and alerts (#10) go here too, and `arbol mcp` serves the FCEIA tools (`../fceia`) as an MCP server. Plan: `docs/plan.md` (Spanish).
 
 ## Commands
 
 - Test: `go test ./...` (parallel, no network)
 - Vet: `go vet ./...`
-- Regenerate the plan of a career from the real API: `go run ./cmd/plan` (writes `data/plan_career_1.json`; flags `-career`, `-overrides` to try a review file instead of the embedded one, `-out`; `FCEIA_API_BASE` overrides the API)
-- Local services: `docker compose up -d --build` (Postgres on 5432, Firebase Auth Emulator on 9099); `cp .env.example .env` and export it
-- Migrate: `go run ./cmd/migrate` (goose, SQL in `internal/db/migrations/`)
-- Load a plan into the database: `go run ./cmd/import-plan` (flags `-file`, `-faculty`); re-running replaces that career's plan
-- Load calendar periods (recess, mesas): `go run ./cmd/import-periods` (`data/periods_fceia_2026.json`, read by hand from the official PDF)
-- Demo students: `go run ./cmd/seed` (re)creates Ana (`ana@arbol.demo`, lush, practicing Análisis I) and Beto (`beto@arbol.demo`, withered, dry Lógica branch, alerts) with dates relative to now; password `DEMO_PASSWORD` (default `arbol-demo`). Run it before each rehearsal; student ids change on every run
-- Serve the API: `go run ./cmd/server` (`DATABASE_URL`, `PORT`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_EMULATOR_HOST`, `FCEIA_API_BASE`, `OPENROUTER_API_KEY`, `TUTOR_MODEL`, `TUTOR_FALLBACK_MODELS`); without the OpenRouter key `/api/chat` answers 503
+- Make: the root `Makefile` wraps everything (`make up`, `make up-seed`, `make test`, `make docker`…); `make` lists the targets
+- CLI: one binary, `go run ./cmd/arbol <command>` (cobra), run from `backend/`. It loads `.env` first (`--env-file`; variables already set win), so no need to export it
+- Everything at once: `go run ./cmd/arbol up [--seed] [--no-docker]` = `docker compose up -d` (Postgres on 5432, Firebase Auth Emulator on 9099) → wait for Postgres → migrate → import plan and periods → seed with `--seed` → serve. Re-running is safe: imports replace
+- Regenerate the plan of a career from the real API: `arbol plan` (writes `data/plan_career_1.json`; flags `--career`, `--overrides` to try a review file instead of the embedded one, `--out`; `FCEIA_API_BASE` overrides the API)
+- Migrate: `arbol migrate` (goose, SQL embedded from `internal/db/migrations/`)
+- Load a plan into the database: `arbol import plan` (flags `--file`, `--faculty`); re-running replaces that career's plan
+- Load calendar periods (recess, mesas): `arbol import periods` (`data/periods_fceia_2026.json`, read by hand from the official PDF)
+- Demo students: `arbol seed` (re)creates Ana (`ana@arbol.demo`, lush, practicing Análisis I) and Beto (`beto@arbol.demo`, withered, dry Lógica branch, alerts) with dates relative to now; password `DEMO_PASSWORD` (default `arbol-demo`). Run it before each rehearsal; student ids change on every run
+- FCEIA MCP server for external clients: `arbol mcp` (HTTP `/mcp` on `MCP_PORT`, default 8080) or `arbol mcp --stdio`; see `../fceia/AGENTS.md`
+- Docker: one image for everything, built from the repository root: `docker build -t arbol .` (from `..`); `docker run arbol` serves the API, `docker run arbol mcp` the MCP server, and any other subcommand works the same (`migrate`, `import plan`…)
+- Serve the API: `arbol serve` (`DATABASE_URL`, `PORT`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_EMULATOR_HOST`, `FCEIA_API_BASE`, `OPENROUTER_API_KEY`, `TUTOR_MODEL`, `TUTOR_FALLBACK_MODELS`); without the OpenRouter key `/api/chat` answers 503
 - Emulator ID token for curl: `curl -s -X POST 'http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake' -H 'Content-Type: application/json' -d '{"email":"x@arbol.dev","password":"secret123","returnSecureToken":true}'` → `idToken`
 
 ## Conventions

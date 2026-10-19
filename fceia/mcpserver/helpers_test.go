@@ -1,4 +1,4 @@
-package tools_test
+package mcpserver_test
 
 import (
 	"sort"

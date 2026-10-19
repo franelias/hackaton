@@ -13,4 +13,4 @@ Manual-review layer over the FCEIA API (issue #5). One embedded JSON per career:
 - `subjects` fixes `year`/`term` (absolute cuatrimestre 1..10), turns a subject `elective`, or marks the `final_goal` (the Tesina: out of the correlativa graph).
 - `add_prerequisites` / `remove_prerequisites` fix correlativas. `condition` is `approved` (default) or `regular`.
 - Unknown JSON fields, unknown subjects and removals of correlativas the API does not have are errors, so a typo never drops a correction silently.
-- Used from `backend/` and `mcp/` through `replace github.com/franelias/hackaton/corrections => ../corrections`. Anything that builds a module needs the repository root as context (see `mcp/Dockerfile`).
+- Used from `backend/` and `fceia/` through `replace github.com/franelias/hackaton/corrections => ../corrections`. Anything that builds a module needs the repository root as context (see the root `Dockerfile`).

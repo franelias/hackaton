@@ -1,27 +1,14 @@
-// Command seed (re)creates the two demo students, with dates relative to now
-// so every rehearsal starts the same:
-//
-//   - Ana (ana@arbol.demo): first year, practicing Análisis Matemático I for
-//     6 weeks, exam in 10 days, one topic mastered and no flower yet. Her tree
-//     is lush; in the demo she passes a mock exam and the flower appears.
-//   - Beto (beto@arbol.demo): second year with first year approved, enrolled
-//     in Lógica (a bottleneck). He stopped coming 12 days ago and missed the
-//     Lógica exam 3 days ago: withered tree, dry Lógica branch, alerts.
-//
-// Config: DATABASE_URL, FIREBASE_PROJECT_ID (FIREBASE_AUTH_EMULATOR_HOST for
-// the emulator), DEMO_PASSWORD (default "arbol-demo"). Other students are not
-// touched.
 package main
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
-	"os"
 	"time"
 
-	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 
 	"github.com/franelias/hackaton/backend/internal/db"
@@ -55,38 +42,53 @@ type demoStudent struct {
 
 const day = 24 * time.Hour
 
-func main() {
-	ctx := context.Background()
+func seedCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "seed",
+		Short: "(Re)create the demo students Ana and Beto (password DEMO_PASSWORD, default arbol-demo)",
+		Args:  cobra.NoArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return seed(cmd.Context()) },
+	}
+}
+
+// seed (re)creates the two demo students, with dates relative to now so
+// every rehearsal starts the same:
+//
+//   - Ana (ana@arbol.demo): first year, practicing Análisis Matemático I for
+//     6 weeks, exam in 10 days, one topic mastered and no flower yet. Her tree
+//     is lush; in the demo she passes a mock exam and the flower appears.
+//   - Beto (beto@arbol.demo): second year with first year approved, enrolled
+//     in Lógica (a bottleneck). He stopped coming 12 days ago and missed the
+//     Lógica exam 3 days ago: withered tree, dry Lógica branch, alerts.
+//
+// Config: DATABASE_URL, FIREBASE_PROJECT_ID (FIREBASE_AUTH_EMULATOR_HOST for
+// the emulator), DEMO_PASSWORD (default "arbol-demo"). Other students are not
+// touched.
+func seed(ctx context.Context) error {
 	now := time.Now()
-	password := os.Getenv("DEMO_PASSWORD")
-	if password == "" {
-		password = "arbol-demo"
-	}
-	g, err := db.Open(os.Getenv("DATABASE_URL"))
+	password := env("DEMO_PASSWORD", "arbol-demo")
+	g, err := openDB()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: os.Getenv("FIREBASE_PROJECT_ID")})
+	fb, err := firebaseAuth(ctx)
 	if err != nil {
-		log.Fatal(err)
-	}
-	fb, err := app.Auth(ctx)
-	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	for _, d := range []demoStudent{ana(now), beto(now)} {
 		uid, err := upsertUser(ctx, fb, d.email, d.name, password)
 		if err != nil {
-			log.Fatalf("%s: %v", d.email, err)
+			return fmt.Errorf("%s: %w", d.email, err)
 		}
 		id, err := reset(g, uid, d, now)
 		if err != nil {
-			log.Fatalf("%s: %v", d.email, err)
+			return fmt.Errorf("%s: %w", d.email, err)
 		}
 		log.Printf("%s -> s-%03d (%s)", d.email, id, d.name)
 	}
 	log.Printf("password: %s", password)
+	return nil
 }
 
 // ana practiced Análisis I every week for 6 weeks (the current one included).

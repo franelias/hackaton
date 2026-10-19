@@ -55,7 +55,7 @@ La app hace tres pedidos y los cruza por `subject_id`:
 
 ### 2.1 `GET /api/careers/{career_id}/plan`
 
-Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la revisión manual aplicada (`backend/cmd/plan` → `backend/data/plan_career_<id>.json`, ver `camino-critico.md`), el backend lo importa a Postgres y lo sirve desde la base.
+Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la revisión manual aplicada (`arbol plan` en `backend/` → `backend/data/plan_career_<id>.json`, ver `camino-critico.md`), el backend lo importa a Postgres y lo sirve desde la base.
 
 ```json
 {
@@ -231,7 +231,7 @@ Para el cliente: `EventSource` no soporta `POST` ni headers propios, así que la
 
 ## 3. Tools del MCP
 
-La lógica de las tools vive en el módulo compartido `fceia/` (Go): el servidor MCP (`mcp/`) las publica por MCP y el backend las usa directo en el tutor y en `POST /api/schedule`, sin pasar por el MCP. Nombres de tools, parámetros y campos **en inglés**; los valores que vienen de la API (`parcial`, `final`…) se dejan tal cual. Todas devuelven JSON (`structuredContent`) y las listas van dentro de un objeto. Las URLs de archivos (`file_url`, `url`, `pdf_url`) son siempre absolutas.
+La lógica de las tools vive en el módulo compartido `fceia/` (Go): el backend las publica como servidor MCP (`arbol mcp`) y las usa directo en el tutor y en `POST /api/schedule`, sin pasar por MCP. Nombres de tools, parámetros y campos **en inglés**; los valores que vienen de la API (`parcial`, `final`…) se dejan tal cual. Todas devuelven JSON (`structuredContent`) y las listas van dentro de un objeto. Las URLs de archivos (`file_url`, `url`, `pdf_url`) son siempre absolutas.
 
 **Errores**: tool error (`isError: true`) con `{ "error": { "code", "message" } }`; `code` ∈ `not_found` · `api_unavailable` · `invalid_argument`. Un resultado vacío no es error.
 

@@ -1,5 +1,5 @@
-// Package tools serves the shared FCEIA tools (../fceia/tools) over MCP.
-package tools
+// Package mcpserver serves the shared FCEIA tools (../tools) over MCP.
+package mcpserver
 
 import (
 	"context"
