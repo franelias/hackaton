@@ -269,7 +269,11 @@ func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
 		in.States[x.SubjectID] = x.State
 	}
 	for _, a := range acts {
-		in.Activities = append(in.Activities, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Result: a.Result, Date: a.Date, CreatedAt: a.CreatedAt})
+		var topic string
+		if a.Topic != nil {
+			topic = *a.Topic
+		}
+		in.Activities = append(in.Activities, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Topic: topic, Result: a.Result, Date: a.Date, CreatedAt: a.CreatedAt})
 	}
 	for _, p := range periods {
 		in.Periods = append(in.Periods, tree.Period{Kind: p.Kind, From: p.Starts, To: p.Ends})

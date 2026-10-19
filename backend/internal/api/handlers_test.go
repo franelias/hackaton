@@ -45,3 +45,14 @@ func TestParseStudentID(t *testing.T) {
 		t.Error(formatStudentID(7))
 	}
 }
+
+func TestParseMockExam(t *testing.T) {
+	if s, m, msg := parseMockExam(json.RawMessage(`{"subject_id":12,"minutes":120}`)); s != 12 || m != 120 || msg != "" {
+		t.Errorf("got %d %d %q", s, m, msg)
+	}
+	for _, bad := range []string{`{"minutes":120}`, `{"subject_id":12,"minutes":5}`, `{"subject_id":12,"minutes":301}`, `not json`} {
+		if _, _, msg := parseMockExam(json.RawMessage(bad)); msg == "" {
+			t.Errorf("%s: want an error", bad)
+		}
+	}
+}

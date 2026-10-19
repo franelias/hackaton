@@ -2,6 +2,7 @@ package tree
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -168,5 +169,26 @@ func TestMarkDry(t *testing.T) {
 		if s.Dry != (s.SubjectID == 2) {
 			t.Errorf("subject %d dry=%v; approved never dries", s.SubjectID, s.Dry)
 		}
+	}
+}
+
+func TestTopics(t *testing.T) {
+	ex := func(subject int, topic string, correct bool) Activity {
+		r, _ := json.Marshal(map[string]bool{"correct": correct})
+		return Activity{Type: "exercise", SubjectID: new(subject), Topic: topic, Result: r}
+	}
+	got := Topics([]Activity{
+		ex(12, "Inducción", true), ex(12, "induccion ", true), ex(12, "INDUCCIÓN", false), ex(12, "inducción", true),
+		ex(12, "deducción natural", false),
+		ex(2, "límites", true),
+		{Type: "mock_exam", SubjectID: new(12), Topic: "inducción"}, // not an exercise
+		ex(12, "", true),                                            // no topic
+	})
+	want := []TopicStat{{Topic: "Inducción", Correct: 3, Attempts: 4, Mastered: true}, {Topic: "deducción natural", Attempts: 1}}
+	if fmt.Sprint(got[12]) != fmt.Sprint(want) {
+		t.Errorf("subject 12 = %+v, want %+v", got[12], want)
+	}
+	if len(got[2]) != 1 || got[2][0].Mastered {
+		t.Errorf("subject 2 = %+v", got[2])
 	}
 }

@@ -26,7 +26,7 @@
 | Alertas | Motor de reglas que corre al leer y al escribir (sin cron) y hace upsert en `alertas` con unique (alumno, tipo, subject_id). Una alerta descartada no reaparece hasta que cambie el escalón. Señales del MVP: **inactividad** y **primer parcial no rendido** (sube de nivel si la materia es cuello de botella) |
 | Parciales | Los carga el alumno: `/actividad` con `tipo:"parcial", subject_id, fecha`, o por chat con `registrar_progreso` |
 | Materias | `disponible` si cumple las correlativas (`regular` alcanza con regular o aprobada); si no, `bloqueada`. El PUT permite corregir, incluso bajar de aprobada. `seca` = alerta abierta y la materia no está aprobada |
-| Tutor | `hojas` = cantidad de actividades en la materia. Tema dominado = 3 ejercicios correctos. Simulacro aprobado ≥ 60 → `flor` si la materia no está aprobada. El simulacro se cronometra en el backend (tiempo transcurrido que se le pasa a Claude) |
+| Tutor | `hojas` = cantidad de actividades en la materia. Tema dominado = 3 ejercicios correctos (solo visible para el tutor, en `view_my_tree`). Hasta 2 pistas antes de la solución. Simulacro: 3-4 ejercicios de parciales reales, 120 min por defecto. Ante alertas abiertas, el tutor arranca por esa materia sin reproches. Simulacro aprobado ≥ 60 → `flor` si la materia no está aprobada. El simulacro se cronometra en el backend (tiempo transcurrido que se le pasa a Claude) |
 | Horario | `POST /api/horario` pasa directo a la tool `armar_horario` del MCP |
 | Deploy | Sin decidir; local con compose por ahora |
 
@@ -44,10 +44,10 @@ Fran ya creó el módulo `github.com/franelias/hackaton/backend` con `cmd/plan`,
 
 ## Orden: rama + PR por issue
 0. ✅ **Directo a main** (3fed708, 8560b50: auth con Firebase): actualizar `docs/contratos.md`: pasar a inglés todo lo que viaja por el cable (rutas, campos, enums, SSE, tools MCP) dejando la prosa en español, más (conversacion_id en chat y `fin` + GET conversación; token en `POST /api/alumnos` + header; tipo `parcial` en `/actividad`; Postgres; ids reales: Lógica = 12, AM I = 2).
-1. ✅ `backend/9-estado-alumno` (PR #19): esqueleto, compose, migraciones, import-plan (JSON de Fran), middleware Firebase, `GET /api/me`, `POST /api/students`, PUT materias, POST actividad, GET árbol y plan.
-2. ✅ `backend/10-salud-alertas` (PR #20): periodos, salud, racha, motor de alertas, GET alertas y descartar.
-3. ✅ `backend/7-chat-mcp`: cliente MCP, loop de tool use, tools locales, SSE etapa 1, conversaciones, horario.
-4. `backend/8-tutor`: system prompt (pistas antes que la solución, decir cuando no está seguro, foto vía `imagen_base64`, simulacro).
+1. ✅ `backend/9-estado-alumno` (PR #19, mergeado): esqueleto, compose, migraciones, import-plan (JSON de Fran), middleware Firebase, `GET /api/me`, `POST /api/students`, PUT materias, POST actividad, GET árbol y plan.
+2. ✅ `backend/10-salud-alertas` (PR #20, mergeado): periodos, salud, racha, motor de alertas, GET alertas y descartar.
+3. ✅ `backend/7-chat-mcp` (PR #23, mergeado): cliente MCP, loop de tool use, tools locales, SSE etapa 1, conversaciones, horario.
+4. ✅ `backend/8-tutor`: system prompt (pistas antes que la solución, decir cuando no está seguro, foto vía `imagen_base64`, simulacro).
 5. `backend/11-seed-demo`: A (AM I id 2, frondoso, racha 6, parcial en 10 días) y B (Lógica id 12, 12 días inactivo → marchito + inactividad medio; parcial hace 3 días → `primer_parcial_no_rendido` alto, rama seca; racha 0, mejor 8). Fechas relativas a now(). Crea los usuarios de A y B en Firebase (email + contraseña, vía Admin SDK) y los vincula.
 
 ## Verificación

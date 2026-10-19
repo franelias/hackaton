@@ -31,6 +31,7 @@ type Prereq struct {
 type Activity struct {
 	Type      string
 	SubjectID *int
+	Topic     string // exercises only
 	Result    json.RawMessage
 	Date      *time.Time // exam date (civil date at UTC midnight)
 	CreatedAt time.Time
