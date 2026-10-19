@@ -10,7 +10,7 @@
 | Stack | Go + Chi, en `backend/` (un módulo Go) |
 | DB | Postgres (el #9 dice SQLite: se corrige). GORM para queries, **goose + SQL** para migraciones, docker-compose local |
 | Binario | Un solo binario con los subcomandos `serve`, `migrate`, `import-plan`, `seed` |
-| Modelos | **Vercel AI Gateway** con formato OpenAI Chat Completions (`openai-go`). Principal `TUTOR_MODEL` (default `anthropic/claude-sonnet-5-5`) y fallbacks `TUTOR_FALLBACK_MODELS` (default `openai/gpt-6-astra,google/gemini-3.1-pro-preview`) vía `providerOptions.gateway.models`. Key en `AI_GATEWAY_API_KEY` |
+| Modelos | **OpenRouter** con formato OpenAI Chat Completions (`openai-go`). Principal `TUTOR_MODEL` (default `anthropic/claude-sonnet-5.5`) y fallbacks `TUTOR_FALLBACK_MODELS` (default `openai/gpt-6-astra,google/gemini-3.1-pro-preview`) en el campo `models` del body. Key en `OPENROUTER_API_KEY` |
 | MCP | Cliente `modelcontextprotocol/go-sdk` por **Streamable HTTP** (`MCP_URL`), con loop de tool use propio |
 | Tools locales | `record_progress`, `view_my_tree`, `start_mock_exam`. El `alumno_id` lo inyecta el backend, nunca Claude |
 | SSE | Etapa 1: un `estado` por tool, un solo `texto` al final y después `fin` |

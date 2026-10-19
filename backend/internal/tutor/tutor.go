@@ -1,7 +1,7 @@
 // Package tutor runs the AI tutor: one chat turn is a tool-calling loop over
 // the MCP tools (FCEIA API) plus the backend's local tools. Models are called
-// through Vercel AI Gateway with the OpenAI Chat Completions format, so the
-// primary model and its fallbacks can come from any provider.
+// through OpenRouter with the OpenAI Chat Completions format, so the primary
+// model and its fallbacks can come from any provider.
 package tutor
 
 import (
@@ -13,8 +13,8 @@ import (
 	"github.com/openai/openai-go/v3/option"
 )
 
-// GatewayURL is the AI Gateway Chat Completions base URL.
-const GatewayURL = "https://ai-gateway.vercel.sh/v1"
+// OpenRouterURL is the OpenRouter Chat Completions base URL.
+const OpenRouterURL = "https://openrouter.ai/api/v1"
 
 // MaxToolRounds caps the tool-calling loop of a single turn.
 const MaxToolRounds = 12
@@ -38,13 +38,13 @@ type Tool struct {
 
 type Tutor struct {
 	LLM            Completions
-	Model          string   // e.g. anthropic/claude-sonnet-5-5
-	FallbackModels []string // tried in order by the gateway if Model fails
+	Model          string   // e.g. anthropic/claude-sonnet-5.5
+	FallbackModels []string // tried in order by OpenRouter if Model fails
 }
 
-// NewGateway builds a Tutor that calls AI Gateway with apiKey.
-func NewGateway(apiKey, model string, fallbacks []string) *Tutor {
-	client := openai.NewClient(option.WithBaseURL(GatewayURL), option.WithAPIKey(apiKey))
+// NewOpenRouter builds a Tutor that calls OpenRouter with apiKey.
+func NewOpenRouter(apiKey, model string, fallbacks []string) *Tutor {
+	client := openai.NewClient(option.WithBaseURL(OpenRouterURL), option.WithAPIKey(apiKey))
 	return &Tutor{LLM: &client.Chat.Completions, Model: model, FallbackModels: fallbacks}
 }
 
@@ -69,7 +69,7 @@ func (t *Tutor) Turn(ctx context.Context, history []openai.ChatCompletionMessage
 
 	var opts []option.RequestOption
 	if len(t.FallbackModels) > 0 {
-		opts = append(opts, option.WithJSONSet("providerOptions", map[string]any{"gateway": map[string]any{"models": t.FallbackModels}}))
+		opts = append(opts, option.WithJSONSet("models", t.FallbackModels))
 	}
 
 	for range MaxToolRounds {

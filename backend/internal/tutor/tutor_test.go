@@ -3,6 +3,9 @@ package tutor
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -81,7 +84,7 @@ func TestTurnRunsMCPAndLocalTools(t *testing.T) {
 		toolCall("c3", "nope", `{}`),
 		answer("Arranquemos por inducción."),
 	}}
-	tu := &Tutor{LLM: llm, Model: "anthropic/claude-sonnet-5-5"}
+	tu := &Tutor{LLM: llm, Model: "anthropic/claude-sonnet-5.5"}
 	var statuses []string
 	added, text, err := tu.Turn(ctx, nil, openai.UserMessage("Preparame Lógica"), append(mcpTools, local), func(tool, msg string) {
 		statuses = append(statuses, tool+":"+msg)
@@ -130,5 +133,23 @@ func TestTurnStopsRunawayLoops(t *testing.T) {
 	tu := &Tutor{LLM: &fakeLLM{responses: responses}, Model: "m"}
 	if _, _, err := tu.Turn(context.Background(), nil, openai.UserMessage("hola"), nil, func(string, string) {}); err == nil {
 		t.Fatal("want an error after MaxToolRounds")
+	}
+}
+
+func TestFallbackModelsInRequestBody(t *testing.T) {
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewDecoder(r.Body).Decode(&body)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(answer("hola")))
+	}))
+	defer srv.Close()
+	client := openai.NewClient(option.WithBaseURL(srv.URL), option.WithAPIKey("k"))
+	tu := &Tutor{LLM: &client.Chat.Completions, Model: "anthropic/claude-sonnet-5.5", FallbackModels: []string{"openai/gpt-6-astra", "google/gemini-3.1-pro-preview"}}
+	if _, text, err := tu.Turn(context.Background(), nil, openai.UserMessage("hola"), nil, func(string, string) {}); err != nil || text != "hola" {
+		t.Fatal(text, err)
+	}
+	if body["model"] != "anthropic/claude-sonnet-5.5" || fmt.Sprint(body["models"]) != "[openai/gpt-6-astra google/gemini-3.1-pro-preview]" {
+		t.Errorf("body model=%v models=%v", body["model"], body["models"])
 	}
 }

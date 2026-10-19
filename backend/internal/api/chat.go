@@ -46,7 +46,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.Tutor == nil {
-		writeErr(w, http.StatusServiceUnavailable, "tutor_unavailable", "el tutor no está configurado (falta AI_GATEWAY_API_KEY)")
+		writeErr(w, http.StatusServiceUnavailable, "tutor_unavailable", "el tutor no está configurado (falta OPENROUTER_API_KEY)")
 		return
 	}
 
