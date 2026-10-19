@@ -158,7 +158,7 @@ Solo el estado del alumno; nada que ya esté en el plan.
 | `POST /api/students/{id}/activity` | `{ "type": "checkin" \| "exercise" \| "mock_exam" \| "exam", "subject_id"?, "topic"?, "result"?, "date"? }` | árbol (2.2) |
 | `POST /api/chat` | `{ "student_id", "message", "conversation_id"?, "image_base64"? }` | Stream SSE (ver 2.5) |
 | `GET /api/students/{id}/conversations/{conversation_id}` | — | `{ "conversation_id", "messages": [ { "role": "user" \| "assistant", "text", "created_at" } ] }` |
-| `POST /api/schedule` | `{ "student_id", "subject_ids": [..] }` | mismo formato que `build_schedule` |
+| `POST /api/schedule` | `{ "student_id", "subject_ids": [..], "preferences"? }` | mismo formato que `build_schedule` (el backend completa `approved_subject_ids` y `regular_subject_ids` desde el estado del alumno) |
 
 Notas de `activity`:
 
@@ -268,8 +268,30 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
   "exam_boards": [ { "title": "Mesas flotantes 2do cuatrimestre 2026", "session_kind": "flotante", "pdf_url": "…", "notes": "…" } ] }
 ```
 
-### `build_schedule(...)`
-Issue #4 (Fran), todavía no está en `mcp/`. Se define en inglés con el mismo criterio. `POST /api/schedule` lo llama tal cual.
+### `build_schedule(subject_ids: int[], approved_subject_ids?: int[], regular_subject_ids?: int[], semester?: str, preferences?: { shift?: "morning"|"afternoon"|"evening", free_days?: int[] })`
+(`GET /subjects/{id}`, `/subjects/{id}/sessions`, `/subjects/{id}/relations`; hasta 12 materias de una misma carrera)
+
+- **Correlativas**: si llega `approved_subject_ids` o `regular_subject_ids`, las materias con correlativas sin cumplir salen en `not_enabled` y no se arman. Una correlativa `regular` se cumple con regular o aprobada; el resto exige aprobada. Si no llega ninguno, no se chequea y hay un `warning`. `POST /api/schedule` los arma desde el estado del alumno.
+- **Comisiones**: salen de `notes` (`Com.: 630`, `Com: 630 y Com: 660`). Sin etiquetas, la materia tiene una sola. Si la materia tiene comisiones etiquetadas, las clases sin etiqueta se ignoran (duplicados parciales de la API) y se avisa. LCC no tiene comisiones alternativas.
+- **Semestre**: por materia, el más reciente (`2026-2S`); si solo tiene "última publicación" va con `stale: true` y un aviso. `semester` fuerza uno.
+- **Fin de clase vacío**: se asumen 180 min y la clase sale con `end_estimated: true`.
+- **Orden** (hasta 3 opciones): menos clases fuera del turno pedido (por hora de inicio: `morning` < 13:00, `afternoon` 13:00–18:59, `evening` desde 19:00), menos días en la facultad, menos horas de hueco, menor comisión. `free_days` es restricción dura; si ninguna combinación la cumple se ignora con un aviso.
+- **Sin combinación**: `conflicts` lista los pares que chocan en todas sus comisiones; `suggest_postpone` es el conjunto a postergar que menos cuellos de botella (`destraba_total >= 8`) toca, después el más chico, después el que menos destraba; `options` arma el resto. Los cuellos de botella se calculan en el MCP desde `/relations`.
+- **Traslados**: `warnings` avisa dos clases seguidas en sedes distintas con menos de 60 min entre ellas (solo si ambas sedes están informadas). No influye en el orden.
+
+```json
+{ "options": [
+    { "commissions": [ { "subject_id": 12, "name": "Lógica", "commission": "", "stale": false,
+        "classes": [ { "day": 1, "from": "07:30", "to": "11:00", "campus": "Sede Pellegrini", "room": "14 Pell.", "end_estimated": false } ] } ],
+      "days_on_campus": 3, "gap_hours": 1.5 } ],
+  "scheduled_subject_ids": [12],
+  "conflicts": [ { "subject_ids": [7, 12], "day": 1, "from": "07:30", "to": "11:00" } ],
+  "suggest_postpone": [12],
+  "not_enabled": [ { "subject_id": 21, "name": "Teoría de Base de Datos", "missing": [ { "subject_id": 15, "code": "r312", "condition": "approved" } ] } ],
+  "without_schedule": [16],
+  "warnings": [ "…" ] }
+```
+`without_schedule`: materias que la API no tiene con clases (por ejemplo Suficiencia de Inglés): no entran al armado.
 
 ### Tools locales del backend: `record_progress`, `view_my_tree`, `start_mock_exam`
 

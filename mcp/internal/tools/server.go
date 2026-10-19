@@ -13,7 +13,7 @@ type tools struct {
 	now func() time.Time
 }
 
-// NewServer registers the eight read-only tools. A nil now uses time.Now.
+// NewServer registers the nine read-only tools. A nil now uses time.Now.
 func NewServer(api *fceia.Client, now func() time.Time) *mcp.Server {
 	if now == nil {
 		now = time.Now
@@ -53,5 +53,9 @@ func NewServer(api *fceia.Client, now func() time.Time) *mcp.Server {
 		Name:        "dates",
 		Description: "Academic calendar events and exam-board (mesas) PDFs for a career. Many events have no dates, only notes and a source_url.",
 	}, handle(t.dates))
+	mcp.AddTool(s, &mcp.Tool{
+		Name:        "build_schedule",
+		Description: "Pick a weekly timetable without overlaps for the subjects a student wants to take. Chooses a commission per subject, ranks options (preferred shift, fewer days on campus, fewer gaps) and, when nothing fits, says which subjects clash and which to postpone, sparing bottleneck subjects. Pass approved_subject_ids/regular_subject_ids (from the student's tree) so subjects whose correlativas are not met are excluded.",
+	}, handle(t.buildSchedule))
 	return s
 }

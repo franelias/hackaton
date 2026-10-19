@@ -1,0 +1,364 @@
+package tools_test
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+)
+
+// stubSchedule serves responses recorded from the real FCEIA API:
+// subjects 7, 10, 11, 12, 15-20 of career 1 (Licenciatura en Ciencias de la
+// Computación) and 55, 56 of career 6 (the ones with several commissions).
+// The *_by_id files hold each recorded body under its subject_id.
+func stubSchedule(t *testing.T) *httptest.Server {
+	t.Helper()
+	load := func(name string) map[string]json.RawMessage {
+		b, err := os.ReadFile(filepath.Join("testdata", "schedule", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m := map[string]json.RawMessage{}
+		if err := json.Unmarshal(b, &m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	subjects, sessions, relations := load("subject_by_id.json"), load("sessions_by_subject.json"), load("relations_career1.json")
+	careerSubjects, err := os.ReadFile(filepath.Join("testdata", "schedule", "career1_subjects.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	relations55, err := os.ReadFile(filepath.Join("testdata", "relations_s55.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/api/v1")
+		parts := strings.Split(strings.Trim(path, "/"), "/")
+		serve := func(m map[string]json.RawMessage, id string) {
+			if body, ok := m[id]; ok {
+				w.Write(body)
+				return
+			}
+			http.NotFound(w, r)
+		}
+		switch {
+		case path == "/subjects" && r.URL.Query().Get("career_id") == "1":
+			w.Write(careerSubjects)
+		case len(parts) == 2 && parts[0] == "subjects":
+			serve(subjects, parts[1])
+		case len(parts) == 3 && parts[0] == "subjects" && parts[2] == "sessions":
+			serve(sessions, parts[1])
+		case len(parts) == 3 && parts[0] == "subjects" && parts[2] == "relations" && parts[1] == "55":
+			w.Write(relations55)
+		case len(parts) == 3 && parts[0] == "subjects" && parts[2] == "relations":
+			serve(relations, parts[1])
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+const (
+	algebraLineal = 7
+	complementosI = 10
+	arquitectura  = 11
+	edaII         = 15
+	ingles        = 16
+	calculoII     = 55
+	fisicaI       = 56
+)
+
+type schedResult struct {
+	Options []struct {
+		Commissions []struct {
+			SubjectID  int    `json:"subject_id"`
+			Name       string `json:"name"`
+			Commission string `json:"commission"`
+			Stale      bool   `json:"stale"`
+			Classes    []struct {
+				Day          int    `json:"day"`
+				From         string `json:"from"`
+				To           string `json:"to"`
+				EndEstimated bool   `json:"end_estimated"`
+			} `json:"classes"`
+		} `json:"commissions"`
+		DaysOnCampus int     `json:"days_on_campus"`
+		GapHours     float64 `json:"gap_hours"`
+	} `json:"options"`
+	Scheduled []int `json:"scheduled_subject_ids"`
+	Conflicts []struct {
+		SubjectIDs []int  `json:"subject_ids"`
+		Day        int    `json:"day"`
+		From       string `json:"from"`
+		To         string `json:"to"`
+	} `json:"conflicts"`
+	Postpone   []int `json:"suggest_postpone"`
+	NotEnabled []struct {
+		SubjectID int `json:"subject_id"`
+		Missing   []struct {
+			SubjectID int    `json:"subject_id"`
+			Code      string `json:"code"`
+			Condition string `json:"condition"`
+		} `json:"missing"`
+	} `json:"not_enabled"`
+	WithoutSchedule []int    `json:"without_schedule"`
+	Warnings        []string `json:"warnings"`
+}
+
+func (r schedResult) commissionsOf(option int) map[int]string {
+	out := map[int]string{}
+	for _, c := range r.Options[option].Commissions {
+		out[c.SubjectID] = c.Commission
+	}
+	return out
+}
+
+func (r schedResult) labels(subject int) []string {
+	var out []string
+	for i := range r.Options {
+		out = append(out, r.commissionsOf(i)[subject])
+	}
+	return out
+}
+
+func (r schedResult) hasWarning(substr string) bool {
+	for _, w := range r.Warnings {
+		if strings.Contains(w, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+func build(t *testing.T, args map[string]any) schedResult {
+	t.Helper()
+	cs := connect(t, stubSchedule(t).URL, nil)
+	return ok[schedResult](t, cs, "build_schedule", args)
+}
+
+func TestOverlappingBottlenecksPostponeTheOneThatUnlocksLess(t *testing.T) {
+	t.Parallel()
+	// Lógica (unlocks 10) and Álgebra Lineal (unlocks 12) both meet Monday 07:30-11:00.
+	got := build(t, map[string]any{"subject_ids": []int{algebraLineal, 12}})
+
+	if len(got.Conflicts) != 1 || !reflect.DeepEqual(got.Conflicts[0].SubjectIDs, []int{algebraLineal, 12}) ||
+		got.Conflicts[0].Day != 1 || got.Conflicts[0].From != "07:30" || got.Conflicts[0].To != "11:00" {
+		t.Fatalf("conflicts: %+v", got.Conflicts)
+	}
+	if !reflect.DeepEqual(got.Postpone, []int{12}) || !reflect.DeepEqual(got.Scheduled, []int{algebraLineal}) {
+		t.Fatalf("postpone = %v, scheduled = %v", got.Postpone, got.Scheduled)
+	}
+	if len(got.Options) != 1 || got.Options[0].Commissions[0].SubjectID != algebraLineal {
+		t.Fatalf("the rest should still get a timetable: %+v", got.Options)
+	}
+}
+
+func TestPostponesTheNonBottleneckWhenEitherFixWorks(t *testing.T) {
+	t.Parallel()
+	// Álgebra Lineal (bottleneck) clashes with Arquitectura (unlocks 5) on Wednesday and Friday.
+	got := build(t, map[string]any{"subject_ids": []int{algebraLineal, arquitectura}})
+
+	days := []int{got.Conflicts[0].Day, got.Conflicts[1].Day}
+	if len(got.Conflicts) != 2 || !reflect.DeepEqual(days, []int{3, 5}) {
+		t.Fatalf("conflicts: %+v", got.Conflicts)
+	}
+	if !reflect.DeepEqual(got.Postpone, []int{arquitectura}) {
+		t.Fatalf("postpone = %v", got.Postpone)
+	}
+}
+
+func TestPostponesTheFewestSubjectsWhenEveryFixTouchesABottleneck(t *testing.T) {
+	t.Parallel()
+	// Álgebra Lineal clashes with both others: dropping it alone beats dropping Lógica and Arquitectura.
+	got := build(t, map[string]any{"subject_ids": []int{algebraLineal, arquitectura, 12}})
+
+	if len(got.Conflicts) != 3 {
+		t.Fatalf("conflicts: %+v", got.Conflicts)
+	}
+	if !reflect.DeepEqual(got.Postpone, []int{algebraLineal}) || !reflect.DeepEqual(got.Scheduled, []int{arquitectura, 12}) {
+		t.Fatalf("postpone = %v, scheduled = %v", got.Postpone, got.Scheduled)
+	}
+}
+
+func TestCompatibleSubjectsGetOneOptionWithoutConflicts(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{12, arquitectura}})
+
+	if len(got.Options) != 1 || len(got.Conflicts) != 0 || len(got.Postpone) != 0 {
+		t.Fatalf("unexpected result: %+v", got)
+	}
+	o := got.Options[0]
+	if o.DaysOnCampus != 4 || o.GapHours != 0 || !reflect.DeepEqual(got.Scheduled, []int{arquitectura, 12}) {
+		t.Fatalf("option: days=%d gap=%v scheduled=%v", o.DaysOnCampus, o.GapHours, got.Scheduled)
+	}
+	if !got.hasWarning("correlativas were not checked") {
+		t.Fatalf("warnings: %v", got.Warnings)
+	}
+}
+
+func TestSubjectWithoutCurrentSemesterIsMarkedStale(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{12, edaII}})
+
+	stale := map[int]bool{}
+	for _, c := range got.Options[0].Commissions {
+		stale[c.SubjectID] = c.Stale
+	}
+	if stale[12] || !stale[edaII] || !got.hasWarning("subject 15 has no 2026-2S schedule") {
+		t.Fatalf("stale = %v, warnings = %v", stale, got.Warnings)
+	}
+}
+
+func TestSubjectWithNoPublishedClassesIsLeftOut(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{12, ingles}})
+
+	if !reflect.DeepEqual(got.WithoutSchedule, []int{ingles}) || !reflect.DeepEqual(got.Scheduled, []int{12}) {
+		t.Fatalf("without = %v, scheduled = %v", got.WithoutSchedule, got.Scheduled)
+	}
+}
+
+func TestMissingEndTimeAssumesThreeHoursAndSaysSo(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{algebraLineal}})
+
+	friday := got.Options[0].Commissions[0].Classes[2]
+	if friday.Day != 5 || friday.From != "09:30" || friday.To != "12:30" || !friday.EndEstimated {
+		t.Fatalf("friday class: %+v", friday)
+	}
+	if !got.hasWarning("subject 7 has classes without an end time") {
+		t.Fatalf("warnings: %v", got.Warnings)
+	}
+}
+
+func TestSubjectWithUnmetCorrelativasIsNotEnabled(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{12}, "approved_subject_ids": []int{}})
+
+	if len(got.NotEnabled) != 1 || got.NotEnabled[0].SubjectID != 12 ||
+		got.NotEnabled[0].Missing[0].SubjectID != 6 || got.NotEnabled[0].Missing[0].Code != "r123" ||
+		got.NotEnabled[0].Missing[0].Condition != "approved" {
+		t.Fatalf("not_enabled: %+v", got.NotEnabled)
+	}
+	if len(got.Options) != 0 || len(got.Scheduled) != 0 || got.hasWarning("were not checked") {
+		t.Fatalf("unexpected result: %+v", got)
+	}
+}
+
+func TestSubjectWithApprovedCorrelativasIsScheduled(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{12}, "approved_subject_ids": []int{6}})
+
+	if len(got.NotEnabled) != 0 || !reflect.DeepEqual(got.Scheduled, []int{12}) {
+		t.Fatalf("not_enabled = %+v, scheduled = %v", got.NotEnabled, got.Scheduled)
+	}
+}
+
+func TestRegularCorrelativaIsMetByRegularOrApproved(t *testing.T) {
+	t.Parallel()
+	// Cálculo II requires 51 approved and 52 regular.
+	cs := connect(t, stubSchedule(t).URL, nil)
+
+	regular := ok[schedResult](t, cs, "build_schedule", map[string]any{"subject_ids": []int{calculoII}, "approved_subject_ids": []int{51}, "regular_subject_ids": []int{52}})
+	approved := ok[schedResult](t, cs, "build_schedule", map[string]any{"subject_ids": []int{calculoII}, "approved_subject_ids": []int{51, 52}})
+	missing := ok[schedResult](t, cs, "build_schedule", map[string]any{"subject_ids": []int{calculoII}, "approved_subject_ids": []int{51}})
+
+	if len(regular.NotEnabled) != 0 || len(approved.NotEnabled) != 0 {
+		t.Fatalf("regular: %+v, approved: %+v", regular.NotEnabled, approved.NotEnabled)
+	}
+	m := missing.NotEnabled[0].Missing[0]
+	if m.SubjectID != 52 || m.Code != "FB3" || m.Condition != "regular" {
+		t.Fatalf("missing: %+v", m)
+	}
+}
+
+func TestPreferredShiftThenFewerDaysRanksCommissions(t *testing.T) {
+	t.Parallel()
+	// 640 and 650 both start before 13:00 on two days; 610 needs three days.
+	got := build(t, map[string]any{"subject_ids": []int{calculoII}, "preferences": map[string]any{"shift": "morning"}})
+
+	if want := []string{"640", "650", "610"}; !reflect.DeepEqual(got.labels(calculoII), want) {
+		t.Fatalf("commissions = %v, want %v", got.labels(calculoII), want)
+	}
+	if got.Options[0].DaysOnCampus != 2 {
+		t.Fatalf("days = %d", got.Options[0].DaysOnCampus)
+	}
+}
+
+func TestFreeDaysExcludeCommissionsMeetingThatDay(t *testing.T) {
+	t.Parallel()
+	// Only 630, 660 and 670 have no Tuesday class; 670 is all evening.
+	got := build(t, map[string]any{"subject_ids": []int{calculoII}, "preferences": map[string]any{"shift": "morning", "free_days": []int{2}}})
+
+	if want := []string{"630", "660", "670"}; !reflect.DeepEqual(got.labels(calculoII), want) {
+		t.Fatalf("commissions = %v, want %v", got.labels(calculoII), want)
+	}
+}
+
+func TestFreeDaysAreIgnoredWithAWarningWhenNothingKeepsThem(t *testing.T) {
+	t.Parallel()
+	// Every Cálculo II commission meets on Monday.
+	got := build(t, map[string]any{"subject_ids": []int{calculoII}, "preferences": map[string]any{"free_days": []int{1}}})
+
+	if len(got.Options) == 0 || !got.hasWarning("no combination keeps the requested free days") {
+		t.Fatalf("options = %d, warnings = %v", len(got.Options), got.Warnings)
+	}
+}
+
+func TestTwoSubjectsWithCommissionsGetTheTightestPair(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{calculoII, fisicaI}})
+
+	best := got.commissionsOf(0)
+	if best[calculoII] != "640" || best[fisicaI] != "631" || got.Options[0].DaysOnCampus != 2 || got.Options[0].GapHours != 0.25 {
+		t.Fatalf("best option: %v days=%d gap=%v", best, got.Options[0].DaysOnCampus, got.Options[0].GapHours)
+	}
+}
+
+func TestClassesWithoutCommissionLabelAreIgnoredWhenOthersHaveOne(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{fisicaI}})
+
+	if !got.hasWarning("subject 56: 9 classes without a commission label were ignored") {
+		t.Fatalf("warnings: %v", got.Warnings)
+	}
+}
+
+func TestSubjectsOfDifferentCareersAreRejected(t *testing.T) {
+	t.Parallel()
+	cs := connect(t, stubSchedule(t).URL, nil)
+
+	if e := fails(t, cs, "build_schedule", map[string]any{"subject_ids": []int{12, calculoII}}); e.Error.Code != "invalid_argument" {
+		t.Fatalf("code = %q", e.Error.Code)
+	}
+}
+
+func TestInvalidScheduleRequestsAreRejected(t *testing.T) {
+	t.Parallel()
+	cs := connect(t, stubSchedule(t).URL, nil)
+	thirteen := make([]int, 13)
+	for i := range thirteen {
+		thirteen[i] = i + 1
+	}
+
+	cases := map[string]map[string]any{
+		"no subjects":   {"subject_ids": []int{}},
+		"too many":      {"subject_ids": thirteen},
+		"unknown shift": {"subject_ids": []int{12}, "preferences": map[string]any{"shift": "night"}},
+		"bad free day":  {"subject_ids": []int{12}, "preferences": map[string]any{"free_days": []int{8}}},
+	}
+	for name, args := range cases {
+		if e := fails(t, cs, "build_schedule", args); e.Error.Code != "invalid_argument" {
+			t.Errorf("%s: code = %q (%s)", name, e.Error.Code, strconv.Quote(e.Error.Message))
+		}
+	}
+}
