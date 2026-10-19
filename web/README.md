@@ -34,6 +34,20 @@ Para el login real, en la consola de Firebase:
 
 El backend tiene que usar el mismo proyecto de Firebase.
 
+**Contra el backend local** (`make up-seed` en la raíz: Postgres, emulador de Auth y la API en `:8000`):
+
+```sh
+VITE_API_URL=http://localhost:8000
+VITE_FIREBASE_API_KEY=demo-key            # el emulador acepta cualquiera
+VITE_FIREBASE_AUTH_DOMAIN=demo-arbol.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=demo-arbol       # igual a FIREBASE_PROJECT_ID del backend
+VITE_FIREBASE_APP_ID=demo-app
+VITE_FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
+```
+
+Entrar con `ana@arbol.demo` o `beto@arbol.demo` (contraseña `DEMO_PASSWORD`, por defecto `arbol-demo`).
+El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y la app lo muestra.
+
 ## Estructura
 
 - `src/lib/`: `config.ts` (env), `firebase.ts`, `api.ts` (cliente con token y SSE del chat),
@@ -61,7 +75,11 @@ El backend tiene que usar el mismo proyecto de Firebase.
 - modo demo con capturas;
 - el flujo del tutor de punta a punta (chat, simulacro, entrega, lista) con Chrome por CDP.
 
-**No probado:** nada contra el backend real ni el login real, porque falta `VITE_API_URL`.
+**Probado contra el backend local** (emulador de Auth, alumna Ana sembrada): login con mail, `/me`,
+árbol, alertas, "Estudié hoy" y `POST /api/schedule` con horarios reales de la FCEIA.
+
+**No probado:** el tutor con un modelo real (faltaba `OPENROUTER_API_KEY`) y el login con el proyecto
+real de Firebase.
 
 Notas:
 - La lista de conversaciones se guarda en el `localStorage` porque no hay un endpoint para
@@ -72,8 +90,8 @@ Notas:
 
 ## Pendientes
 
-1. Conectar y probar con el backend real (`VITE_API_URL`).
-2. Tutor: LaTeX (KaTeX) y subir foto (`image_base64`, máx. 5 MB). El Markdown básico ya está (`src/components/Texto.tsx`: párrafos, listas, negrita, cursiva, código).
+1. Probar el tutor con `OPENROUTER_API_KEY` y el login con el proyecto real de Firebase.
+2. Tutor: subir foto (`image_base64`, máx. 5 MB). Markdown básico y LaTeX con KaTeX ya están (`src/components/Texto.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TextoQueAparece` la muestra de a poco con un fundido por palabra.
 3. Pantalla Fechas: el backend no la expone; hace falta un endpoint, o mostrar los `exam` cargados.
 4. Optativas: dejar elegirlas (`optional: true`) para que entren al árbol.
 5. Celular: barra inferior y zoom o lista para el árbol; lista accesible del árbol.

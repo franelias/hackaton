@@ -105,12 +105,28 @@ legend { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
 /* Tutor */
 .tutor { max-width: 900px; height: 100vh; }
 .chat { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px; }
-.burbuja { max-width: 80%; padding: 12px 16px; border-radius: 18px; white-space: pre-wrap; }
+.burbuja { max-width: 80%; padding: 12px 16px; border-radius: 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .burbuja.user { align-self: flex-end; background: var(--verde); color: #fff; border-bottom-right-radius: 6px; }
 .burbuja.assistant { align-self: flex-start; background: #fff; border: 1px solid var(--borde); border-bottom-left-radius: 6px; }
 .estado-tutor { align-self: flex-start; display: flex; align-items: center; gap: 8px; color: var(--suave); font-weight: 700; font-size: 14px; }
 .estado-tutor i { width: 10px; height: 10px; border-radius: 50%; background: var(--verde); animation: latido 1s ease-in-out infinite; }
 @keyframes latido { 50% { opacity: .3; transform: scale(.7); } }
+/* respuesta del tutor apareciendo: cada palabra entra con un fundido, un punto late al final y el estado brilla */
+.burbuja { animation: entrar .3s ease-out; }
+@keyframes entrar { from { opacity: 0; transform: translateY(6px); } }
+.palabra { animation: aparecer .5s ease-out both; }
+@keyframes aparecer { from { opacity: 0; filter: blur(3px); } }
+.escribiendo > :last-child::after, .escribiendo > :is(ul, ol):last-child > li:last-child::after { content: ""; display: inline-block; width: .55em; height: .55em; margin-left: 5px; border-radius: 50%; background: var(--verde); vertical-align: middle; animation: latido 1s ease-in-out infinite; }
+.estado-tutor span { background: linear-gradient(90deg, var(--suave) 35%, var(--borde) 50%, var(--suave) 65%) 0 0 / 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: brillo 1.8s linear infinite, aparecer .3s ease-out; }
+@keyframes brillo { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.formula { overflow-x: auto; overflow-y: hidden; margin: 8px 0; padding: 2px 0; }
+.burbuja .katex { font-size: 1.05em; }
+.burbuja pre { margin: 8px 0; padding: 10px 14px; background: #f3f2ec; border-radius: 10px; overflow-x: auto; white-space: pre; font-size: .9em; line-height: 1.5; }
+.esqueletos { display: flex; flex-direction: column; gap: 10px; }
+.burbuja.esqueleto { border: 0; height: 44px; width: 38%; background: linear-gradient(90deg, var(--borde) 30%, var(--fondo) 50%, var(--borde) 70%) 0 0 / 300% 100%; animation: brillo 1.4s linear infinite, aparecer .3s .15s both; }
+.burbuja.esqueleto.assistant { height: 96px; width: 72%; }
+.burbuja pre code { background: none; padding: 0; font-size: inherit; }
+@media (prefers-reduced-motion: reduce) { .burbuja, .burbuja.esqueleto, .palabra, .estado-tutor span, .escribiendo > :last-child::after { animation: none; } .estado-tutor span { background: none; color: var(--suave); } }
 .vacio { margin: auto; text-align: center; display: flex; flex-direction: column; gap: 12px; color: var(--suave); font-weight: 700; }
 .sugerencias { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .sugerencias button { border: 1px solid var(--borde); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 700; cursor: pointer; }

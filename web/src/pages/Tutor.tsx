@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import Texto from '../components/Texto'
+import Texto, { TextoQueAparece } from '../components/Texto'
 import { useSesion } from '../lib/session'
 import type { ChatMessage } from '../lib/types'
 
@@ -26,6 +26,9 @@ export default function Tutor() {
   const [texto, setTexto] = useState(materia ? `Quiero practicar ${materia.name} para el parcial.` : '')
   const [estado, setEstado] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // la última respuesta se muestra de a poco solo si llegó ahora, no si viene del historial
+  const [animando, setAnimando] = useState(false)
+  const [cargandoConv, setCargandoConv] = useState(false)
   const [sim, setSim] = useState<Simulacro | null>(() => leer(CLAVE_SIM, null))
   const [armandoSim, setArmandoSim] = useState(false)
   const [ahora, setAhora] = useState(Date.now())
@@ -34,11 +37,16 @@ export default function Tutor() {
   useEffect(() => guardar(CLAVE_LISTA, lista), [lista, CLAVE_LISTA])
   useEffect(() => guardar(CLAVE_SIM, sim), [sim, CLAVE_SIM])
   useEffect(() => { if (!sim) return; const t = setInterval(() => setAhora(Date.now()), 1000); return () => clearInterval(t) }, [sim])
-  useEffect(() => { fin.current?.scrollIntoView({ block: 'end' }) }, [mensajes, estado])
+  const bajar = useCallback(() => { fin.current?.scrollIntoView({ block: 'end' }) }, [])
+  useEffect(() => { bajar() }, [mensajes, estado, bajar])
 
-  // abrir una conversación guardada
+  // abrir una conversación guardada; si se cambia de chat antes de que llegue, la respuesta vieja se descarta
   useEffect(() => { if (!studentId || !conv || enviando) return
-    api.conversation(studentId, conv).then(r => setMensajes(r.messages)).catch(() => setMensajes([])) }, [studentId, conv]) // eslint-disable-line react-hooks/exhaustive-deps
+    let vigente = true
+    setAnimando(false); setMensajes([]); setCargandoConv(true)
+    api.conversation(studentId, conv).then(r => { if (vigente) setMensajes(r.messages) }).catch(() => { if (vigente) setMensajes([]) })
+      .finally(() => { if (vigente) setCargandoConv(false) })
+    return () => { vigente = false; setCargandoConv(false) } }, [studentId, conv]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const enviar = useCallback(async (msg: string, opciones: { nueva?: boolean; simulacro?: boolean } = {}) => {
     msg = msg.trim(); if (!msg || !studentId || enviando) return
@@ -49,7 +57,7 @@ export default function Tutor() {
     const agregar = (d: string) => setMensajes(m => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], text: c[c.length - 1].text + d }; return c })
     await api.chat({ student_id: studentId, message: msg, ...(usar ? { conversation_id: usar } : {}) }, {
       onStatus: s => { setEstado(s.message); if (s.tool === 'start_mock_exam') setSim(x => x ? { ...x, inicio: Date.now() } : x) },
-      onText: d => { setEstado(null); agregar(d) },
+      onText: d => { setEstado(null); setAnimando(true); agregar(d) },
       onDone: d => {
         setConv(d.conversation_id)
         setLista(l => l.some(c => c.id === d.conversation_id) ? l.map(c => c.id === d.conversation_id ? { ...c, fecha: new Date().toISOString() } : c)
@@ -62,7 +70,7 @@ export default function Tutor() {
     setEstado(null); setEnviando(false)
   }, [studentId, enviando, conv, refrescar])
 
-  const nueva = () => { setConv(null); setMensajes([]) }
+  const nueva = () => { setConv(null); setMensajes([]); setAnimando(false) }
   const quitar = (id: string) => { setLista(l => l.filter(c => c.id !== id)); if (id === conv) nueva() }
   const enviarForm = (ev?: FormEvent) => { ev?.preventDefault(); enviar(texto) }
 
@@ -78,10 +86,12 @@ export default function Tutor() {
   const sugerencias = ['¿Qué temas se toman más en el parcial?', 'Dame un ejercicio de un parcial viejo', 'Armemos un plan hasta el parcial']
   const chat = (
     <>
-      <div className="chat">
-        {mensajes.length === 0 && !sim && <div className="vacio"><p>¿Por dónde arrancamos?</p><div className="sugerencias">{sugerencias.map(s => <button key={s} onClick={() => setTexto(s)}>{s}</button>)}</div></div>}
-        {mensajes.map((m, i) => m.text || m.role === 'user' ? <div key={i} className={`burbuja ${m.role}`}>{m.role === 'assistant' ? <Texto texto={m.text} /> : m.text}</div> : null)}
-        {estado && <div className="estado-tutor" role="status"><i />{estado}</div>}
+      <div className="chat" aria-busy={cargandoConv}>
+        {cargandoConv && <div className="esqueletos" role="status" aria-label="Cargando la conversación">{['user', 'assistant', 'user', 'assistant'].map((r, i) => <div key={i} className={`burbuja ${r} esqueleto`} />)}</div>}
+        {mensajes.length === 0 && !sim && !cargandoConv && <div className="vacio"><p>¿Por dónde arrancamos?</p><div className="sugerencias">{sugerencias.map(s => <button key={s} onClick={() => setTexto(s)}>{s}</button>)}</div></div>}
+        {mensajes.map((m, i) => m.text || m.role === 'user' ? <div key={i} className={`burbuja ${m.role}`}>{m.role === 'user' ? m.text
+          : animando && i === mensajes.length - 1 ? <TextoQueAparece texto={m.text} alCrecer={bajar} alTerminar={() => setAnimando(false)} /> : <Texto texto={m.text} />}</div> : null)}
+        {estado && <div className="estado-tutor" role="status"><i /><span key={estado}>{estado}</span></div>}
         <div ref={fin} />
       </div>
       <form className="escribir" onSubmit={enviarForm}>
