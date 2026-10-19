@@ -58,21 +58,16 @@ func (t *tools) prerequisites(ctx context.Context, in subjectIn) (prerequisitesO
 	if in.SubjectID <= 0 {
 		return prerequisitesOut{}, invalidArgument("subject_id must be positive")
 	}
-	rel, err := t.api.Relations(ctx, in.SubjectID)
+	requires, unlocks, err := t.relations(ctx, in.SubjectID)
 	if err != nil {
 		return prerequisitesOut{}, err
 	}
 	out := prerequisitesOut{SubjectID: in.SubjectID, Requires: []requirementOut{}, Unlocks: []unlockOut{}}
-	for _, p := range rel.Prerequisites {
-		// The API leaves requirement null for plain approval (to be confirmed, issue #6).
-		cond := "approved"
-		if p.Requirement == "regular" {
-			cond = "regular"
-		}
-		out.Requires = append(out.Requires, requirementOut{p.RelatedSubjectID, p.RelatedCode, cond})
+	for _, r := range requires {
+		out.Requires = append(out.Requires, requirementOut{r.SubjectID, r.Code, r.Condition})
 	}
-	for _, u := range rel.RequiredBy {
-		out.Unlocks = append(out.Unlocks, unlockOut{u.SubjectID, u.SubjectName})
+	for _, u := range unlocks {
+		out.Unlocks = append(out.Unlocks, unlockOut{u.SubjectID, u.Name})
 	}
 	return out, nil
 }

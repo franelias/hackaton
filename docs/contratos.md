@@ -60,8 +60,8 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
 {
   "career_id": 1,
   "name": "Licenciatura en Ciencias de la Computación",
-  "min_terms": 9,
-  "critical_path": [1, 4, 7, 10, 15, 17, 23, 22, 25],
+  "min_terms": 7,
+  "critical_path": [1, 4, 7, 10, 15, 21, 24],
   "subjects": [
     {
       "subject_id": 6,
@@ -77,13 +77,21 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
       "slack": 0,
       "postpone_year_delay": 2
     }
-  ]
+  ],
+  "final_goal": {
+    "subject_id": 31,
+    "code": "r523",
+    "name": "Tesina",
+    "year": 5,
+    "term": 2,
+    "requires_all": true
+  }
 }
 ```
 
 | Campo | Notas |
 |---|---|
-| `requires[].condition` | `approved` · `regular`. Sale de `requirement` en `/relations` (`null` → `approved`, **a confirmar**) |
+| `requires[].condition` | `approved` · `regular`. Sale de `requirement` en `/relations` (`null` → `approved`, confirmado para LCC con los programas 2024) |
 | `unlocks` | Materias que la requieren directamente (de `required_by`) |
 | `unlocks_total` | Directas + indirectas; la app lo usa para el grosor del tronco |
 | `bottleneck` | Cuello de botella: `unlocks_total >= 8` (ver `camino-critico.md`) |
@@ -92,6 +100,7 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
 | `postpone_year_delay` | Cuatrimestres que se atrasa la carrera si se pospone un año |
 | `term` | Cuatrimestre dentro del año (`1` o `2`) |
 | `min_terms`, `critical_path` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga |
+| `final_goal` | La Tesina, objetivo final: fuera de `subjects` y de las correlativas; `requires_all: true` = hay que tener aprobadas todas las demás para presentarla. No cuenta en `min_terms` ni en `unlocks_total` |
 
 La app calcula el layout (posición de cada rama) a partir de `requires` y `unlocks`. El backend no manda coordenadas.
 
@@ -265,7 +274,7 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 ```
 
 ### `prerequisites(subject_id: int)`
-(`GET /subjects/{id}/relations`; `requirement: null` → `approved`, **a confirmar en #6**)
+(`GET /subjects/{id}/relations` con la revisión manual aplicada (`corrections/`, ver `revision-plan-lcc.md`): hay 3 correlativas de LCC que la API tiene mal y se corrigen; `requirement: null` → `approved`, confirmado)
 ```json
 { "subject_id": 55,
   "requires": [ { "subject_id": 52, "code": "FB3", "condition": "regular" } ],
@@ -287,7 +296,7 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 - **Semestre**: por materia, el más reciente (`2026-2S`); si solo tiene "última publicación" va con `stale: true` y un aviso. `semester` fuerza uno.
 - **Fin de clase vacío**: se asumen 180 min y la clase sale con `end_estimated: true`.
 - **Orden** (hasta 3 opciones): menos clases fuera del turno pedido (por hora de inicio: `morning` < 13:00, `afternoon` 13:00–18:59, `evening` desde 19:00), menos días en la facultad, menos horas de hueco, menor comisión. `free_days` es restricción dura; si ninguna combinación la cumple se ignora con un aviso.
-- **Sin combinación**: `conflicts` lista los pares que chocan en todas sus comisiones; `suggest_postpone` es el conjunto a postergar que menos cuellos de botella (`destraba_total >= 8`) toca, después el más chico, después el que menos destraba; `options` arma el resto. Los cuellos de botella se calculan en el MCP desde `/relations`.
+- **Sin combinación**: `conflicts` lista los pares que chocan en todas sus comisiones; `suggest_postpone` es el conjunto a postergar que menos cuellos de botella (`unlocks_total >= 8`) toca, después el más chico, después el que menos destraba; `options` arma el resto. Los cuellos de botella se calculan en el MCP desde `/relations`, con la revisión manual aplicada.
 - **Traslados**: `warnings` avisa dos clases seguidas en sedes distintas con menos de 60 min entre ellas (solo si ambas sedes están informadas). No influye en el orden.
 
 ```json
@@ -325,6 +334,6 @@ No están en el MCP: el backend las agrega al loop de tool use junto con las del
 | **`/calendar` no trae receso ni períodos de parciales** (solo ingreso 2027 y dos eventos sin fecha) | Receso y mesas 2026-27 cargados a mano desde el PDF del Calendario Académico (Res. DEC 1723/2025, Escuela de Ciencias Exactas y Naturales) en `backend/data/periods_fceia_2026.json`. Los parciales no están en el calendario: los carga el alumno | Eugenio |
 | Solo 25 de las 73 resoluciones están vinculadas a un examen | `solution()` va a devolver `available: false` casi siempre; el tutor resuelve solo | Eugenio |
 | El texto de los materiales se busca por subcadena, no hay búsqueda semántica | `search_materials` es búsqueda por texto, no RAG con embeddings (ajustar la propuesta) | Fran |
-| `requirement` en correlativas puede ser `"regular"` o `null` | Confirmar que `null` significa "aprobada" | Fran |
+| `requirement` en correlativas puede ser `"regular"` o `null` | Confirmado para LCC: los programas 2024 solo tienen "Previos Aprobados", así que `null` = aprobada | Fran |
 | Materias compartidas entre carreras se reconocen por `code` | Resuelve la "reorientación": `GET /subjects?code=` | Fran |
 | `GET /subjects/{id}/overview` trae horarios, correlativas y conteos de exámenes en una llamada | Útil para armar el plan sin N llamadas | Fran |

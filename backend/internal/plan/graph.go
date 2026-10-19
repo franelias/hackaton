@@ -7,7 +7,7 @@ import (
 
 // Condition values, as in docs/contratos.md §2.1.
 const (
-	Aprobada = "aprobada"
+	Approved = "approved"
 	Regular  = "regular"
 )
 
@@ -18,6 +18,9 @@ type Subject struct {
 	Year     *int
 	Term     *int // absolute cuatrimestre in the career (1..10) or 1/2 for electives
 	Elective bool
+	// FinalGoal marks the subject the career leads to (the Tesina). It stays
+	// out of the correlativa graph and is reported apart.
+	FinalGoal bool
 }
 
 type Prerequisite struct {
