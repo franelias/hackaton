@@ -15,7 +15,7 @@
 | Tools locales | `registrar_progreso`, `ver_mi_arbol`, `iniciar_simulacro`. El `alumno_id` lo inyecta el backend, nunca Claude |
 | SSE | Etapa 1: un `estado` por tool, un solo `texto` al final y después `fin` |
 | Conversación | `conversacion_id` opcional en `POST /api/chat`; si no viene, se crea y se devuelve en `fin`. Agrega `GET /api/alumnos/{id}/conversaciones/{cid}`. Mensajes en DB |
-| Auth | `POST /api/alumnos` → `{alumno_id, token}`. Header `Authorization: Bearer`. Middleware: el token tiene que corresponder al alumno de la URL o del body; si no, 401/403. Se guarda el sha256 |
+| Auth | **Firebase Auth** (Google y email + contraseña). La app manda el ID token en `Authorization: Bearer`; el backend lo verifica con `firebase.google.com/go/v4` y obtiene el `uid`. Tabla `students` con `firebase_uid` unique; `student_id` sigue siendo `s-<n>`. `GET /api/me` → `{student_id \| null}`. El middleware chequea que el `uid` sea dueño del `student_id` de la URL o del body (401/403). En dev y tests: Firebase Auth Emulator en compose (`FIREBASE_AUTH_EMULATOR_HOST`); para la demo, el proyecto real (falta que alguien lo cree y comparta el project id y la service account) |
 | IDs | `s-001`, `c-<n>`, `al-<n>` (prefijo + serial). Materias y carreras con los ids de la API |
 | Multi-facultad | Columna `facultad` (`'fceia'`) con clave `(facultad, id_externo)` en carreras, materias y correlativas. Rutas iguales y sin interfaz de proveedor |
 | Plan | Tablas `carreras`/`materias`/`correlativas`. `import-plan --facultad fceia <json>` lee el formato 2.1. `/api/carreras/{id}/plan` se sirve desde la base. JSON provisorio mío (`/subjects` + `/relations`, cuello = destraba ≥ 3) hasta que Fran entregue el suyo |
@@ -43,14 +43,14 @@ Fran ya creó el módulo `github.com/franelias/hackaton/backend` con `cmd/plan`,
 **Claves del plan en inglés:** hecho en esta rama (tags json de `internal/plan`, constante `Approved`, JSON regenerado; datos idénticos salvo las claves).
 
 ## Orden: rama + PR por issue
-0. ✅ **Directo a main** (3fed708): actualizar `docs/contratos.md`: pasar a inglés todo lo que viaja por el cable (rutas, campos, enums, SSE, tools MCP) dejando la prosa en español, más (conversacion_id en chat y `fin` + GET conversación; token en `POST /api/alumnos` + header; tipo `parcial` en `/actividad`; Postgres; ids reales: Lógica = 12, AM I = 2).
-1. `backend/9-estado-alumno`: esqueleto, compose, migraciones, import-plan + JSON provisorio, alumnos/token, PUT materias, POST actividad, GET árbol y plan.
+0. ✅ **Directo a main** (3fed708, 8560b50: auth con Firebase): actualizar `docs/contratos.md`: pasar a inglés todo lo que viaja por el cable (rutas, campos, enums, SSE, tools MCP) dejando la prosa en español, más (conversacion_id en chat y `fin` + GET conversación; token en `POST /api/alumnos` + header; tipo `parcial` en `/actividad`; Postgres; ids reales: Lógica = 12, AM I = 2).
+1. `backend/9-estado-alumno`: esqueleto, compose, migraciones, import-plan (JSON de Fran), middleware Firebase, `GET /api/me`, `POST /api/students`, PUT materias, POST actividad, GET árbol y plan.
 2. `backend/10-salud-alertas`: periodos, salud, racha, motor de alertas, GET alertas y descartar.
 3. `backend/7-chat-mcp`: cliente MCP, loop de tool use, tools locales, SSE etapa 1, conversaciones, horario.
 4. `backend/8-tutor`: system prompt (pistas antes que la solución, decir cuando no está seguro, foto vía `imagen_base64`, simulacro).
-5. `backend/11-seed-demo`: A (AM I id 2, frondoso, racha 6, parcial en 10 días) y B (Lógica id 12, 12 días inactivo → marchito + inactividad medio; parcial hace 3 días → `primer_parcial_no_rendido` alto, rama seca; racha 0, mejor 8). Fechas relativas a now(); imprime los tokens.
+5. `backend/11-seed-demo`: A (AM I id 2, frondoso, racha 6, parcial en 10 días) y B (Lógica id 12, 12 días inactivo → marchito + inactividad medio; parcial hace 3 días → `primer_parcial_no_rendido` alto, rama seca; racha 0, mejor 8). Fechas relativas a now(). Crea los usuarios de A y B en Firebase (email + contraseña, vía Admin SDK) y los vincula.
 
 ## Verificación
 - Tests table-driven de `arbol/` (salud con receso y clima, racha con comodines, disponible/bloqueada, reglas de alertas).
-- `docker compose up -d && go run . migrate && go run . import-plan … && go run . seed && go run . serve`, después curl de cada endpoint con el token de A y B, comparando contra los JSON de `contratos.md`.
+- `docker compose up -d && go run . migrate && go run . import-plan … && go run . seed && go run . serve`, después curl de cada endpoint con un ID token de A y de B (login contra el emulador), comparando contra los JSON de `contratos.md`.
 - Chat: `curl -N` a `/api/chat` con el MCP de Fran levantado (o un MCP stub) y ver `estado`/`texto`/`fin`.
