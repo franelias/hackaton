@@ -7,21 +7,21 @@ import (
 	"sync"
 
 	"github.com/franelias/hackaton/corrections"
-	"github.com/franelias/hackaton/mcp/internal/fceia"
-	"github.com/franelias/hackaton/mcp/internal/schedule"
+	"github.com/franelias/hackaton/fceia"
+	"github.com/franelias/hackaton/fceia/schedule"
 )
 
-type preferencesIn struct {
+type PreferencesIn struct {
 	Shift    string `json:"shift,omitempty" jsonschema:"preferred shift by class start: morning (before 13:00), afternoon (13:00-18:59) or evening (from 19:00)"`
 	FreeDays []int  `json:"free_days,omitempty" jsonschema:"days to keep free, ISO weekdays (1 = Monday ... 7 = Sunday)"`
 }
 
-type buildScheduleIn struct {
+type BuildScheduleIn struct {
 	SubjectIDs         []int          `json:"subject_ids" jsonschema:"subjects the student wants to take this semester (max 12, all from the same career)"`
 	ApprovedSubjectIDs []int          `json:"approved_subject_ids,omitempty" jsonschema:"subjects the student already passed; with this or regular_subject_ids, subjects whose correlativas are not met are left out"`
 	RegularSubjectIDs  []int          `json:"regular_subject_ids,omitempty" jsonschema:"subjects the student has regular (cursada aprobada) but not passed"`
 	Semester           string         `json:"semester,omitempty" jsonschema:"force a semester label such as 2026-2S (default: latest published per subject)"`
-	Preferences        *preferencesIn `json:"preferences,omitempty"`
+	Preferences        *PreferencesIn `json:"preferences,omitempty"`
 }
 
 type classOut struct {
@@ -66,7 +66,7 @@ type notEnabledOut struct {
 	Missing   []missingOut `json:"missing"`
 }
 
-type buildScheduleOut struct {
+type BuildScheduleOut struct {
 	Options         []optionOut     `json:"options"`
 	ScheduledIDs    []int           `json:"scheduled_subject_ids"`
 	Conflicts       []conflictOut   `json:"conflicts"`
@@ -78,25 +78,26 @@ type buildScheduleOut struct {
 
 var shifts = map[string]bool{schedule.Morning: true, schedule.Afternoon: true, schedule.Evening: true}
 
-func (t *tools) buildSchedule(ctx context.Context, in buildScheduleIn) (buildScheduleOut, error) {
+// BuildSchedule is the build_schedule tool, also used by POST /api/schedule.
+func (t *Tools) BuildSchedule(ctx context.Context, in BuildScheduleIn) (BuildScheduleOut, error) {
 	ids, err := uniqueSubjectIDs(in.SubjectIDs)
 	if err != nil {
-		return buildScheduleOut{}, err
+		return BuildScheduleOut{}, err
 	}
 	var prefs schedule.Preferences
 	if p := in.Preferences; p != nil {
 		if p.Shift != "" && !shifts[p.Shift] {
-			return buildScheduleOut{}, invalidArgument("shift must be morning, afternoon or evening")
+			return BuildScheduleOut{}, invalidArgument("shift must be morning, afternoon or evening")
 		}
 		for _, d := range p.FreeDays {
 			if d < 1 || d > 7 {
-				return buildScheduleOut{}, invalidArgument("free_days must be ISO weekdays between 1 and 7")
+				return BuildScheduleOut{}, invalidArgument("free_days must be ISO weekdays between 1 and 7")
 			}
 		}
 		prefs = schedule.Preferences{Shift: p.Shift, FreeDays: p.FreeDays}
 	}
 
-	out := buildScheduleOut{
+	out := BuildScheduleOut{
 		Options: []optionOut{}, ScheduledIDs: []int{}, Conflicts: []conflictOut{}, SuggestPostpone: []int{},
 		NotEnabled: []notEnabledOut{}, WithoutSchedule: []int{}, Warnings: []string{},
 	}
@@ -105,10 +106,10 @@ func (t *tools) buildSchedule(ctx context.Context, in buildScheduleIn) (buildSch
 	for _, id := range ids {
 		s, err := t.api.Subject(ctx, id)
 		if err != nil {
-			return buildScheduleOut{}, err
+			return BuildScheduleOut{}, err
 		}
 		if len(subjects) > 0 && s.CareerID != subjects[ids[0]].CareerID {
-			return buildScheduleOut{}, invalidArgument(fmt.Sprintf("subjects %d and %d belong to different careers; a subject has a different subject_id in each career", ids[0], id))
+			return BuildScheduleOut{}, invalidArgument(fmt.Sprintf("subjects %d and %d belong to different careers; a subject has a different subject_id in each career", ids[0], id))
 		}
 		subjects[id] = s
 	}
@@ -118,7 +119,7 @@ func (t *tools) buildSchedule(ctx context.Context, in buildScheduleIn) (buildSch
 	if in.ApprovedSubjectIDs != nil || in.RegularSubjectIDs != nil {
 		enabled, out.NotEnabled, err = t.filterEnabled(ctx, ids, subjects, in.ApprovedSubjectIDs, in.RegularSubjectIDs)
 		if err != nil {
-			return buildScheduleOut{}, err
+			return BuildScheduleOut{}, err
 		}
 	} else {
 		out.Warnings = append(out.Warnings, "approved_subject_ids and regular_subject_ids were not given: correlativas were not checked")
@@ -129,7 +130,7 @@ func (t *tools) buildSchedule(ctx context.Context, in buildScheduleIn) (buildSch
 	for _, id := range enabled {
 		raw, err := t.api.Sessions(ctx, id)
 		if err != nil {
-			return buildScheduleOut{}, err
+			return BuildScheduleOut{}, err
 		}
 		for _, s := range raw {
 			ss := schedule.Session{Semester: s.Semester, Weekday: s.Weekday, Start: s.StartTime, Rooms: s.Rooms}
@@ -185,7 +186,7 @@ func (t *tools) buildSchedule(ctx context.Context, in buildScheduleIn) (buildSch
 
 	res, err := schedule.Solve(offerings, prefs, func() (map[int]int, error) { return t.destrabaTotal(ctx, careerID) })
 	if err != nil {
-		return buildScheduleOut{}, err
+		return BuildScheduleOut{}, err
 	}
 	out.ScheduledIDs = res.Scheduled
 	out.SuggestPostpone = res.Postpone
@@ -235,7 +236,7 @@ func uniqueSubjectIDs(in []int) ([]int, error) {
 // filterEnabled splits subjects into those whose correlativas are met and
 // those that are not. A "regular" correlativa is met by regular or approved;
 // anything else needs approved.
-func (t *tools) filterEnabled(ctx context.Context, ids []int, subjects map[int]fceia.Subject, approved, regular []int) ([]int, []notEnabledOut, error) {
+func (t *Tools) filterEnabled(ctx context.Context, ids []int, subjects map[int]fceia.Subject, approved, regular []int) ([]int, []notEnabledOut, error) {
 	passed, reg := toSet(approved), toSet(regular)
 	enabled := []int{}
 	blocked := []notEnabledOut{}
@@ -265,7 +266,7 @@ func (t *tools) filterEnabled(ctx context.Context, ids []int, subjects map[int]f
 
 // destrabaTotal counts, for every subject of a career, the subjects that
 // directly or indirectly require it (same measure as backend/internal/plan).
-func (t *tools) destrabaTotal(ctx context.Context, careerID int) (map[int]int, error) {
+func (t *Tools) destrabaTotal(ctx context.Context, careerID int) (map[int]int, error) {
 	subjects, err := t.api.CareerSubjects(ctx, careerID)
 	if err != nil {
 		return nil, err

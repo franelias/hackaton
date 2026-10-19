@@ -15,6 +15,7 @@ import (
 
 	"github.com/franelias/hackaton/backend/internal/db"
 	"github.com/franelias/hackaton/backend/internal/tutor"
+	"github.com/franelias/hackaton/fceia/tools"
 )
 
 const maxImageBytes = 5 << 20
@@ -82,17 +83,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	user := openai.UserMessage(parts)
 
 	ctx := r.Context()
-	tools := s.localTools(st, &conv)
-	if session, err := tutor.ConnectMCP(ctx, s.MCPURL); err != nil {
-		log.Printf("chat: MCP unavailable, local tools only: %v", err)
-	} else {
-		defer session.Close()
-		mcpTools, err := tutor.MCPTools(ctx, session)
-		if err != nil {
-			log.Printf("chat: listing MCP tools: %v", err)
-		}
-		tools = append(mcpTools, tools...)
-	}
+	turnTools := append(tutor.FCEIATools(s.FCEIA.List()), s.localTools(st, &conv)...)
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -105,7 +96,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	added, text, err := s.Tutor.Turn(ctx, history, user, tools, func(tool, message string) {
+	added, text, err := s.Tutor.Turn(ctx, history, user, turnTools, func(tool, message string) {
 		send("status", map[string]string{"tool": tool, "message": message})
 	})
 	if err != nil {
@@ -209,12 +200,12 @@ func (s *Server) getConversation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"conversation_id": formatConvID(conv.ID), "messages": out})
 }
 
-// schedule passes the request to the MCP build_schedule tool (contract §2.4).
+// schedule runs the shared build_schedule tool for the student (contract §2.4).
 func (s *Server) schedule(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		StudentID   string          `json:"student_id"`
-		SubjectIDs  []int           `json:"subject_ids"`
-		Preferences json.RawMessage `json:"preferences"`
+		StudentID   string               `json:"student_id"`
+		SubjectIDs  []int                `json:"subject_ids"`
+		Preferences *tools.PreferencesIn `json:"preferences"`
 	}
 	if !decode(w, r, &body) {
 		return
@@ -237,30 +228,17 @@ func (s *Server) schedule(w http.ResponseWriter, r *http.Request) {
 			regular = append(regular, x.SubjectID)
 		}
 	}
-	session, err := tutor.ConnectMCP(r.Context(), s.MCPURL)
+	out, err := s.FCEIA.BuildSchedule(r.Context(), tools.BuildScheduleIn{
+		SubjectIDs: body.SubjectIDs, ApprovedSubjectIDs: approved, RegularSubjectIDs: regular, Preferences: body.Preferences,
+	})
 	if err != nil {
-		writeErr(w, http.StatusBadGateway, "api_unavailable", "el servidor MCP no responde")
-		return
-	}
-	defer session.Close()
-	args := map[string]any{"subject_ids": body.SubjectIDs, "approved_subject_ids": approved, "regular_subject_ids": regular}
-	if len(body.Preferences) > 0 {
-		args["preferences"] = body.Preferences // validated by the MCP tool
-	}
-	raw, _ := json.Marshal(args)
-	out, isErr := tutor.CallMCP(r.Context(), session, "build_schedule", raw)
-	if isErr {
-		var e struct {
-			Error struct{ Code, Message string }
-		}
-		json.Unmarshal([]byte(out), &e)
-		status := map[string]int{"invalid_argument": http.StatusBadRequest, "not_found": http.StatusNotFound}[e.Error.Code]
+		code := tools.Code(err)
+		status := map[string]int{tools.CodeInvalidArg: http.StatusBadRequest, tools.CodeNotFound: http.StatusNotFound}[code]
 		if status == 0 {
-			status, e.Error.Code, e.Error.Message = http.StatusBadGateway, "api_unavailable", out
+			status = http.StatusBadGateway
 		}
-		writeErr(w, status, e.Error.Code, e.Error.Message)
+		writeErr(w, status, code, err.Error())
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(out))
+	writeJSON(w, http.StatusOK, out)
 }

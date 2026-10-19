@@ -20,7 +20,7 @@ type bibliographyOut struct {
 	Books []bookOut `json:"books"`
 }
 
-func (t *tools) bibliography(ctx context.Context, in subjectIn) (bibliographyOut, error) {
+func (t *Tools) bibliography(ctx context.Context, in subjectIn) (bibliographyOut, error) {
 	if in.SubjectID <= 0 {
 		return bibliographyOut{}, invalidArgument("subject_id must be positive")
 	}
@@ -54,7 +54,7 @@ type prerequisitesOut struct {
 	Unlocks   []unlockOut      `json:"unlocks"`
 }
 
-func (t *tools) prerequisites(ctx context.Context, in subjectIn) (prerequisitesOut, error) {
+func (t *Tools) prerequisites(ctx context.Context, in subjectIn) (prerequisitesOut, error) {
 	if in.SubjectID <= 0 {
 		return prerequisitesOut{}, invalidArgument("subject_id must be positive")
 	}
@@ -100,7 +100,7 @@ type datesOut struct {
 	ExamBoards []boardOut `json:"exam_boards"`
 }
 
-func (t *tools) dates(ctx context.Context, in datesIn) (datesOut, error) {
+func (t *Tools) dates(ctx context.Context, in datesIn) (datesOut, error) {
 	if in.CareerID <= 0 {
 		return datesOut{}, invalidArgument("career_id must be positive")
 	}

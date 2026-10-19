@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/franelias/hackaton/mcp/internal/fceia"
+	"github.com/franelias/hackaton/fceia"
 )
 
 // versionedServer answers /subjects/6/relations with a subject_id equal to

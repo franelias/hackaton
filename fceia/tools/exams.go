@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/franelias/hackaton/mcp/internal/fceia"
+	"github.com/franelias/hackaton/fceia"
 )
 
 const (
@@ -45,7 +45,7 @@ type frequentTopicsOut struct {
 	Keywords []keywordCount `json:"keywords"`
 }
 
-func (t *tools) frequentTopics(ctx context.Context, in frequentTopicsIn) (frequentTopicsOut, error) {
+func (t *Tools) frequentTopics(ctx context.Context, in frequentTopicsIn) (frequentTopicsOut, error) {
 	if in.SubjectID <= 0 {
 		return frequentTopicsOut{}, invalidArgument("subject_id must be positive")
 	}
@@ -114,7 +114,7 @@ func limitOrDefault(n int) (int, error) {
 	return n, nil
 }
 
-func (t *tools) exercises(ctx context.Context, in exercisesIn) (exercisesOut, error) {
+func (t *Tools) exercises(ctx context.Context, in exercisesIn) (exercisesOut, error) {
 	if in.SubjectID <= 0 {
 		return exercisesOut{}, invalidArgument("subject_id must be positive")
 	}
@@ -173,7 +173,7 @@ type solutionOut struct {
 	Text      string `json:"text"`
 }
 
-func (t *tools) solution(ctx context.Context, in solutionIn) (solutionOut, error) {
+func (t *Tools) solution(ctx context.Context, in solutionIn) (solutionOut, error) {
 	if in.ExamID <= 0 {
 		return solutionOut{}, invalidArgument("exam_id must be positive")
 	}

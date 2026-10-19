@@ -1,6 +1,7 @@
 // Command server runs the HTTP API. Config: DATABASE_URL, PORT,
-// FIREBASE_PROJECT_ID (FIREBASE_AUTH_EMULATOR_HOST for the emulator), MCP_URL,
-// OPENROUTER_API_KEY, TUTOR_MODEL, TUTOR_FALLBACK_MODELS (comma-separated).
+// FIREBASE_PROJECT_ID (FIREBASE_AUTH_EMULATOR_HOST for the emulator),
+// FCEIA_API_BASE, OPENROUTER_API_KEY, TUTOR_MODEL, TUTOR_FALLBACK_MODELS
+// (comma-separated).
 package main
 
 import (
@@ -16,6 +17,8 @@ import (
 	"github.com/franelias/hackaton/backend/internal/api"
 	"github.com/franelias/hackaton/backend/internal/db"
 	"github.com/franelias/hackaton/backend/internal/tutor"
+	"github.com/franelias/hackaton/fceia"
+	"github.com/franelias/hackaton/fceia/tools"
 )
 
 func main() {
@@ -33,7 +36,7 @@ func main() {
 		log.Fatal(err)
 	}
 	port := env("PORT", "8000")
-	s := &api.Server{DB: g, Auth: authClient, Now: time.Now, MCPURL: env("MCP_URL", "http://localhost:8080/mcp")}
+	s := &api.Server{DB: g, Auth: authClient, Now: time.Now, FCEIA: tools.New(fceia.New(env("FCEIA_API_BASE", fceia.DefaultBase)), nil)}
 	if key := os.Getenv("OPENROUTER_API_KEY"); key != "" {
 		var fallbacks []string
 		if f := env("TUTOR_FALLBACK_MODELS", "openai/gpt-6-astra,google/gemini-3.1-pro-preview"); f != "" {

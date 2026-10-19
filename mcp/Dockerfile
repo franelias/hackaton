@@ -1,7 +1,8 @@
-# Build from the repository root: docker build -f mcp/Dockerfile -t fceia-mcp .
+# Build from the repository root (it needs ../corrections and ../fceia): docker build -f mcp/Dockerfile -t fceia-mcp .
 FROM golang:1.26 AS build
 WORKDIR /src
 COPY corrections ./corrections
+COPY fceia ./fceia
 COPY mcp ./mcp
 WORKDIR /src/mcp
 RUN go mod download

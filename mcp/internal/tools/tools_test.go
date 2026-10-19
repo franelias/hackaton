@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/franelias/hackaton/mcp/internal/fceia"
+	"github.com/franelias/hackaton/fceia"
 	"github.com/franelias/hackaton/mcp/internal/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )

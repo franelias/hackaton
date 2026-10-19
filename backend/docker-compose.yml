@@ -16,13 +16,5 @@ services:
     volumes: [./firebase.json:/emulator/firebase.json:ro]
     ports: ["9099:9099"]
 
-  # FCEIA MCP server (Fran's, ../mcp) over Streamable HTTP at :8080/mcp. Built from the
-  # repo root because it depends on ../corrections.
-  mcp:
-    build:
-      context: ..
-      dockerfile: mcp/Dockerfile
-    ports: ["8080:8080"]
-
 volumes:
   pgdata:

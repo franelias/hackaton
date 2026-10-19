@@ -9,9 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+
+	"github.com/franelias/hackaton/fceia/tools"
 )
 
 // fakeLLM returns scripted responses and records each request body.
@@ -38,38 +40,25 @@ func answer(text string) string {
 	return `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"` + text + `"}}]}`
 }
 
-// inMemoryMCP serves one tool, "topics", that echoes its subject_id.
-func inMemoryMCP(t *testing.T) *mcp.ClientSession {
-	t.Helper()
-	ctx := context.Background()
-	server := mcp.NewServer(&mcp.Implementation{Name: "fake", Version: "0"}, nil)
-	type in struct {
-		SubjectID int `json:"subject_id"`
-	}
-	type out struct {
-		SubjectID int      `json:"subject_id"`
-		Topics    []string `json:"topics"`
-	}
-	mcp.AddTool(server, &mcp.Tool{Name: "frequent_topics", Description: "topics"}, func(_ context.Context, _ *mcp.CallToolRequest, i in) (*mcp.CallToolResult, out, error) {
-		return nil, out{SubjectID: i.SubjectID, Topics: []string{"inducción"}}, nil
-	})
-	st, ct := mcp.NewInMemoryTransports()
-	if _, err := server.Connect(ctx, st, nil); err != nil {
-		t.Fatal(err)
-	}
-	cs, err := mcp.NewClient(&mcp.Implementation{Name: "test", Version: "0"}, nil).Connect(ctx, ct, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { cs.Close() })
-	return cs
+// fakeFCEIA is one shared tool, "frequent_topics", that echoes its subject_id.
+func fakeFCEIA() []tools.Tool {
+	return []tools.Tool{{
+		Name: "frequent_topics", Description: "topics", InputSchema: &jsonschema.Schema{Type: "object"},
+		Call: func(_ context.Context, args json.RawMessage) (any, error) {
+			var in struct {
+				SubjectID int `json:"subject_id"`
+			}
+			json.Unmarshal(args, &in)
+			return map[string]any{"subject_id": in.SubjectID, "topics": []string{"inducción"}}, nil
+		},
+	}}
 }
 
-func TestTurnRunsMCPAndLocalTools(t *testing.T) {
+func TestTurnRunsFCEIAAndLocalTools(t *testing.T) {
 	ctx := context.Background()
-	mcpTools, err := MCPTools(ctx, inMemoryMCP(t))
-	if err != nil || len(mcpTools) != 1 || mcpTools[0].Status != "Analizando los temas más tomados…" {
-		t.Fatalf("MCPTools = %+v, %v", mcpTools, err)
+	fceiaTools := FCEIATools(fakeFCEIA())
+	if len(fceiaTools) != 1 || fceiaTools[0].Status != "Analizando los temas más tomados…" || fceiaTools[0].Parameters["type"] != "object" {
+		t.Fatalf("FCEIATools = %+v", fceiaTools)
 	}
 	var recorded string
 	local := Tool{Name: "record_progress", Status: "Registrando tu progreso…", Parameters: map[string]any{"type": "object"},
@@ -86,7 +75,7 @@ func TestTurnRunsMCPAndLocalTools(t *testing.T) {
 	}}
 	tu := &Tutor{LLM: llm, Model: "anthropic/claude-sonnet-5.5"}
 	var statuses []string
-	added, text, err := tu.Turn(ctx, nil, openai.UserMessage("Preparame Lógica"), append(mcpTools, local), func(tool, msg string) {
+	added, text, err := tu.Turn(ctx, nil, openai.UserMessage("Preparame Lógica"), append(fceiaTools, local), func(tool, msg string) {
 		statuses = append(statuses, tool+":"+msg)
 	})
 	if err != nil {
@@ -105,7 +94,7 @@ func TestTurnRunsMCPAndLocalTools(t *testing.T) {
 	if len(added) != 8 {
 		t.Fatalf("added %d messages, want 8", len(added))
 	}
-	// The MCP structured result reaches the model, and an unknown tool is an error result.
+	// The tool result reaches the model as JSON, and an unknown tool is an error result.
 	last := llm.requests[len(llm.requests)-1]
 	for _, want := range []string{`{\"subject_id\":12,\"topics\":[\"inducción\"]}`, `ERROR: unknown tool nope`, `"tool_call_id":"c3"`} {
 		if !strings.Contains(last, want) {

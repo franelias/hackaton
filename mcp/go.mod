@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	golang.org/x/text v0.43.0
+	golang.org/x/text v0.43.0 // indirect
 )
 
 require (
@@ -18,6 +18,10 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 )
 
-require github.com/franelias/hackaton/corrections v0.0.0
+require github.com/franelias/hackaton/corrections v0.0.0 // indirect
 
 replace github.com/franelias/hackaton/corrections => ../corrections
+
+require github.com/franelias/hackaton/fceia v0.0.0
+
+replace github.com/franelias/hackaton/fceia => ../fceia

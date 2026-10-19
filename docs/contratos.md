@@ -231,7 +231,7 @@ Para el cliente: `EventSource` no soporta `POST` ni headers propios, así que la
 
 ## 3. Tools del MCP
 
-Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; los valores que vienen de la API (`parcial`, `final`…) se dejan tal cual. Todas devuelven JSON (`structuredContent`) y las listas van dentro de un objeto. Las URLs de archivos (`file_url`, `url`, `pdf_url`) son siempre absolutas.
+La lógica de las tools vive en el módulo compartido `fceia/` (Go): el servidor MCP (`mcp/`) las publica por MCP y el backend las usa directo en el tutor y en `POST /api/schedule`, sin pasar por el MCP. Nombres de tools, parámetros y campos **en inglés**; los valores que vienen de la API (`parcial`, `final`…) se dejan tal cual. Todas devuelven JSON (`structuredContent`) y las listas van dentro de un objeto. Las URLs de archivos (`file_url`, `url`, `pdf_url`) son siempre absolutas.
 
 **Errores**: tool error (`isError: true`) con `{ "error": { "code", "message" } }`; `code` ∈ `not_found` · `api_unavailable` · `invalid_argument`. Un resultado vacío no es error.
 
@@ -319,7 +319,7 @@ Servidor en `mcp/` (Go). Nombres de tools, parámetros y campos **en inglés**; 
 
 ### Tools locales del backend: `record_progress`, `view_my_tree`, `start_mock_exam`
 
-No están en el MCP: el backend las agrega al loop de tool use junto con las del MCP. **No reciben `student_id`**: el backend lo inyecta desde el request autenticado, así el modelo nunca puede tocar a otro alumno.
+No están en el MCP: el backend las agrega al loop de tool use junto con las de `fceia/`. **No reciben `student_id`**: el backend lo inyecta desde el request autenticado, así el modelo nunca puede tocar a otro alumno.
 
 - `record_progress(type: str, subject_id?: int, topic?: str, result?: object, date?: str)`: mismo body que `POST /activity` (2.4).
 - `view_my_tree()`: devuelve el árbol (2.2) con el `name` de cada materia, los temas practicados por materia (`topic`, `correct`, `attempts`, `mastered` a partir de 3 correctos) y las alertas abiertas, para que el modelo tenga todo en una llamada. Los temas solo los ve el tutor; no están en `GET /tree`.
@@ -371,5 +371,6 @@ Resumen para quien integró contra la versión del kickoff (issue #1). El detall
 
 - Tools del MCP en inglés (`search_subject`, `frequent_topics`, `exercises`, `solution`, `search_materials`, `bibliography`, `prerequisites`, `dates`, `build_schedule`), con listas envueltas en objetos y URLs absolutas. Los valores crudos de la API (`parcial`, `apuntes`…) pasan en español.
 - `registrar_progreso` y `ver_mi_arbol` pasaron a ser tools locales del backend (`record_progress`, `view_my_tree`) y se sumó `start_mock_exam`; no reciben `student_id`.
+- El backend no llama al servidor MCP: usa las mismas tools desde el módulo compartido `fceia/` (ya no hay `MCP_URL`). El servidor MCP queda para clientes externos, como el Claude de un alumno.
 - El tutor no llama a Claude directo: usa OpenRouter con un modelo principal y fallbacks de otros proveedores.
 - Persistencia en Postgres (no SQLite); el backend es Go + Chi.

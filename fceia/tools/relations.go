@@ -39,7 +39,7 @@ func conditionOf(c string) string {
 
 // relations returns what a subject requires and unlocks after the manual
 // review, so the tutor never says something the plan contradicts.
-func (t *tools) relations(ctx context.Context, subjectID int) (requires, unlocks []linked, err error) {
+func (t *Tools) relations(ctx context.Context, subjectID int) (requires, unlocks []linked, err error) {
 	rel, err := t.api.Relations(ctx, subjectID)
 	if err != nil {
 		return nil, nil, err

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/franelias/hackaton/mcp/internal/schedule"
+	"github.com/franelias/hackaton/fceia/schedule"
 )
 
 func class(day, from, to int, campus string) schedule.Class {

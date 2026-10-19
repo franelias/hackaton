@@ -1,7 +1,8 @@
 // Package tutor runs the AI tutor: one chat turn is a tool-calling loop over
-// the MCP tools (FCEIA API) plus the backend's local tools. Models are called
-// through OpenRouter with the OpenAI Chat Completions format, so the primary
-// model and its fallbacks can come from any provider.
+// the shared FCEIA tools (../fceia/tools, the same the MCP server serves) plus
+// the backend's local tools. Models are called through OpenRouter with the
+// OpenAI Chat Completions format, so the primary model and its fallbacks can
+// come from any provider.
 package tutor
 
 import (

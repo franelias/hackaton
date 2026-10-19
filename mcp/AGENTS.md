@@ -1,6 +1,6 @@
 # fceia-mcp
 
-Read-only MCP server over the FCEIA API (https://fceia-api.ariloc.ar/docs). Go, official `modelcontextprotocol/go-sdk`. Tool contract: `../docs/contratos.md` §3.
+Read-only MCP server over the FCEIA API (https://fceia-api.ariloc.ar/docs). Go, official `modelcontextprotocol/go-sdk`. Tool contract: `../docs/contratos.md` §3. The tools themselves (FCEIA client, operations, schedule solver) live in the shared module `../fceia`, also used in-process by the backend; this module only serves them over MCP (`internal/tools/server.go`).
 
 ## Commands
 
@@ -11,7 +11,7 @@ Read-only MCP server over the FCEIA API (https://fceia-api.ariloc.ar/docs). Go, 
 - Run over stdio: `go run ./cmd/fceia-mcp --stdio`
 - Add to Claude Code: `claude mcp add fceia -- go run ./cmd/fceia-mcp --stdio` (from `mcp/`)
 - Inspect: `npx @modelcontextprotocol/inspector go run ./cmd/fceia-mcp --stdio`
-- Docker (from the repository root, the module needs `../corrections`): `docker build -f mcp/Dockerfile -t fceia-mcp . && docker run -p 8080:8080 fceia-mcp`
+- Docker (from the repository root, the module needs `../corrections`): `docker build -f mcp/Dockerfile -t fceia-mcp . && docker run -p 8080:8080 fceia-mcp` (the build needs `../corrections` and `../fceia`)
 
 Config: `PORT` (default 8080), `FCEIA_API_BASE` (default `https://fceia-api.ariloc.ar/api/v1`).
 
@@ -19,7 +19,7 @@ Config: `PORT` (default 8080), `FCEIA_API_BASE` (default `https://fceia-api.aril
 
 - Tool names, parameters and fields are English; enum values coming from the API (`parcial`, `final`…) pass through.
 - Errors are tool errors with `{"error":{"code","message"}}`, codes `not_found | api_unavailable | invalid_argument`. Empty results are empty lists, not errors.
-- The API's `text=` filter is accent- and case-sensitive: match locally with `fold` (`internal/tools/fold.go`) or send spelling variants.
-- `prerequisites`, `build_schedule` and the bottleneck weights apply the manual review in `../corrections` (3 LCC correlativas are wrong in the API), via `internal/tools/relations.go`.
+- The API's `text=` filter is accent- and case-sensitive: match locally with `fold` (`../fceia/tools/fold.go`) or send spelling variants.
+- `prerequisites`, `build_schedule` and the bottleneck weights apply the manual review in `../corrections` (3 LCC correlativas are wrong in the API), via `../fceia/tools/relations.go`.
 - File URLs returned to clients are always absolute (`fceia.Client.AbsURL`).
 - Tests enter through an in-memory MCP client and stub the FCEIA API at HTTP with recorded JSON in `internal/tools/testdata/`.

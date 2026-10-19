@@ -19,6 +19,7 @@ import (
 
 	"github.com/franelias/hackaton/backend/internal/db"
 	"github.com/franelias/hackaton/backend/internal/tutor"
+	"github.com/franelias/hackaton/fceia/tools"
 )
 
 // Verifier checks a Firebase ID token. *auth.Client implements it.
@@ -31,8 +32,8 @@ type Server struct {
 	Auth  Verifier
 	Now   func() time.Time
 	Tutor *tutor.Tutor
-	// MCPURL is the FCEIA MCP server (Streamable HTTP).
-	MCPURL string
+	// FCEIA is the FCEIA API as tools, shared with the MCP server.
+	FCEIA *tools.Tools
 }
 
 func (s *Server) Routes() http.Handler {

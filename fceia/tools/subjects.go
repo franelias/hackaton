@@ -23,7 +23,7 @@ type searchSubjectOut struct {
 	Subjects []subjectOut `json:"subjects"`
 }
 
-func (t *tools) searchSubject(ctx context.Context, in searchSubjectIn) (searchSubjectOut, error) {
+func (t *Tools) searchSubject(ctx context.Context, in searchSubjectIn) (searchSubjectOut, error) {
 	if strings.TrimSpace(in.Name) == "" {
 		return searchSubjectOut{}, invalidArgument("name must not be empty")
 	}

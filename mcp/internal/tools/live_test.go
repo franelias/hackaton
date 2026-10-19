@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/franelias/hackaton/mcp/internal/fceia"
+	"github.com/franelias/hackaton/fceia"
 )
 
 // Run with: go test -tags live ./internal/tools

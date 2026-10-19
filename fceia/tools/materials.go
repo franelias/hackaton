@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/franelias/hackaton/mcp/internal/fceia"
+	"github.com/franelias/hackaton/fceia"
 )
 
 const (
@@ -69,7 +69,7 @@ func snippetAround(text []rune, at int) string {
 	return s
 }
 
-func (t *tools) searchMaterials(ctx context.Context, in searchMaterialsIn) (searchMaterialsOut, error) {
+func (t *Tools) searchMaterials(ctx context.Context, in searchMaterialsIn) (searchMaterialsOut, error) {
 	if in.SubjectID <= 0 {
 		return searchMaterialsOut{}, invalidArgument("subject_id must be positive")
 	}
