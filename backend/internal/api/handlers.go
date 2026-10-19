@@ -38,16 +38,16 @@ func (s *Server) getPlan(w http.ResponseWriter, r *http.Request) {
 		s.dbErr(w, err, "")
 		return
 	}
-	requires := map[int][]plan.Requisito{}
+	requires := map[int][]plan.Requirement{}
 	for _, p := range prereqs {
-		requires[p.SubjectID] = append(requires[p.SubjectID], plan.Requisito{SubjectID: p.RequiresID, Condicion: p.Condition})
+		requires[p.SubjectID] = append(requires[p.SubjectID], plan.Requirement{SubjectID: p.RequiresID, Condition: p.Condition})
 	}
-	out := plan.Plan{CareerID: c.ID, Nombre: c.Name, CuatrimestresMinimos: c.MinTerms, CaminoCritico: c.CriticalPath, Materias: []plan.Materia{}}
+	out := plan.Plan{CareerID: c.ID, Name: c.Name, MinTerms: c.MinTerms, CriticalPath: c.CriticalPath, Subjects: []plan.PlanSubject{}, FinalGoal: c.FinalGoal}
 	for _, m := range subjects {
-		out.Materias = append(out.Materias, plan.Materia{
-			SubjectID: m.ID, Code: m.Code, Nombre: m.Name, Anio: m.Year, Cuatrimestre: m.Term, Opcional: m.Optional,
-			Requiere: nonNil(requires[m.ID]), Destraba: nonNil(m.Unlocks), DestrabaTotal: m.UnlocksTotal,
-			CuelloDeBotella: m.Bottleneck, Holgura: m.Slack, AtrasoPosponerAnio: m.PostponeYearDelay,
+		out.Subjects = append(out.Subjects, plan.PlanSubject{
+			SubjectID: m.ID, Code: m.Code, Name: m.Name, Year: m.Year, Term: m.Term, Optional: m.Optional,
+			Requires: nonNil(requires[m.ID]), Unlocks: nonNil(m.Unlocks), UnlocksTotal: m.UnlocksTotal,
+			Bottleneck: m.Bottleneck, Slack: m.Slack, PostponeYearDelay: m.PostponeYearDelay,
 		})
 	}
 	w.Header().Set("Cache-Control", "public, max-age=3600")

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/franelias/hackaton/corrections"
 	"github.com/franelias/hackaton/mcp/internal/fceia"
 	"github.com/franelias/hackaton/mcp/internal/schedule"
 )
@@ -239,20 +240,18 @@ func (t *tools) filterEnabled(ctx context.Context, ids []int, subjects map[int]f
 	enabled := []int{}
 	blocked := []notEnabledOut{}
 	for _, id := range ids {
-		rel, err := t.api.Relations(ctx, id)
+		requires, _, err := t.relations(ctx, id)
 		if err != nil {
 			return nil, nil, err
 		}
 		var missing []missingOut
-		for _, p := range rel.Prerequisites {
-			cond := "approved"
-			met := passed[p.RelatedSubjectID]
-			if p.Requirement == "regular" {
-				cond = "regular"
-				met = met || reg[p.RelatedSubjectID]
+		for _, p := range requires {
+			met := passed[p.SubjectID]
+			if p.Condition == "regular" {
+				met = met || reg[p.SubjectID]
 			}
 			if !met {
-				missing = append(missing, missingOut{p.RelatedSubjectID, p.RelatedCode, cond})
+				missing = append(missing, missingOut{p.SubjectID, p.Code, p.Condition})
 			}
 		}
 		if len(missing) == 0 {
@@ -289,15 +288,23 @@ func (t *tools) destrabaTotal(ctx context.Context, careerID int) (map[int]int, e
 		}()
 	}
 	wg.Wait()
+	ov, err := reviewOf(careerID)
+	if err != nil {
+		return nil, err
+	}
 	unlocks := map[int][]int{}
 	for i, s := range subjects {
 		if errs[i] != nil {
 			return nil, errs[i]
 		}
+		var reqs []corrections.Requirement
 		for _, p := range rels[i].Prerequisites {
 			if inCareer[p.RelatedSubjectID] {
-				unlocks[p.RelatedSubjectID] = append(unlocks[p.RelatedSubjectID], s.ID)
+				reqs = append(reqs, corrections.Requirement{SubjectID: p.RelatedSubjectID})
 			}
+		}
+		for _, r := range ov.Prerequisites(s.ID, reqs) {
+			unlocks[r.SubjectID] = append(unlocks[r.SubjectID], s.ID)
 		}
 	}
 	out := map[int]int{}

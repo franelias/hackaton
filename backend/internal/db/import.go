@@ -13,20 +13,20 @@ func ImportPlan(g *gorm.DB, faculty string, p plan.Plan) error {
 		if err := tx.Where("faculty = ? AND career_id = ?", faculty, p.CareerID).Delete(&Subject{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Save(&Career{Faculty: faculty, ID: p.CareerID, Name: p.Nombre, MinTerms: p.CuatrimestresMinimos, CriticalPath: p.CaminoCritico}).Error; err != nil {
+		if err := tx.Save(&Career{Faculty: faculty, ID: p.CareerID, Name: p.Name, MinTerms: p.MinTerms, CriticalPath: p.CriticalPath, FinalGoal: p.FinalGoal}).Error; err != nil {
 			return err
 		}
 		var subjects []Subject
 		var prereqs []Prerequisite
-		for _, m := range p.Materias {
+		for _, m := range p.Subjects {
 			subjects = append(subjects, Subject{
-				Faculty: faculty, ID: m.SubjectID, CareerID: p.CareerID, Code: m.Code, Name: m.Nombre,
-				Year: m.Anio, Term: m.Cuatrimestre, Optional: m.Opcional, Unlocks: m.Destraba,
-				UnlocksTotal: m.DestrabaTotal, Bottleneck: m.CuelloDeBotella, Slack: m.Holgura,
-				PostponeYearDelay: m.AtrasoPosponerAnio,
+				Faculty: faculty, ID: m.SubjectID, CareerID: p.CareerID, Code: m.Code, Name: m.Name,
+				Year: m.Year, Term: m.Term, Optional: m.Optional, Unlocks: m.Unlocks,
+				UnlocksTotal: m.UnlocksTotal, Bottleneck: m.Bottleneck, Slack: m.Slack,
+				PostponeYearDelay: m.PostponeYearDelay,
 			})
-			for _, r := range m.Requiere {
-				prereqs = append(prereqs, Prerequisite{Faculty: faculty, SubjectID: m.SubjectID, RequiresID: r.SubjectID, Condition: r.Condicion})
+			for _, r := range m.Requires {
+				prereqs = append(prereqs, Prerequisite{Faculty: faculty, SubjectID: m.SubjectID, RequiresID: r.SubjectID, Condition: r.Condition})
 			}
 		}
 		if err := tx.Create(&subjects).Error; err != nil {

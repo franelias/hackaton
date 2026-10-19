@@ -32,5 +32,5 @@ func main() {
 	if err := db.ImportPlan(g, *faculty, p); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("imported career %d (%d subjects) for %s", p.CareerID, len(p.Materias), *faculty)
+	log.Printf("imported career %d (%d subjects) for %s", p.CareerID, len(p.Subjects), *faculty)
 }

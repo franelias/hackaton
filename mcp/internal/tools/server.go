@@ -27,7 +27,7 @@ func NewServer(api *fceia.Client, now func() time.Time) *mcp.Server {
 	}, handle(t.searchSubject))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "frequent_topics",
-		Description: "Rank the topics most often evaluated in a subject's past exams, parsed from exam descriptions. Exams without a date still count but cannot set last_year. since keeps only exams from that year on (undated exams are kept).",
+		Description: "Rank the topics most often evaluated in a subject's past exams, parsed from exam descriptions. topics are exact topic strings; keywords group them by shared words and pairs (with the number of exams that mention each), which is what to use for subjects with few exams. Exams without a date still count but cannot set last_year. since keeps only exams from that year on (undated exams are kept).",
 	}, handle(t.frequentTopics))
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "exercises",

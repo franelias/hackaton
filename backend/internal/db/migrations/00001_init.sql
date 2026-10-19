@@ -6,6 +6,8 @@ CREATE TABLE careers (
     name          text    NOT NULL,
     min_terms     integer NOT NULL,
     critical_path jsonb   NOT NULL DEFAULT '[]',
+    -- The subject the career leads to (Tesina), outside the correlativa graph; null if none.
+    final_goal    jsonb,
     PRIMARY KEY (faculty, id)
 );
 

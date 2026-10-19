@@ -362,3 +362,110 @@ func TestInvalidScheduleRequestsAreRejected(t *testing.T) {
 		}
 	}
 }
+
+// --- the manual review of LCC (corrections/data/career_1.json) ---
+
+const (
+	isw1      = 22
+	so2       = 23
+	analisisL = 18
+	modelosF  = 19
+	comunic   = 20
+)
+
+type prereqResult struct {
+	Requires []struct {
+		SubjectID int    `json:"subject_id"`
+		Code      string `json:"code"`
+		Condition string `json:"condition"`
+	} `json:"requires"`
+	Unlocks []struct {
+		SubjectID int    `json:"subject_id"`
+		Name      string `json:"name"`
+	} `json:"unlocks"`
+}
+
+func (p prereqResult) requiredIDs() []int {
+	var ids []int
+	for _, r := range p.Requires {
+		ids = append(ids, r.SubjectID)
+	}
+	return ids
+}
+
+func (p prereqResult) unlockedIDs() []int {
+	ids := []int{}
+	for _, u := range p.Unlocks {
+		ids = append(ids, u.SubjectID)
+	}
+	return ids
+}
+
+func prerequisites(t *testing.T, subject int) prereqResult {
+	t.Helper()
+	cs := connect(t, stubSchedule(t).URL, nil)
+	return ok[prereqResult](t, cs, "prerequisites", map[string]any{"subject_id": subject})
+}
+
+func TestPrerequisitesDropTheWrongCorrelativaTheAPIHas(t *testing.T) {
+	t.Parallel()
+	// The API says Ingeniería de Software I requires Sistemas Operativos II;
+	// the official program only recommends it alongside.
+	got := prerequisites(t, isw1)
+
+	if !reflect.DeepEqual(got.requiredIDs(), []int{12, 15, 16}) {
+		t.Fatalf("requires %v", got.requiredIDs())
+	}
+	if len(prerequisites(t, so2).Unlocks) != 0 {
+		t.Fatalf("Sistemas Operativos II should unlock nothing, got %+v", prerequisites(t, so2).Unlocks)
+	}
+}
+
+func TestPrerequisitesAddTheCorrelativaTheAPIIsMissing(t *testing.T) {
+	t.Parallel()
+	got := prerequisites(t, analisisL)
+
+	if !reflect.DeepEqual(got.requiredIDs(), []int{12, edaII}) || got.Requires[1].Code != "r312" || got.Requires[1].Condition != "approved" {
+		t.Fatalf("requires %+v", got.Requires)
+	}
+	unlocks := prerequisites(t, edaII).Unlocks
+	var names []string
+	for _, u := range unlocks {
+		names = append(names, u.Name)
+	}
+	if !strings.Contains(strings.Join(names, "|"), "Análisis de Lenguajes de Programación") {
+		t.Fatalf("EDA II should now unlock Análisis de Lenguajes: %v", names)
+	}
+}
+
+func TestSubjectIsEnabledWithTheOfficialCorrelativasAlone(t *testing.T) {
+	t.Parallel()
+	// With the API's data Ingeniería de Software I would also need Sistemas Operativos II.
+	got := build(t, map[string]any{"subject_ids": []int{isw1}, "approved_subject_ids": []int{12, edaII, ingles}})
+
+	if len(got.NotEnabled) != 0 || !reflect.DeepEqual(got.Scheduled, []int{isw1}) {
+		t.Fatalf("not_enabled = %+v, scheduled = %v", got.NotEnabled, got.Scheduled)
+	}
+}
+
+func TestSubjectMissingAnOfficialCorrelativaIsNotEnabled(t *testing.T) {
+	t.Parallel()
+	got := build(t, map[string]any{"subject_ids": []int{isw1}, "approved_subject_ids": []int{12, edaII}})
+
+	if len(got.NotEnabled) != 1 || len(got.NotEnabled[0].Missing) != 1 ||
+		got.NotEnabled[0].Missing[0].SubjectID != ingles || got.NotEnabled[0].Missing[0].Code != "r314" {
+		t.Fatalf("not_enabled: %+v", got.NotEnabled)
+	}
+}
+
+func TestBottlenecksFollowTheReviewedGraph(t *testing.T) {
+	t.Parallel()
+	// EDA II clashes with Modelos Físicos and Comunicaciones, which fit together.
+	// With the API's data EDA II unlocks 8 subjects (a bottleneck), so the other
+	// two would be postponed; reviewed, it unlocks 7, so postponing it alone is cheaper.
+	got := build(t, map[string]any{"subject_ids": []int{edaII, modelosF, comunic}})
+
+	if !reflect.DeepEqual(got.Postpone, []int{edaII}) || !reflect.DeepEqual(got.Scheduled, []int{modelosF, comunic}) {
+		t.Fatalf("postpone = %v, scheduled = %v", got.Postpone, got.Scheduled)
+	}
+}
