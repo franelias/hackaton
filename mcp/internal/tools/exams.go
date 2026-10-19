@@ -40,6 +40,9 @@ type frequentTopicsOut struct {
 	ExamsAnalyzed int          `json:"exams_analyzed"`
 	Undated       int          `json:"undated"`
 	Topics        []topicCount `json:"topics"`
+	// Keywords groups the free-text topics by shared words, so a subject with
+	// few exams still shows what keeps coming up ("deducción natural": 7).
+	Keywords []keywordCount `json:"keywords"`
 }
 
 func (t *tools) frequentTopics(ctx context.Context, in frequentTopicsIn) (frequentTopicsOut, error) {
@@ -52,6 +55,7 @@ func (t *tools) frequentTopics(ctx context.Context, in frequentTopicsIn) (freque
 	}
 	out := frequentTopicsOut{SubjectID: in.SubjectID}
 	tally := newTopicTally()
+	keywords := newKeywordTally()
 	for _, e := range exams {
 		year := examYear(e)
 		if in.Since > 0 && year != 0 && year < in.Since {
@@ -61,9 +65,15 @@ func (t *tools) frequentTopics(ctx context.Context, in frequentTopicsIn) (freque
 		if year == 0 {
 			out.Undated++
 		}
-		tally.add(examTopics(e.Description), year)
+		topics := examTopics(e.Description)
+		tally.add(topics, year)
+		keywords.add(topics, year)
 	}
 	out.Topics = tally.ranked()
+	out.Keywords = keywords.ranked()
+	if out.Keywords == nil {
+		out.Keywords = []keywordCount{}
+	}
 	return out, nil
 }
 

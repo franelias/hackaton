@@ -7,13 +7,14 @@ import (
 	"sync"
 
 	"github.com/franelias/hackaton/backend/internal/fceia"
+	"github.com/franelias/hackaton/corrections"
 )
 
 const fetchWorkers = 8
 
 // Generate loads a career from the FCEIA API, applies the manual-review
-// overrides and builds its plan.
-func Generate(ctx context.Context, api *fceia.Client, careerID int, ov Overrides) (*Result, error) {
+// corrections and builds its plan.
+func Generate(ctx context.Context, api *fceia.Client, careerID int, ov corrections.Overrides) (*Result, error) {
 	career, err := api.Career(ctx, careerID)
 	if err != nil {
 		return nil, err
@@ -49,75 +50,46 @@ func Generate(ctx context.Context, api *fceia.Client, careerID int, ov Overrides
 		}
 	}
 
-	in := Input{CareerID: careerID, Name: career.Name, Prerequisites: map[int][]Prerequisite{}}
-	inCareer := map[int]bool{}
+	known := map[int]bool{}
 	for _, s := range subjects {
-		inCareer[s.ID] = true
-		in.Subjects = append(in.Subjects, Subject{
-			ID: s.ID, Code: s.Code, Name: s.Name, Year: s.Year, Term: s.Term,
-			Elective: s.Kind == "electiva",
-		})
+		known[s.ID] = true
 	}
+	fromAPI := map[int][]corrections.Requirement{}
 	for i, s := range subjects {
 		for _, p := range relations[i].Prerequisites {
-			if !inCareer[p.RelatedSubjectID] {
+			if !known[p.RelatedSubjectID] {
 				continue // belongs to another career
 			}
-			cond := Approved // the API leaves requirement null for plain approval (to confirm, issue #6)
+			cond := corrections.Approved // null in the API means plain approval (confirmed for LCC, issue #6)
 			if p.Requirement == "regular" {
-				cond = Regular
+				cond = corrections.Regular
 			}
-			in.Prerequisites[s.ID] = append(in.Prerequisites[s.ID], Prerequisite{p.RelatedSubjectID, cond})
+			fromAPI[s.ID] = append(fromAPI[s.ID], corrections.Requirement{SubjectID: p.RelatedSubjectID, Condition: cond})
 		}
 	}
-	if err := ov.apply(&in); err != nil {
+	if err := ov.Validate(known, fromAPI); err != nil {
 		return nil, err
 	}
-	return Build(in)
-}
 
-func (ov Overrides) apply(in *Input) error {
-	index := map[int]int{}
-	for i, s := range in.Subjects {
-		index[s.ID] = i
-	}
-	for id, o := range ov.Subjects {
-		i, ok := index[id]
-		if !ok {
-			return fmt.Errorf("override for unknown subject %d", id)
-		}
-		if o.Year != nil {
-			in.Subjects[i].Year = o.Year
-		}
-		if o.Term != nil {
-			in.Subjects[i].Term = o.Term
-		}
-	}
-	for _, e := range ov.RemovePrerequisites {
-		list := in.Prerequisites[e.SubjectID]
-		kept := list[:0:0]
-		for _, p := range list {
-			if p.SubjectID != e.Requires {
-				kept = append(kept, p)
+	in := Input{CareerID: careerID, Name: career.Name, Prerequisites: map[int][]Prerequisite{}}
+	for _, s := range subjects {
+		sub := Subject{ID: s.ID, Code: s.Code, Name: s.Name, Year: s.Year, Term: s.Term, Elective: s.Kind == "electiva"}
+		if o, ok := ov.Subjects[s.ID]; ok {
+			if o.Year != nil {
+				sub.Year = o.Year
 			}
+			if o.Term != nil {
+				sub.Term = o.Term
+			}
+			if o.Elective != nil {
+				sub.Elective = *o.Elective
+			}
+			sub.FinalGoal = o.FinalGoal
 		}
-		if len(kept) == len(list) {
-			return fmt.Errorf("cannot remove prerequisite: subject %d does not require %d", e.SubjectID, e.Requires)
+		in.Subjects = append(in.Subjects, sub)
+		for _, r := range ov.Prerequisites(s.ID, fromAPI[s.ID]) {
+			in.Prerequisites[s.ID] = append(in.Prerequisites[s.ID], Prerequisite{r.SubjectID, r.Condition})
 		}
-		in.Prerequisites[e.SubjectID] = kept
 	}
-	for _, e := range ov.AddPrerequisites {
-		if _, ok := index[e.SubjectID]; !ok {
-			return fmt.Errorf("prerequisite added to unknown subject %d", e.SubjectID)
-		}
-		cond := e.Condition
-		if cond == "" {
-			cond = Approved
-		}
-		if cond != Approved && cond != Regular {
-			return fmt.Errorf("subject %d: condition must be %q or %q, got %q", e.SubjectID, Approved, Regular, cond)
-		}
-		in.Prerequisites[e.SubjectID] = append(in.Prerequisites[e.SubjectID], Prerequisite{e.Requires, cond})
-	}
-	return nil
+	return Build(in)
 }

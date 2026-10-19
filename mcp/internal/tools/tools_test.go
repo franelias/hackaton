@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -367,7 +369,10 @@ func TestBibliographyListsBooksWithISBN(t *testing.T) {
 
 func TestPrerequisitesTreatNullRequirementAsApproved(t *testing.T) {
 	t.Parallel()
-	api := stubAPI(t, map[string]string{"/subjects/55/relations": "relations_s55.json"})
+	api := stubAPI(t, map[string]string{
+		"/subjects/55":           "subject55.json",
+		"/subjects/55/relations": "relations_s55.json",
+	})
 	cs := connect(t, api.URL, nil)
 
 	got := ok[struct {
@@ -456,5 +461,108 @@ func TestToolsAreListedWithEnglishNames(t *testing.T) {
 	want := "bibliography build_schedule dates exercises frequent_topics prerequisites search_materials search_subject solution"
 	if got := sortedJoin(names); got != want {
 		t.Fatalf("tools = %q, want %q", got, want)
+	}
+}
+
+type keywordResult struct {
+	Keywords []struct {
+		Keyword  string `json:"keyword"`
+		Exams    int    `json:"exams"`
+		LastYear int    `json:"last_year"`
+	} `json:"keywords"`
+}
+
+func (k keywordResult) examsOf(keyword string) int {
+	for _, kw := range k.Keywords {
+		if kw.Keyword == keyword {
+			return kw.Exams
+		}
+	}
+	return 0
+}
+
+func TestKeywordsShowWhatKeepsComingUpInASubjectWithFewExams(t *testing.T) {
+	t.Parallel()
+	// Lógica has 10 exams and 40 different free-text topics, 36 of them once.
+	api := stubAPI(t, map[string]string{subject12Exams: "exams_subject12.json"})
+	cs := connect(t, api.URL, nil)
+
+	got := ok[keywordResult](t, cs, "frequent_topics", map[string]any{"subject_id": 12})
+
+	want := map[string]int{"deducción natural": 7, "consecuencia semántica": 6, "secuentes": 4, "consistencia": 4}
+	for keyword, exams := range want {
+		if got.examsOf(keyword) != exams {
+			t.Errorf("%q in %d exams, want %d", keyword, got.examsOf(keyword), exams)
+		}
+	}
+	if got.Keywords[0].Keyword != "semántica" || got.Keywords[0].Exams != 9 || got.Keywords[0].LastYear != 2022 {
+		t.Fatalf("top keyword: %+v", got.Keywords[0])
+	}
+}
+
+func TestKeywordsDropAWordThatOnlyAppearsInsideAnEquallyFrequentPair(t *testing.T) {
+	t.Parallel()
+	api := stubAPI(t, map[string]string{subject12Exams: "exams_subject12.json"})
+	cs := connect(t, api.URL, nil)
+
+	got := ok[keywordResult](t, cs, "frequent_topics", map[string]any{"subject_id": 12})
+
+	// "deducción natural" is in 7 exams; so are "deducción" and "natural" alone.
+	if got.examsOf("deducción") != 0 || got.examsOf("natural") != 0 {
+		t.Fatalf("redundant single words were kept: %+v", got.Keywords)
+	}
+	// "semántica" is in 9 exams but "consecuencia semántica" only in 6: it stays.
+	if got.examsOf("semántica") != 9 {
+		t.Fatalf("semántica = %d", got.examsOf("semántica"))
+	}
+}
+
+func TestKeywordsMergeAccentsAndIgnoreShortWordsAndStopwords(t *testing.T) {
+	t.Parallel()
+	api := stubAPI(t, map[string]string{subject99Exams: "exams_subject99_topic_variants.json"})
+	cs := connect(t, api.URL, nil)
+
+	got := ok[keywordResult](t, cs, "frequent_topics", map[string]any{"subject_id": 99})
+
+	var shown []string
+	for _, kw := range got.Keywords {
+		shown = append(shown, kw.Keyword+"="+strconv.Itoa(kw.Exams))
+	}
+	// "DER" is too short, "a" is a stopword, and "relación"/"relacion" count as one.
+	want := []string{"entidad relación=3", "modelo entidad=3", "paso=2", "tablas=2"}
+	if !reflect.DeepEqual(shown, want) {
+		t.Fatalf("keywords = %v, want %v", shown, want)
+	}
+}
+
+func TestKeywordsAreEmptyWhenNoWordRepeats(t *testing.T) {
+	t.Parallel()
+	api := stubAPI(t, map[string]string{
+		"/exams?limit=100&offset=0&subject_id=23": "exams_subject23.json",
+	})
+	cs := connect(t, api.URL, nil)
+
+	got := ok[keywordResult](t, cs, "frequent_topics", map[string]any{"subject_id": 23})
+
+	if len(got.Keywords) != 0 {
+		t.Fatalf("a single exam cannot repeat anything: %+v", got.Keywords)
+	}
+}
+
+func TestKeywordsSkipStopwordsEvenWhenTheyRepeat(t *testing.T) {
+	t.Parallel()
+	api := stubAPI(t, map[string]string{"/exams?limit=100&offset=0&subject_id=98": "exams_subject98_stopwords.json"})
+	cs := connect(t, api.URL, nil)
+
+	got := ok[keywordResult](t, cs, "frequent_topics", map[string]any{"subject_id": 98})
+
+	var shown []string
+	for _, kw := range got.Keywords {
+		shown = append(shown, kw.Keyword)
+	}
+	// "sobre" and "entre" repeat in both exams but are not topics, and they
+	// do not glue their neighbours into pairs.
+	if want := []string{"análisis", "cálculo", "modelos", "sistemas"}; !reflect.DeepEqual(shown, want) {
+		t.Fatalf("keywords = %v, want %v", shown, want)
 	}
 }

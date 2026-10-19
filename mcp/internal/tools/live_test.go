@@ -27,6 +27,9 @@ func TestLiveLogicaFlow(t *testing.T) {
 	if freq.ExamsAnalyzed == 0 || len(freq.Topics) == 0 {
 		t.Fatalf("no topics: %+v", freq)
 	}
+	if kw := ok[keywordResult](t, cs, "frequent_topics", map[string]any{"subject_id": id}); kw.examsOf("deducción natural") < 5 {
+		t.Fatalf("Lógica should keep coming back to deducción natural: %+v", kw.Keywords)
+	}
 
 	ex := ok[struct {
 		Exercises []struct {

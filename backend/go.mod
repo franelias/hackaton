@@ -76,3 +76,7 @@ require (
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
+
+require github.com/franelias/hackaton/corrections v0.0.0
+
+replace github.com/franelias/hackaton/corrections => ../corrections
