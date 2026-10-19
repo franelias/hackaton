@@ -23,12 +23,6 @@ const (
 	MockExamPass = 60
 )
 
-// Initial thresholds in days without activity; to be calibrated.
-var (
-	WiltedAfterDays   = 5
-	WitheredAfterDays = 10
-)
-
 type Prereq struct {
 	RequiresID int
 	Condition  string // approved | regular
@@ -38,14 +32,28 @@ type Activity struct {
 	Type      string
 	SubjectID *int
 	Result    json.RawMessage
+	Date      *time.Time // exam date (civil date at UTC midnight)
 	CreatedAt time.Time
+}
+
+type SubjectInfo struct {
+	Name         string
+	Bottleneck   bool
+	UnlocksTotal int
+}
+
+type Period struct {
+	Kind     string    // recess | exams
+	From, To time.Time // civil dates at UTC midnight, inclusive
 }
 
 type Input struct {
 	// Plan maps every subject of the career to its prerequisites.
 	Plan       map[int][]Prereq
 	States     map[int]string // subject_id -> approved | regular | enrolled
+	Info       map[int]SubjectInfo
 	Activities []Activity
+	Periods    []Period
 	// Since is when the student joined; it counts as activity so a new tree is lush.
 	Since time.Time
 	Now   time.Time
@@ -74,6 +82,9 @@ type Tree struct {
 	Health   Health    `json:"health"`
 	Streak   Streak    `json:"streak"`
 	Subjects []Subject `json:"subjects"`
+	// Alerts are the conditions that hold now; the caller persists them and
+	// marks branches dry with MarkDry.
+	Alerts []Alert `json:"-"`
 }
 
 func Build(in Input) Tree {
@@ -113,16 +124,23 @@ func Build(in Input) Tree {
 			State:     state,
 			Leaves:    leaves[id],
 			Flower:    flower[id] && state != Approved,
-			// shortcut: dry stays false until alerts exist (#10).
 		})
 	}
 	sort.Slice(subjects, func(i, j int) bool { return subjects[i].SubjectID < subjects[j].SubjectID })
 
+	days, season := inactiveDays(last, in), examSeason(in)
 	return Tree{
-		Health: health(last, in.Now),
-		// shortcut: streak is computed in #10 (weekly, wildcards, frozen in recess).
-		Streak:   Streak{},
+		Health:   Health{State: healthState(days, season), LastActivity: last},
+		Streak:   streak(in),
 		Subjects: subjects,
+		Alerts:   alerts(in, days, season),
+	}
+}
+
+// MarkDry dries the branches with an open alert, except approved ones.
+func MarkDry(t *Tree, alerted map[int]bool) {
+	for i, s := range t.Subjects {
+		t.Subjects[i].Dry = alerted[s.SubjectID] && s.State != Approved
 	}
 }
 
@@ -135,17 +153,4 @@ func satisfied(reqs []Prereq, states map[int]string) bool {
 		return false
 	}
 	return true
-}
-
-// shortcut: fixed thresholds; recess and exam periods come in #10.
-func health(last, now time.Time) Health {
-	days := int(now.Sub(last).Hours() / 24)
-	state := Lush
-	switch {
-	case days >= WitheredAfterDays:
-		state = Withered
-	case days >= WiltedAfterDays:
-		state = Wilted
-	}
-	return Health{State: state, LastActivity: last}
 }

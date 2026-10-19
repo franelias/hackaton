@@ -1,0 +1,16 @@
+{
+  "source": "Calendario Académico 2026-2027, Escuela de Ciencias Exactas y Naturales (Res. DEC 1723/2025), https://web.fceia.unr.edu.ar/images/PDF/decanato/Resoluciones_/2025/Resolucion_calendario_academico_2026.pdf",
+  "note": "Read by hand from the scanned PDF. 'exams' are the mesas weeks; mid-term exams are per subject and not in the calendar.",
+  "periods": [
+    { "kind": "exams",  "label": "Mesas febrero (1)",       "from": "2026-02-02", "to": "2026-02-06" },
+    { "kind": "exams",  "label": "Mesas febrero-marzo",     "from": "2026-02-18", "to": "2026-03-03" },
+    { "kind": "exams",  "label": "Mesas julio (1)",         "from": "2026-06-29", "to": "2026-07-03" },
+    { "kind": "recess", "label": "Receso invernal",         "from": "2026-07-06", "to": "2026-07-17" },
+    { "kind": "exams",  "label": "Mesas julio (2)",         "from": "2026-07-20", "to": "2026-07-24" },
+    { "kind": "exams",  "label": "Mesas agosto",            "from": "2026-08-03", "to": "2026-08-07" },
+    { "kind": "exams",  "label": "Mesas diciembre",         "from": "2026-12-07", "to": "2026-12-18" },
+    { "kind": "recess", "label": "Receso de verano",        "from": "2027-01-04", "to": "2027-01-29" },
+    { "kind": "exams",  "label": "Mesas febrero 2027 (1)",  "from": "2027-02-01", "to": "2027-02-05" },
+    { "kind": "exams",  "label": "Mesas febrero 2027 (2)",  "from": "2027-02-15", "to": "2027-02-26" }
+  ]
+}

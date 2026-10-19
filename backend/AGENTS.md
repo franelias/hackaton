@@ -10,6 +10,7 @@ Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/c
 - Local services: `docker compose up -d` (Postgres on 5432, Firebase Auth Emulator on 9099); `cp .env.example .env` and export it
 - Migrate: `go run ./cmd/migrate` (goose, SQL in `internal/db/migrations/`)
 - Load a plan into the database: `go run ./cmd/import-plan` (flags `-file`, `-faculty`); re-running replaces that career's plan
+- Load calendar periods (recess, mesas): `go run ./cmd/import-periods` (`data/periods_fceia_2026.json`, read by hand from the official PDF)
 - Serve the API: `go run ./cmd/server` (`DATABASE_URL`, `PORT`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_EMULATOR_HOST`)
 - Emulator ID token for curl: `curl -s -X POST 'http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake' -H 'Content-Type: application/json' -d '{"email":"x@arbol.dev","password":"secret123","returnSecureToken":true}'` → `idToken`
 
@@ -19,7 +20,7 @@ Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/c
 - Manual-review layer (issue #5): `data/overrides/career_<id>.json`. It fixes year/term and adds or removes correlativas on top of the API, which is never modified. Unknown fields and references to missing subjects are errors.
 - Tests stub the FCEIA API at HTTP with responses recorded in `internal/plan/testdata/` and assert concrete numbers. Model and edge cases use small hand-made careers.
 - Code and wire contract in English; docs prose in Spanish; student-facing messages in Spanish.
-- `internal/tree` is pure too: it builds a student's tree from plan, subject states and activities. `internal/api` loads from Postgres and calls it.
+- `internal/tree` is pure too: it builds a student's tree (health, streak, leaves, flower) and the alert conditions from plan, subject states, activities and periods; days and weeks are Argentina civil time. `internal/api` loads from Postgres, calls it, syncs the `alerts` table and marks dry branches.
 - Plan tables are keyed by `(faculty, id)` (`db.Faculty` = `fceia` today) so other faculties can be added without id collisions.
 - Auth: Firebase ID token in `Authorization: Bearer`; students are linked by `firebase_uid`. `api.Verifier` is the seam for tests.
 - Errors: `{"error":{"code","message"}}`, codes `invalid_argument | unauthorized | forbidden | not_found | conflict | internal`.
