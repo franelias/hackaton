@@ -120,7 +120,10 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return err
 			}
-			row := db.ConversationMessage{ConversationID: conv.ID, Role: *m.GetRole(), Content: content}
+			// GetRole() is empty for constant roles until marshaled, so read it from the JSON.
+			var role struct{ Role string }
+			json.Unmarshal(content, &role)
+			row := db.ConversationMessage{ConversationID: conv.ID, Role: role.Role, Content: content}
 			switch i {
 			case 0:
 				row.Text = &body.Message
