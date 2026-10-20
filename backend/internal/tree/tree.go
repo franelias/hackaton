@@ -50,8 +50,10 @@ type Period struct {
 
 type Input struct {
 	// Plan maps every subject of the career to its prerequisites.
-	Plan       map[int][]Prereq
-	States     map[int]string // subject_id -> approved | regular | enrolled
+	Plan   map[int][]Prereq
+	States map[int]string // subject_id -> approved | regular | enrolled
+	// StateSince is when each subject got its current state (for Nudges).
+	StateSince map[int]time.Time
 	Info       map[int]SubjectInfo
 	Activities []Activity
 	Periods    []Period
@@ -91,11 +93,7 @@ type Tree struct {
 func Build(in Input) Tree {
 	leaves := map[int]int{}
 	flower := map[int]bool{}
-	last := in.Since
 	for _, a := range in.Activities {
-		if a.CreatedAt.After(last) {
-			last = a.CreatedAt
-		}
 		if a.SubjectID == nil {
 			continue
 		}
@@ -129,6 +127,7 @@ func Build(in Input) Tree {
 	}
 	sort.Slice(subjects, func(i, j int) bool { return subjects[i].SubjectID < subjects[j].SubjectID })
 
+	last := lastActivity(in)
 	days, season := inactiveDays(last, in), examSeason(in)
 	return Tree{
 		Health:   Health{State: healthState(days, season), LastActivity: last},
@@ -136,6 +135,17 @@ func Build(in Input) Tree {
 		Subjects: subjects,
 		Alerts:   alerts(in, days, season),
 	}
+}
+
+// lastActivity is the newest activity of any type, or when the student joined.
+func lastActivity(in Input) time.Time {
+	last := in.Since
+	for _, a := range in.Activities {
+		if a.CreatedAt.After(last) {
+			last = a.CreatedAt
+		}
+	}
+	return last
 }
 
 // MarkDry dries the branches with an open alert, except approved ones.

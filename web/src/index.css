@@ -176,6 +176,7 @@ legend { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
 .button-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .info-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
 .info-row > span:first-child { width: 110px; color: var(--muted); font-weight: 700; font-size: 14px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; } .toggle input { width: 18px; height: 18px; accent-color: var(--green); }
 .notice.bad { background: #fbe4dd; color: var(--red); }
 .sidebar a.user { color: inherit; text-decoration: none; border-radius: 12px; }
 .sidebar a.user.active, .sidebar a.user:hover { background: var(--active); }

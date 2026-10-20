@@ -12,7 +12,7 @@ func streak(in Input) Streak {
 	weeks := map[time.Time]bool{}
 	var first time.Time
 	for _, a := range in.Activities {
-		if a.Type != "exercise" && a.Type != "mock_exam" && a.Type != "chat" {
+		if !studySession(a) {
 			continue
 		}
 		w := monday(day(a.CreatedAt))
@@ -44,4 +44,9 @@ func streak(in Input) Streak {
 		}
 	}
 	return s
+}
+
+// studySession: what counts for the streak (a checkin does not).
+func studySession(a Activity) bool {
+	return a.Type == "exercise" || a.Type == "mock_exam" || a.Type == "chat"
 }

@@ -94,6 +94,8 @@ type Student struct {
 	Name        string
 	Faculty     string
 	CareerID    int
+	NotifyPush  bool `gorm:"default:true"`
+	NotifyEmail bool `gorm:"default:true"`
 	CreatedAt   time.Time
 }
 
@@ -101,6 +103,7 @@ type StudentSubject struct {
 	StudentID int `gorm:"primaryKey;autoIncrement:false"`
 	SubjectID int `gorm:"primaryKey;autoIncrement:false"`
 	State     string
+	Since     time.Time // when it got this state
 }
 
 type Activity struct {
@@ -165,4 +168,21 @@ type TeacherSubject struct {
 	TeacherID int    `gorm:"primaryKey;autoIncrement:false"`
 	Faculty   string `gorm:"primaryKey"`
 	SubjectID int    `gorm:"primaryKey;autoIncrement:false"`
+}
+
+type PushToken struct {
+	Token     string `gorm:"primaryKey"`
+	StudentID int
+	CreatedAt time.Time
+}
+
+type Notification struct {
+	ID        int
+	StudentID int
+	Kind      string
+	SubjectID *int
+	CondKey   string
+	Title     string
+	Body      string
+	SentAt    time.Time `gorm:"default:now()"`
 }
