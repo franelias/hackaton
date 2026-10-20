@@ -65,7 +65,7 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
   `src/components/Page.tsx` tiene el encabezado y los estados de carga y error que usan todas las pantallas.
 - `src/components/TreeView.tsx`: el árbol. Es genérico, sirve para cualquier plan.
   - Forma: un pino. Sobre una base de follaje, cada año es un piso de ramas (1.º abajo, el último arriba) y la
-    Tesina (`final_goal`) es la estrella de la punta. En cada piso, el 1.º cuatrimestre es la fila de abajo y el
+    Tesina (la última materia del camino crítico, que no destraba nada: `goalOf`) es la estrella de la punta. En cada piso, el 1.º cuatrimestre es la fila de abajo y el
     2.º la de arriba; si una fila no entra, pasa materias a la otra. Cada materia se ubica cerca de sus
     correlativas, y las de 1.º año que más destraban van al centro.
   - Ramas: cada materia tiene la suya, que sale del tronco con agujas. Lo tupida que está depende del estado
@@ -112,7 +112,8 @@ Notas:
 1. Probar el tutor con `OPENROUTER_API_KEY` y el login con el proyecto real de Firebase.
 2. Tutor: la foto ya está (`src/lib/photo.ts`: botón con cámara en el celular, pegar con Ctrl+V o arrastrar; se achica a 1600 px en JPEG antes de mandarla; el historial del backend no la guarda, así que al reabrir la conversación se ve "Foto de un ejercicio"). Markdown básico y LaTeX con KaTeX ya están (`src/components/RichText.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TypedText` la muestra de a poco con un fundido por palabra.
 3. Pantalla Fechas: el backend no la expone; hace falta un endpoint, o mostrar los `exam` cargados.
-4. Optativas: dejar elegirlas (`optional: true`) para que entren al árbol.
+4. Electivas: dejar elegirlas (`optional: true`) para que entren al árbol. Optativa I, II y III no son
+   electivas: son obligatorias del plan (sin correlativas).
 5. Celular: barra inferior y zoom o lista para el árbol; lista accesible del árbol.
 6. Backend, pedir a Eugenio:
    - editar o borrar el alumno (nombre, carrera);

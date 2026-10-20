@@ -51,11 +51,16 @@ export function pathOf(plan: Plan, id: number | null): Set<number> | null {
   up(id); down(id); return set
 }
 
+// the subject the career ends in (the Tesina): the last of the critical path, which unlocks nothing.
+// It is drawn as the star on top instead of a branch
+export const goalOf = (plan: Plan) => plan.subjects.find(s => s.subject_id === plan.critical_path[plan.critical_path.length - 1] && !s.unlocks.length)
+
 function layout(plan: Plan, tree: Tree | null): Node[] {
   const info = new Map((tree?.subjects ?? []).map(s => [s.subject_id, s]))
   const years = Math.max(1, ...plan.subjects.map(s => s.year ?? 0)), band = (BASE - TOP) / years
   // electives only join the tree once the student has picked them; they go with the last year
-  const subs = plan.subjects.filter(s => !s.optional || ['approved', 'regular', 'enrolled'].includes(info.get(s.subject_id)?.state ?? ''))
+  const goal = goalOf(plan)?.subject_id
+  const subs = plan.subjects.filter(s => s.subject_id !== goal && (!s.optional || ['approved', 'regular', 'enrolled'].includes(info.get(s.subject_id)?.state ?? '')))
     .map(s => ({ ...s, year: s.year ?? years, term: s.term ?? 1 }))
   const R = rng(17), xOf = new Map<number, number>(), nodes: Node[] = []
   for (let year = 1; year <= years; year++) {
@@ -126,9 +131,10 @@ export default function TreeView({ plan, tree, selected, onSelect }: Props) {
     const tiers: [number, number][] = [[BASE - 52, TRUNK + 6], ...Array.from({ length: years }, (_, i): [number, number] => [BASE - (i + 1) * band - 46, BASE - i * band + 10]), [APEX, TOP + 12]]
     o += `${tiers.map(([top, bottom]) => { const w = halfWidth(bottom) * (.8 + .2 * s), droop = (1 - s) * 12, d = tier(top + sag(top), bottom + sag(bottom), w, droop)
       return `<path d="${d}" transform="translate(0 7)" fill="${dried(mix(PINE[2], '#1d3a28', .45), s)}"/><path d="${d}" fill="url(#pine)"/>` }).join('')}</g>`
-    // the thesis on top: the final goal
-    if (plan.final_goal) o += `<g opacity="${path ? .4 : 1}"><polygon points="${[...Array(10)].map((_, i) => { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 7 : 16; return `${(CX + rr * Math.cos(a)).toFixed(1)},${(40 + rr * Math.sin(a)).toFixed(1)}` }).join(' ')}" fill="#f2c14e" stroke="#b8863b" stroke-width="1.2"/>
-      <text x="${CX + 24}" y="45" font-size="12" font-weight="800" fill="#4a473c" stroke="#f4f6ee" stroke-width="3" paint-order="stroke">${plan.final_goal.name}</text></g>`
+    // the thesis on top: the subject the career ends in
+    const goal = goalOf(plan)
+    if (goal) o += `<g opacity="${path ? .4 : 1}"><polygon points="${[...Array(10)].map((_, i) => { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 7 : 16; return `${(CX + rr * Math.cos(a)).toFixed(1)},${(40 + rr * Math.sin(a)).toFixed(1)}` }).join(' ')}" fill="#f2c14e" stroke="#b8863b" stroke-width="1.2"/>
+      <text x="${CX + 24}" y="45" font-size="12" font-weight="800" fill="#4a473c" stroke="#f4f6ee" stroke-width="3" paint-order="stroke">${goal.name}</text></g>`
     // the trunk through the pine, and a branch for every subject. Each branch withers on its own: it dries
     // (yellow, then brown), hangs lower and loses needles when the subject has an open alert (`dry`) or the
     // tree is losing health. An approved subject never dries

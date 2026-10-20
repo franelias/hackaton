@@ -29,7 +29,7 @@ El costo: un cambio en la API o en `corrections/` no llega a los alumnos hasta r
 
 **Depende de:** la capa de revisión manual de [`corrections`](../../../corrections/docs/features/manual-review.md). `fceia` (`prerequisites`, `build_schedule`) aplica la misma; si una de las dos se actualiza sin la otra, el árbol y el tutor muestran correlativas distintas.
 
-**Invariante que la app asume:** `bottleneck` es `unlocks_total >= 8`; `final_goal` (la Tesina) está fuera de `subjects`.
+**Invariante que la app asume:** `bottleneck` es `unlocks_total >= 8`; `requires` y `unlocks` son solo las correlativas directas; la Tesina es una materia más de `subjects`.
 
 ## Flow
 

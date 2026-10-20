@@ -88,7 +88,9 @@ func TestLogicaUnlocksTenSubjectsAndDelaysTheCareerOneCuatrimestreIfPostponedAYe
 	t.Parallel()
 	m := materia(t, lcc(t, corrections.Overrides{}).Plan, logica)
 
-	if !reflect.DeepEqual(m.Unlocks, []int{17, 18, 21, 22, 24, 27}) {
+	// Only direct correlativas: in the API, Sistemas Operativos I, Ingeniería de
+	// Software I and Inteligencia Artificial reach Lógica through other subjects.
+	if !reflect.DeepEqual(m.Unlocks, []int{18, 21, 27}) {
 		t.Fatalf("destraba = %v", m.Unlocks)
 	}
 	if m.UnlocksTotal != 10 || !m.Bottleneck || m.Slack != 1 || m.PostponeYearDelay != 1 {
@@ -317,7 +319,7 @@ func TestPlanSerializesWithTheContractFieldNames(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	wantPlan := "career_id critical_path final_goal min_terms name subjects"
+	wantPlan := "career_id critical_path min_terms name subjects"
 	wantSubject := "bottleneck code name optional postpone_year_delay requires slack subject_id term unlocks unlocks_total year"
 	if got := strings.Join(sorted2(keysOf(raw)), " "); got != wantPlan {
 		t.Fatalf("plan keys = %q, want %q", got, wantPlan)
@@ -381,30 +383,30 @@ func TestOfficialCorrelativasFixSistemasOperativosIAnalisisDeLenguajesAndIngenie
 	}
 }
 
-func TestOfficialCareerTakesSevenCuatrimestresEndingInInteligenciaArtificial(t *testing.T) {
+func TestOfficialCareerTakesNineCuatrimestresEndingInTheTesina(t *testing.T) {
 	t.Parallel()
 	p := official(t).Plan
 
-	if p.MinTerms != 7 {
+	if p.MinTerms != 9 {
 		t.Fatalf("cuatrimestres_minimos = %d", p.MinTerms)
 	}
 	// Álgebra I → Álgebra II → Álgebra Lineal → Complementos I → EDA II →
-	// Teoría de Base de Datos → Introducción a la Inteligencia Artificial
-	if want := []int{1, 4, 7, 10, 15, 21, 24}; !reflect.DeepEqual(p.CriticalPath, want) {
+	// Teoría de Base de Datos → Inteligencia Artificial → Práctica Profesional → Tesina
+	if want := []int{1, 4, 7, 10, 15, 21, 24, 28, 31}; !reflect.DeepEqual(p.CriticalPath, want) {
 		t.Fatalf("camino_critico = %v, want %v", p.CriticalPath, want)
 	}
 }
 
-func TestOfficialLogicaStillUnlocksTenSubjectsButPostponingItCostsNothing(t *testing.T) {
+func TestOfficialLogicaUnlocksThirteenSubjectsButPostponingItCostsNothing(t *testing.T) {
 	t.Parallel()
 	m := materia(t, official(t).Plan, logica)
 
-	if m.UnlocksTotal != 10 || !m.Bottleneck || m.PostponeYearDelay != 0 || m.Slack != 2 {
+	if m.UnlocksTotal != 13 || !m.Bottleneck || m.PostponeYearDelay != 0 || m.Slack != 2 {
 		t.Fatalf("unexpected metrics: %+v", m)
 	}
 }
 
-func TestOfficialBottlenecksAreTheEightSubjectsWithEightOrMoreDependents(t *testing.T) {
+func TestOfficialBottlenecksAreTheElevenSubjectsWithEightOrMoreDependents(t *testing.T) {
 	t.Parallel()
 	p := official(t).Plan
 
@@ -414,9 +416,9 @@ func TestOfficialBottlenecksAreTheEightSubjectsWithEightOrMoreDependents(t *test
 			ids = append(ids, m.SubjectID)
 		}
 	}
-	// Álgebra I y II, Programación I y II, Álgebra Lineal, EDA I,
-	// Complementos I y Lógica.
-	if want := []int{1, 3, 4, 6, 7, 8, 10, 12}; !reflect.DeepEqual(sorted(ids), want) {
+	// Álgebra I y II, Análisis I, Programación I y II, Álgebra Lineal, EDA I y II,
+	// Complementos I, Lógica e Inglés.
+	if want := []int{1, 2, 3, 4, 6, 7, 8, 10, 12, 15, 16}; !reflect.DeepEqual(sorted(ids), want) {
 		t.Fatalf("bottlenecks = %v, want %v", sorted(ids), want)
 	}
 }
@@ -438,55 +440,66 @@ func TestOfficialYearsAndCuatrimestresFollowThePlan(t *testing.T) {
 	}
 }
 
-func TestOfficialOptativasAreElectiveHoursNotSubjects(t *testing.T) {
+func TestOfficialOptativasAreObligatorySubjectsWithoutCorrelativas(t *testing.T) {
 	t.Parallel()
 	p := official(t).Plan
 
 	for _, id := range []int{197, 198, 199} {
-		if m := materia(t, p, id); !m.Optional {
-			t.Errorf("%s should be optional", m.Name)
+		if m := materia(t, p, id); m.Optional || len(m.Requires) != 0 {
+			t.Errorf("%s: optional = %v, requires = %v", m.Name, m.Optional, requiresOf(m))
 		}
 	}
 }
 
-func TestOfficialTesinaIsTheFinalGoalApartFromTheGraph(t *testing.T) {
+// The 23 correlativas from the SIU Guaraní reduce to the last subject of each chain.
+func TestOfficialPracticaProfesionalAndTallerDeTesinaKeepOnlyTheirDirectCorrelativas(t *testing.T) {
 	t.Parallel()
 	p := official(t).Plan
 
-	if g := p.FinalGoal; g == nil || g.SubjectID != 31 || g.Name != "Tesina" || !g.RequiresAll {
-		t.Fatalf("objetivo_final = %+v", g)
-	}
-	for _, m := range p.Subjects {
-		if m.SubjectID == 31 {
-			t.Fatal("the Tesina must not be one of the materias")
+	// Lenguajes Formales, Métodos Numéricos, Análisis de Lenguajes, Modelos Físicos,
+	// Comunicaciones, Sistemas Operativos II, Inteligencia Artificial, Ingeniería de Software II.
+	want := []int{9, 13, 18, 19, 20, 23, 24, 25}
+	for _, id := range []int{28, 29} {
+		if got := requiresOf(materia(t, p, id)); !reflect.DeepEqual(got, want) {
+			t.Errorf("subject %d requires %v, want %v", id, got, want)
 		}
 	}
-	if materia(t, p, 30).UnlocksTotal != 0 {
-		t.Fatal("the Tesina must not count as something Seguridad Informática unlocks")
+}
+
+func TestOfficialTesinaIsTheLastSubjectOfTheGraph(t *testing.T) {
+	t.Parallel()
+	p := official(t).Plan
+
+	tesina := materia(t, p, 31)
+	// Compiladores, Complementos II, Práctica Profesional, Taller de Tesina,
+	// Seguridad Informática and the three optativas: everything else is implied.
+	if got := requiresOf(tesina); !reflect.DeepEqual(got, []int{26, 27, 28, 29, 30, 197, 198, 199}) {
+		t.Fatalf("Tesina requires %v", got)
+	}
+	if tesina.Optional || tesina.UnlocksTotal != 0 {
+		t.Fatalf("Tesina: %+v", tesina)
+	}
+	if m := materia(t, p, 30); m.UnlocksTotal != 1 || !reflect.DeepEqual(m.Unlocks, []int{31}) {
+		t.Fatalf("Seguridad Informática should unlock only the Tesina: %+v", m)
+	}
+	if p.CriticalPath[len(p.CriticalPath)-1] != 31 {
+		t.Fatalf("the critical path must end in the Tesina: %v", p.CriticalPath)
 	}
 }
 
-func TestPlanWithoutAFinalGoalReportsNone(t *testing.T) {
+func TestOfficialRedundantCorrelativasAreDropped(t *testing.T) {
 	t.Parallel()
-	got := lcc(t, corrections.Overrides{}).Plan.FinalGoal
+	p := official(t).Plan
 
-	if got != nil {
-		t.Fatalf("objetivo_final = %+v", got)
+	cases := map[int][]int{
+		15: {10},        // EDA II: EDA I is implied by Complementos de Matemática I
+		24: {16, 21},    // Inteligencia Artificial: Lógica and EDA II are implied by Teoría de Base de Datos
+		26: {9, 16, 18}, // Compiladores: EDA II is implied by Análisis de Lenguajes
 	}
-}
-
-func TestSubjectRequiringTheFinalGoalIsRejected(t *testing.T) {
-	t.Parallel()
-	goal := subject(2, "Tesina", false)
-	goal.FinalGoal = true
-
-	_, err := plan.Build(plan.Input{
-		Subjects:      []plan.Subject{subject(1, "A", false), goal},
-		Prerequisites: map[int][]plan.Prerequisite{1: requires(2)},
-	})
-
-	if err == nil || !strings.Contains(err.Error(), "requires the final goal") {
-		t.Fatalf("err = %v", err)
+	for id, want := range cases {
+		if got := requiresOf(materia(t, p, id)); !reflect.DeepEqual(got, want) {
+			t.Errorf("subject %d requires %v, want %v", id, got, want)
+		}
 	}
 }
 

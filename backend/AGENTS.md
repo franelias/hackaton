@@ -25,7 +25,7 @@ Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/c
 
 - `internal/plan` is pure: it takes already loaded subjects and correlativas (`plan.Build`) and knows nothing about HTTP. `plan.Generate` loads them from the FCEIA API.
 - Manual-review layer (issue #5): the `../corrections` module (`corrections/data/career_<id>.json`), shared with the MCP. `plan.Generate` applies it on top of the API data, which is never modified.
-- The plan JSON uses the field names of `docs/contratos.md` §2.1 (`subjects`, `unlocks_total`, `bottleneck`, `final_goal`…).
+- The plan JSON uses the field names of `docs/contratos.md` §2.1 (`subjects`, `unlocks_total`, `bottleneck`…). `requires`/`unlocks` hold only direct correlativas (`corrections.Graph`); the Tesina is a subject of the graph.
 - Tests stub the FCEIA API at HTTP with responses recorded in `internal/plan/testdata/` and assert concrete numbers. Model and edge cases use small hand-made careers.
 - Code and wire contract in English; docs prose in Spanish; student-facing messages in Spanish.
 - `internal/tree` is pure too: it builds a student's tree (health, streak, leaves, flower) and the alert conditions from plan, subject states, activities and periods; days and weeks are Argentina civil time. `internal/api` loads from Postgres, calls it, syncs the `alerts` table and marks dry branches.

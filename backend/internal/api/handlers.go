@@ -77,7 +77,7 @@ func (s *Server) getPlan(w http.ResponseWriter, r *http.Request) {
 	for _, p := range prereqs {
 		requires[p.SubjectID] = append(requires[p.SubjectID], plan.Requirement{SubjectID: p.RequiresID, Condition: p.Condition})
 	}
-	out := plan.Plan{CareerID: c.ID, Name: c.Name, MinTerms: c.MinTerms, CriticalPath: c.CriticalPath, Subjects: []plan.PlanSubject{}, FinalGoal: c.FinalGoal}
+	out := plan.Plan{CareerID: c.ID, Name: c.Name, MinTerms: c.MinTerms, CriticalPath: c.CriticalPath, Subjects: []plan.PlanSubject{}}
 	for _, m := range subjects {
 		out.Subjects = append(out.Subjects, plan.PlanSubject{
 			SubjectID: m.ID, Code: m.Code, Name: m.Name, Year: m.Year, Term: m.Term, Optional: m.Optional,

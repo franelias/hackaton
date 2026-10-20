@@ -61,8 +61,8 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
 {
   "career_id": 1,
   "name": "Licenciatura en Ciencias de la Computación",
-  "min_terms": 7,
-  "critical_path": [1, 4, 7, 10, 15, 21, 24],
+  "min_terms": 9,
+  "critical_path": [1, 4, 7, 10, 15, 21, 24, 28, 31],
   "subjects": [
     {
       "subject_id": 6,
@@ -71,37 +71,29 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
       "year": 1,
       "term": 2,
       "requires": [ { "subject_id": 3, "condition": "approved" } ],
-      "unlocks": [12, 15],
-      "unlocks_total": 17,
+      "unlocks": [8,  9,  12],
+      "unlocks_total": 20,
       "bottleneck": true,
       "optional": false,
       "slack": 0,
       "postpone_year_delay": 2
     }
-  ],
-  "final_goal": {
-    "subject_id": 31,
-    "code": "r523",
-    "name": "Tesina",
-    "year": 5,
-    "term": 2,
-    "requires_all": true
-  }
+  ]
 }
 ```
 
 | Campo | Notas |
 |---|---|
+| `requires` | Solo las correlativas **directas**: si C pide A y B, y B ya pide A, C trae solo B (A es implícita). La app no tiene que deducir nada: `requires` y `unlocks` son las aristas del árbol |
 | `requires[].condition` | `approved` · `regular`. Sale de `requirement` en `/relations` (`null` → `approved`, confirmado para LCC con los programas 2024) |
-| `unlocks` | Materias que la requieren directamente (de `required_by`) |
+| `unlocks` | Materias que la requieren directamente, con la misma reducción |
 | `unlocks_total` | Directas + indirectas; la app lo usa para el grosor del tronco |
 | `bottleneck` | Cuello de botella: `unlocks_total >= 8` (ver `camino-critico.md`) |
 | `optional` | `true` en las electivas: no entran en el plan base; se suman al camino crítico cuando el alumno las elige |
 | `slack` | Holgura: cuatrimestres que se puede demorar sin atrasar la carrera (0 = camino crítico) |
 | `postpone_year_delay` | Cuatrimestres que se atrasa la carrera si se pospone un año |
 | `term` | Cuatrimestre dentro del año (`1` o `2`) |
-| `min_terms`, `critical_path` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga |
-| `final_goal` | La Tesina, objetivo final: fuera de `subjects` y de las correlativas; `requires_all: true` = hay que tener aprobadas todas las demás para presentarla. No cuenta en `min_terms` ni en `unlocks_total` |
+| `min_terms`, `critical_path` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga. En LCC termina en la Tesina (`31`), que es una materia más de `subjects`: depende de todas las obligatorias y las optativas |
 
 La app calcula el layout (posición de cada rama) a partir de `requires` y `unlocks`. El backend no manda coordenadas.
 
@@ -343,9 +335,9 @@ La lógica de las tools vive en el módulo compartido `fceia/` (Go): el backend 
 **Errores**: tool error (`isError: true`) con `{ "error": { "code", "message" } }`; `code` ∈ `not_found` · `api_unavailable` · `invalid_argument`. Un resultado vacío no es error.
 
 ### `search_subject(name: str, career_id?: int)`
-(`GET /subjects?q=&career_id=`; `q` ignora tildes)
+(`GET /subjects?q=&career_id=`; `q` ignora tildes. `year` y `term` son los del plan revisado, con `term` de `1` a `2` dentro del año, igual que en 2.1)
 ```json
-{ "subjects": [ { "subject_id": 12, "code": "r223", "name": "Lógica", "career_id": 1, "year": 2, "term": 4 } ] }
+{ "subjects": [ { "subject_id": 12, "code": "r223", "name": "Lógica", "career_id": 1, "year": 2, "term": 2 } ] }
 ```
 
 ### `frequent_topics(subject_id: int, since?: int)`
@@ -385,7 +377,7 @@ La lógica de las tools vive en el módulo compartido `fceia/` (Go): el backend 
 ```
 
 ### `prerequisites(subject_id: int)`
-(`GET /subjects/{id}/relations` con la revisión manual aplicada (`corrections/`, ver `revision-plan-lcc.md`): hay 3 correlativas de LCC que la API tiene mal y se corrigen; `requirement: null` → `approved`, confirmado)
+(`GET /subjects/{id}/relations` con la revisión manual aplicada (`corrections/`, ver `revision-plan-lcc.md`) y reducida a las correlativas **directas**, igual que el plan (2.1); `requirement: null` → `approved`, confirmado)
 ```json
 { "subject_id": 55,
   "requires": [ { "subject_id": 52, "code": "FB3", "condition": "regular" } ],
@@ -465,7 +457,8 @@ Resumen para quien integró contra la versión del kickoff (issue #1). El detall
 |---|---|---|
 | Rutas y campos en español (`/api/alumnos/{alumno_id}/arbol`, `salud`, `racha`, `hojas`…) | Todo en inglés: `/api/students/{student_id}/tree`, `/alerts`, `/careers/{id}/plan`, `/schedule`; `health`, `streak`, `leaves`, `flower`, `dry`… | 0, 2 |
 | Enums en español (`frondoso`, `cursando`, `alto`, `abrir_tutor`…) | `lush` · `wilted` · `withered`; `approved` · `regular` · `enrolled` · `available` · `locked`; `low` · `medium` · `high`; `open_tutor` · `build_schedule` · `view_dates` · `contact_tutor` | 2.2, 2.3 |
-| Plan: `nombre`, `materias`, `requiere`, `destraba`, `cuello_de_botella`… | `name`, `subjects`, `requires`, `unlocks`, `unlocks_total`, `bottleneck`, más `min_terms`, `critical_path`, `optional`, `slack`, `postpone_year_delay` y `final_goal` (la Tesina, fuera de `subjects`) | 2.1 |
+| Plan: `nombre`, `materias`, `requiere`, `destraba`, `cuello_de_botella`… | `name`, `subjects`, `requires`, `unlocks`, `unlocks_total`, `bottleneck`, más `min_terms`, `critical_path`, `optional`, `slack` y `postpone_year_delay` | 2.1 |
+| Plan con `final_goal` (la Tesina aparte) | Sin `final_goal`: la Tesina viene dentro de `subjects`, con sus correlativas. `requires` y `unlocks` traen solo las correlativas directas. Práctica Profesional, Taller de Tesina y Tesina tienen correlativas (SIU Guaraní) y Optativa I, II y III dejan de ser `optional` (issue #33) | 2.1 |
 | Sin autenticación; `POST /api/alumnos` devolvía solo el id | **Firebase Auth** (Google o email + contraseña). Todos los endpoints salvo `/plan` piden `Authorization: Bearer <ID token de Firebase>` (`401` / `403`). Nuevo `GET /api/me` para saber si el usuario ya tiene alumno; `POST /api/students` crea el del usuario logueado (`409` si ya existe) | 1.1, 2.4 |
 | IDs de alumno `a-001` | `s-001` (conversaciones `c-N`, alertas `al-N`) | 1 |
 | `POST .../descartar` | `POST /api/students/{id}/alerts/{id}/dismiss` → `204` | 2.3 |

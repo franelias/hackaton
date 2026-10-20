@@ -37,8 +37,10 @@ func conditionOf(c string) string {
 	return "approved"
 }
 
-// relations returns what a subject requires and unlocks after the manual
-// review, so the tutor never says something the plan contradicts.
+// relations returns what a subject directly requires and unlocks after the
+// manual review: a correlativa implied by another one is left out, the same
+// way the backend plan does, so the tutor never says something the plan
+// contradicts.
 func (t *Tools) relations(ctx context.Context, subjectID int) (requires, unlocks []linked, err error) {
 	rel, err := t.api.Relations(ctx, subjectID)
 	if err != nil {
@@ -53,23 +55,12 @@ func (t *Tools) relations(ctx context.Context, subjectID int) (requires, unlocks
 		return nil, nil, err
 	}
 
-	codes, names := map[int]string{}, map[int]string{}
-	var apiReqs []corrections.Requirement
-	for _, p := range rel.Prerequisites {
-		codes[p.RelatedSubjectID] = p.RelatedCode
-		cond := corrections.Approved
-		if p.Requirement == "regular" {
-			cond = corrections.Regular
-		}
-		apiReqs = append(apiReqs, corrections.Requirement{SubjectID: p.RelatedSubjectID, Condition: cond})
+	g := map[int][]corrections.Requirement{}
+	codes := map[int]string{}
+	if err := t.loadBackward(ctx, ov, subjectID, g, codes); err != nil {
+		return nil, nil, err
 	}
-	var apiUnlocks []int
-	for _, u := range rel.RequiredBy {
-		names[u.SubjectID] = u.SubjectName
-		apiUnlocks = append(apiUnlocks, u.SubjectID)
-	}
-
-	for _, r := range ov.Prerequisites(subjectID, apiReqs) {
+	for _, r := range corrections.Reduce(g)[subjectID] {
 		code, ok := codes[r.SubjectID]
 		if !ok { // added by the review: the API does not know this link
 			s, err := t.api.Subject(ctx, r.SubjectID)
@@ -80,7 +71,25 @@ func (t *Tools) relations(ctx context.Context, subjectID int) (requires, unlocks
 		}
 		requires = append(requires, linked{SubjectID: r.SubjectID, Code: code, Condition: conditionOf(r.Condition)})
 	}
+
+	names := map[int]string{}
+	var apiUnlocks []int
+	for _, u := range rel.RequiredBy {
+		names[u.SubjectID] = u.SubjectName
+		apiUnlocks = append(apiUnlocks, u.SubjectID)
+	}
 	for _, id := range ov.Unlocks(subjectID, apiUnlocks) {
+		// Keep it only if this subject is still a direct correlativa of it.
+		if err := t.loadBackward(ctx, ov, id, g, codes); err != nil {
+			return nil, nil, err
+		}
+		direct := false
+		for _, r := range corrections.Reduce(g)[id] {
+			direct = direct || r.SubjectID == subjectID
+		}
+		if !direct {
+			continue
+		}
 		name, ok := names[id]
 		if !ok {
 			s, err := t.api.Subject(ctx, id)
@@ -92,4 +101,33 @@ func (t *Tools) relations(ctx context.Context, subjectID int) (requires, unlocks
 		unlocks = append(unlocks, linked{SubjectID: id, Name: name})
 	}
 	return requires, unlocks, nil
+}
+
+// loadBackward adds to g the corrected correlativas of id and of everything
+// before it, which is what reducing id's correlativas needs. codes collects
+// the codes the API gives for them.
+func (t *Tools) loadBackward(ctx context.Context, ov corrections.Overrides, id int, g map[int][]corrections.Requirement, codes map[int]string) error {
+	if _, done := g[id]; done {
+		return nil
+	}
+	rel, err := t.api.Relations(ctx, id)
+	if err != nil {
+		return err
+	}
+	var api []corrections.Requirement
+	for _, p := range rel.Prerequisites {
+		codes[p.RelatedSubjectID] = p.RelatedCode
+		cond := corrections.Approved
+		if p.Requirement == "regular" {
+			cond = corrections.Regular
+		}
+		api = append(api, corrections.Requirement{SubjectID: p.RelatedSubjectID, Condition: cond})
+	}
+	g[id] = ov.Prerequisites(id, api)
+	for _, r := range g[id] {
+		if err := t.loadBackward(ctx, ov, r.SubjectID, g, codes); err != nil {
+			return err
+		}
+	}
+	return nil
 }

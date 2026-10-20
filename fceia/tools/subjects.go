@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"strings"
+
+	"github.com/franelias/hackaton/corrections"
 )
 
 type searchSubjectIn struct {
@@ -16,7 +18,7 @@ type subjectOut struct {
 	Name      string `json:"name"`
 	CareerID  int    `json:"career_id"`
 	Year      *int   `json:"year"`
-	Term      *int   `json:"term"`
+	Term      *int   `json:"term"` // 1 or 2 within the year
 }
 
 type searchSubjectOut struct {
@@ -33,7 +35,21 @@ func (t *Tools) searchSubject(ctx context.Context, in searchSubjectIn) (searchSu
 	}
 	out := searchSubjectOut{Subjects: []subjectOut{}}
 	for _, s := range found {
-		out.Subjects = append(out.Subjects, subjectOut{s.ID, s.Code, s.Name, s.CareerID, s.Year, s.Term})
+		// Year and term as in the reviewed plan, with term 1 or 2 within the year.
+		year, term := s.Year, s.Term
+		ov, err := reviewOf(s.CareerID)
+		if err != nil {
+			return searchSubjectOut{}, err
+		}
+		if o, ok := ov.Subjects[s.ID]; ok {
+			if o.Year != nil {
+				year = o.Year
+			}
+			if o.Term != nil {
+				term = o.Term
+			}
+		}
+		out.Subjects = append(out.Subjects, subjectOut{s.ID, s.Code, s.Name, s.CareerID, year, corrections.TermOfYear(term)})
 	}
 	return out, nil
 }
