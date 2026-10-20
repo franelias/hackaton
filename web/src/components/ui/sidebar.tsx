@@ -194,7 +194,7 @@ function Sidebar({
         >
           <SheetHeader className="sr-only">
             <SheetTitle>Menú</SheetTitle>
-            <SheetDescription>Navegación de Árbol</SheetDescription>
+            <SheetDescription>Navegación de Mamo</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>

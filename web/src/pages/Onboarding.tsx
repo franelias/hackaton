@@ -60,7 +60,7 @@ export default function Onboarding() {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-4 py-8 md:py-12">
       <div className="flex items-center justify-between gap-4">
-        <span className="flex items-center gap-2 text-xl font-extrabold"><Logo size={26} />Árbol</span>
+        <span className="flex items-center gap-2 text-xl font-extrabold"><Logo size={26} />Mamo</span>
         <span className="text-sm font-bold text-muted-foreground">Paso {step} de 2</span>
       </div>
       <Progress value={step * 50} aria-label={`Paso ${step} de 2`} className="h-1.5" />

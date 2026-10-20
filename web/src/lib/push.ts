@@ -31,7 +31,7 @@ function listen(reg: ServiceWorkerRegistration) {
   if (listening) return
   listening = true
   onMessage(getMessaging(firebaseApp()!), ({ data = {} }) => {
-    reg.showNotification(data.title || 'Árbol', { body: data.body || '', icon: '/arbol.svg', badge: '/arbol.svg', tag: 'arbol-recordatorio', data: { url: data.url || '/' } })
+    reg.showNotification(data.title || 'Mamo', { body: data.body || '', icon: '/mamo.png', badge: '/mamo.png', tag: 'arbol-recordatorio', data: { url: data.url || '/' } })
   })
 }
 

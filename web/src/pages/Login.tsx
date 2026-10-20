@@ -43,7 +43,7 @@ export default function Login() {
       <div className="flex flex-col justify-center px-4 py-10 sm:px-10">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
           <div className="flex flex-col gap-3">
-            <span className="flex items-center gap-2 text-xl font-extrabold"><Logo size={26} />Árbol</span>
+            <span className="flex items-center gap-2 text-xl font-extrabold"><Logo size={26} />Mamo</span>
             <h1 className="text-3xl leading-tight font-extrabold tracking-tight">{mode === 'signIn' ? 'Entrá a tu árbol' : 'Creá tu cuenta'}</h1>
             <p className="text-muted-foreground">Tu carrera, como un árbol que crece con lo que estudiás.</p>
           </div>

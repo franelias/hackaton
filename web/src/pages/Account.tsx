@@ -68,7 +68,7 @@ export default function Account() {
   const card = 'max-w-3xl gap-5 rounded-2xl py-6'
   return (
     <Page>
-      <PageHeader title="Mi cuenta" description="Tus datos de acceso, los recordatorios y cómo se ve Árbol." />
+      <PageHeader title="Mi cuenta" description="Tus datos de acceso, los recordatorios y cómo se ve Mamo." />
       {!u && <p role="status" className="max-w-3xl rounded-xl bg-accent px-4 py-3 text-sm font-bold text-accent-foreground">Estás en modo demo: estos datos no se pueden cambiar.</p>}
 
       <Card className={card}>
@@ -117,7 +117,7 @@ export default function Account() {
               <Label htmlFor="email-reminders" className="font-bold">{prefs?.email ? 'Activados' : 'Apagados'}</Label></Row>
             <Row label="Este dispositivo">
               {push === 'unsupported' && <span className="text-sm text-muted-foreground">{u ? 'Este navegador no puede recibir notificaciones.' : 'No disponible en modo demo.'}</span>}
-              {push === 'blocked' && <span className="text-sm text-muted-foreground">Bloqueaste las notificaciones de Árbol. Habilitalas desde la configuración del sitio en tu navegador.</span>}
+              {push === 'blocked' && <span className="text-sm text-muted-foreground">Bloqueaste las notificaciones de Mamo. Habilitalas desde la configuración del sitio en tu navegador.</span>}
               {(push === 'on' || push === 'off') && <>
                 <Switch id="push" checked={push === 'on'} disabled={busy} onCheckedChange={togglePush} />
                 <Label htmlFor="push" className="font-bold">{push === 'on' ? 'Notificaciones activadas' : 'Sin notificaciones'}</Label></>}
@@ -140,7 +140,7 @@ export default function Account() {
                   <Button type="button" variant="outline" size="icon" aria-label="Copiar comando" onClick={() => copy(mcpCommand, 'Copiamos el comando.')}><Copy /></Button>
                 </div>
               </li>
-              <li><span className="font-bold">Pegalo en tu terminal</span> y apretá Enter. Necesitás <a className="underline" href="https://claude.com/product/claude-code" target="_blank" rel="noreferrer">Claude Code</a> instalado; con eso Claude queda conectado a Árbol.</li>
+              <li><span className="font-bold">Pegalo en tu terminal</span> y apretá Enter. Necesitás <a className="underline" href="https://claude.com/product/claude-code" target="_blank" rel="noreferrer">Claude Code</a> instalado; con eso Claude queda conectado a Mamo.</li>
               <li><span className="font-bold">Abrí Claude Code</span> y escribí <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/mcp</code> para verificar que <b>arbol</b> aparece como conectado.</li>
               <li><span className="font-bold">Activá al tutor</span> escribiendo <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/mcp__arbol__tutor</code>, o preguntá directo: &ldquo;¿cómo voy en Análisis?&rdquo; o &ldquo;dame un ejercicio de un parcial de Programación I&rdquo;.</li>
             </ol>
@@ -155,7 +155,7 @@ export default function Account() {
 
       <Card className={card}>
         <CardHeader className="px-6"><CardTitle className="text-lg font-extrabold">Apariencia</CardTitle>
-          <CardDescription>Por defecto, Árbol usa el modo de tu dispositivo.</CardDescription></CardHeader>
+          <CardDescription>Por defecto, Mamo usa el modo de tu dispositivo.</CardDescription></CardHeader>
         <CardContent className="px-6">
           <ToggleGroup type="single" variant="outline" size="sm" spacing={1} aria-label="Tema" value={theme} onValueChange={v => { if (v) setTheme(v as Theme) }}>
             <ToggleGroupItem value="system">Automático</ToggleGroupItem><ToggleGroupItem value="light">Claro</ToggleGroupItem><ToggleGroupItem value="dark">Oscuro</ToggleGroupItem>

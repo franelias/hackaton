@@ -1,6 +1,6 @@
 // FCM service worker (https://firebase.google.com/docs/cloud-messaging/web/get-started).
 // The backend sends data-only messages ({ title, body, url }); they are shown here when the app
-// is not in the foreground, and tapping one opens Árbol on that screen. The Firebase config comes in
+// is not in the foreground, and tapping one opens Mamo on that screen. The Firebase config comes in
 // the registration query string (src/lib/push.ts), because public/ does not go through Vite.
 
 // Before the SDK, so it also handles clicks on the notifications we show ourselves.
@@ -29,7 +29,7 @@ firebase.initializeApp(config)
 const messaging = firebase.messaging()
 
 messaging.onBackgroundMessage(({ data = {} }) => {
-  self.registration.showNotification(data.title || 'Árbol', {
-    body: data.body || '', icon: '/arbol.svg', badge: '/arbol.svg', tag: 'arbol-recordatorio', data: { url: data.url || '/' },
+  self.registration.showNotification(data.title || 'Mamo', {
+    body: data.body || '', icon: '/mamo.png', badge: '/mamo.png', tag: 'arbol-recordatorio', data: { url: data.url || '/' },
   })
 })

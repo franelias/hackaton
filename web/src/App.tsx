@@ -43,7 +43,7 @@ function AppSidebar() {
   return (
     <Sidebar collapsible="offcanvas">
       <SidebarHeader className="gap-4 px-4 pt-6">
-        <div className="flex items-center gap-2.5 text-2xl font-extrabold"><Logo />Árbol</div>
+        <div className="flex items-center gap-2.5 text-2xl font-extrabold"><Logo />Mamo</div>
         {plan && <div className="rounded-xl bg-muted px-3 py-2.5 text-[0.8rem] leading-snug font-bold">
           {plan.name}<span className="mt-0.5 block font-semibold text-muted-foreground">FCEIA, UNR</span></div>}
       </SidebarHeader>
@@ -89,7 +89,7 @@ function Shell() {
         {/* phone: a top bar with the menu, the brand and the account */}
         <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur md:hidden print:hidden">
           <SidebarTrigger className="size-9" />
-          <span className="mr-auto flex items-center gap-2 text-lg font-extrabold"><Logo size={22} />Árbol</span>
+          <span className="mr-auto flex items-center gap-2 text-lg font-extrabold"><Logo size={22} />Mamo</span>
           <NavLink to="/account" aria-label="Mi cuenta" className="rounded-full"><Avatar /></NavLink>
         </header>
         <Outlet />

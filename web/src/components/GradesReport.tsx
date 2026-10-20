@@ -43,7 +43,7 @@ export default function GradesReport({ summary: r, student, career, states }: {
           <p className="text-sm text-muted-foreground">{career}</p>
         </div>
         <div className="flex flex-col items-end gap-1 text-right">
-          <span className="flex items-center gap-1.5 text-base font-extrabold text-primary"><Logo size={22} />Árbol</span>
+          <span className="flex items-center gap-1.5 text-base font-extrabold text-primary"><Logo size={22} />Mamo</span>
           <span className="text-[10px] text-muted-foreground">Emitida el {today}</span>
         </div>
       </header>
@@ -107,7 +107,7 @@ export default function GradesReport({ summary: r, student, career, states }: {
 
       <footer className="mt-6 flex justify-between gap-4 border-t pt-2 text-[9px] text-muted-foreground break-inside-avoid">
         <span>{r.ungraded > 0 ? `${r.ungraded === 1 ? 'Una materia aprobada no tiene' : `${r.ungraded} materias aprobadas no tienen`} nota cargada y no cuenta en los promedios.` : 'Los promedios cuentan todas las materias aprobadas.'}</span>
-        <span>Documento informativo generado por Árbol, sin validez oficial.</span>
+        <span>Documento informativo generado por Mamo, sin validez oficial.</span>
       </footer>
     </article>,
     document.body,

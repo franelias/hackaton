@@ -23,7 +23,7 @@
   &::-webkit-scrollbar { display: none; }
 }
 
-/* Árbol design tokens (shadcn/ui semantic names). One accent: the brand green.
+/* Mamo design tokens (shadcn/ui semantic names). One accent: the brand green.
    Shape rule: buttons, toggles and chips are pills; inputs use radius-lg; cards and panels radius-2xl. */
 @theme inline {
   --font-sans: 'Nunito Variable', ui-sans-serif, system-ui, sans-serif;
