@@ -5,6 +5,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* printing (the timetable's PDF): only the page, without the menu, and with the class colors */
+@media print {
+  @page { size: landscape; margin: 1cm; }
+  [data-slot=sidebar-gap], [data-slot=sidebar-container] { display: none !important; }
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+
+/* scrolls without showing the bar */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
 /* Árbol design tokens (shadcn/ui semantic names). One accent: the brand green.
    Shape rule: buttons, toggles and chips are pills; inputs use radius-lg; cards and panels radius-2xl. */
 @theme inline {
@@ -137,6 +150,11 @@
 /* The tree (SVG drawn by TreeView) */
 @layer components {
   .tree-svg .node { cursor: pointer; outline: none; }
+  /* Mi árbol: the tree comes in first, the side column follows it */
+  .tree-enter { animation: rise .7s cubic-bezier(.22, 1, .36, 1) both; }
+  .side-enter { animation: rise .6s .9s cubic-bezier(.22, 1, .36, 1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(12px) scale(.985); } }
+  @media (prefers-reduced-motion: reduce) { .tree-enter, .side-enter { animation: none; } }
   .tree-svg .node:hover .pill, .tree-svg .node:focus-visible .pill { filter: drop-shadow(0 2px 4px oklch(0.27 0.012 110 / .25)); }
 
   /* Tutor: rich text inside a reply */

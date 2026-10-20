@@ -6,10 +6,17 @@ import type { Alert } from './types'
 
 export type TreeChange =
   | { kind: 'checkin' }
-  | { kind: 'mark'; subjectId: number; state: SubjectMark['state'] }
+  // grade: the final's grade of an approved subject; without it the one it had stays
+  | { kind: 'mark'; subjectId: number; state: SubjectMark['state']; grade?: number }
+  | { kind: 'unmark'; subjectId: number }
   | { kind: 'exam'; subjectId: number; date: string }
+  | { kind: 'fail'; subjectId: number; grade: number }
+  | { kind: 'unfail'; failId: number }
 
-const change = (studentId: string, c: TreeChange) => c.kind === 'mark' ? api.setSubject(studentId, c.subjectId, c.state)
+const change = (studentId: string, c: TreeChange) => c.kind === 'mark' ? api.setSubject(studentId, c.subjectId, c.state, c.grade)
+  : c.kind === 'unmark' ? api.clearSubject(studentId, c.subjectId)
+  : c.kind === 'fail' ? api.addFail(studentId, c.subjectId, c.grade)
+  : c.kind === 'unfail' ? api.removeFail(studentId, c.failId)
   : api.activity(studentId, c.kind === 'checkin' ? { type: 'checkin' } : { type: 'exam', subject_id: c.subjectId, date: c.date })
 
 // the API answers with the new tree, which goes straight into the cache; the alerts may have changed
