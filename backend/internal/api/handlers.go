@@ -6,7 +6,10 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
@@ -115,8 +118,12 @@ func (s *Server) createStudent(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	if body.Name == "" {
+	if body.Name = strings.TrimSpace(body.Name); body.Name == "" {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", "falta name")
+		return
+	}
+	if utf8.RuneCountInString(body.Name) > 80 || strings.IndexFunc(body.Name, unicode.IsControl) >= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid_argument", "name tiene que ser una línea de hasta 80 caracteres")
 		return
 	}
 	if body.FacultyID == "" {

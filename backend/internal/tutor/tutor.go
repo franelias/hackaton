@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"unicode/utf8"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -17,8 +18,13 @@ import (
 // OpenRouterURL is the OpenRouter Chat Completions base URL.
 const OpenRouterURL = "https://openrouter.ai/api/v1"
 
-// MaxToolRounds caps the tool-calling loop of a single turn.
-const MaxToolRounds = 12
+// Limits of a single turn, so one message can't run up an unbounded bill.
+const (
+	MaxToolRounds = 12    // model calls of the tool-calling loop
+	MaxToolCalls  = 24    // tool calls across all rounds
+	MaxToolResult = 30000 // bytes of each tool result sent back to the model
+	MaxTokens     = 4096  // tokens of each model answer
+)
 
 // Completions is the Chat Completions API. *openai.ChatCompletionService
 // implements it; tests use a scripted fake.
@@ -73,8 +79,9 @@ func (t *Tutor) Turn(ctx context.Context, history []openai.ChatCompletionMessage
 		opts = append(opts, option.WithJSONSet("models", t.FallbackModels))
 	}
 
+	calls := 0
 	for range MaxToolRounds {
-		resp, err := t.LLM.New(ctx, openai.ChatCompletionNewParams{Model: t.Model, Messages: msgs, Tools: defs}, opts...)
+		resp, err := t.LLM.New(ctx, openai.ChatCompletionNewParams{Model: t.Model, Messages: msgs, Tools: defs, MaxTokens: openai.Int(MaxTokens)}, opts...)
 		if err != nil {
 			return nil, "", err
 		}
@@ -89,18 +96,33 @@ func (t *Tutor) Turn(ctx context.Context, history []openai.ChatCompletionMessage
 		}
 		// Every tool call gets its own tool message, in order.
 		for _, call := range msg.ToolCalls {
+			calls++
 			out, isErr := "unknown tool "+call.Function.Name, true
-			if tool, ok := byName[call.Function.Name]; ok {
+			if tool, ok := byName[call.Function.Name]; ok && calls <= MaxToolCalls {
 				status(tool.Name, tool.Status)
 				out, isErr = tool.Run(ctx, json.RawMessage(call.Function.Arguments))
+			} else if ok {
+				out = "too many tool calls in this turn; answer with what you have"
 			}
 			if isErr {
 				out = "ERROR: " + out
 			}
+			out = truncate(out, MaxToolResult)
 			result := openai.ToolMessage(out, call.ID)
 			msgs = append(msgs, result)
 			added = append(added, result)
 		}
 	}
 	return nil, "", errors.New("tutor: too many tool rounds")
+}
+
+// truncate cuts s to at most n bytes on a rune boundary and says it was cut.
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n] + "…[truncated]"
 }

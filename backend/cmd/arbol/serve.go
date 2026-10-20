@@ -50,7 +50,7 @@ func serve(ctx context.Context) error {
 	}
 
 	port := env("PORT", "8000")
-	srv := &http.Server{Addr: ":" + port, Handler: s.Routes()}
+	srv := &http.Server{Addr: ":" + port, Handler: s.Routes(), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
 		<-ctx.Done()
 		srv.Shutdown(context.Background())

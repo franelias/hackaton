@@ -95,7 +95,7 @@ export default function Tutor() {
         <div ref={fin} />
       </div>
       <form className="escribir" onSubmit={enviarForm}>
-        <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={sim ? 'Escribí tus respuestas…' : 'Escribí tu duda o pegá un ejercicio…'} rows={sim ? 4 : 2}
+        <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={sim ? 'Escribí tus respuestas…' : 'Escribí tu duda o pegá un ejercicio…'} rows={sim ? 4 : 2} maxLength={8000}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !sim) { e.preventDefault(); enviarForm() } }} aria-label="Mensaje para el tutor" />
         <button className="btn" disabled={!texto.trim() || enviando}>Enviar</button>
       </form>
