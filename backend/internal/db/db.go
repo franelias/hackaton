@@ -166,3 +166,13 @@ type TeacherSubject struct {
 	Faculty   string `gorm:"primaryKey"`
 	SubjectID int    `gorm:"primaryKey;autoIncrement:false"`
 }
+
+// TeacherConversation is a teacher's conversation with their assistant: a row
+// of conversations with teacher_id set and student_id null.
+type TeacherConversation struct {
+	ID        int
+	TeacherID int
+	CreatedAt time.Time
+}
+
+func (TeacherConversation) TableName() string { return "conversations" }

@@ -31,9 +31,9 @@ const (
 // Image types every model behind OpenRouter accepts.
 var imageTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true}
 
-// promptTags matches the tags that separate server context from student text,
-// so a student (or their name) can't open or close one.
-var promptTags = regexp.MustCompile(`(?i)<\s*/?\s*(context|student_message)\b`)
+// promptTags matches the tags that separate server context from the user's
+// text, so a student or a teacher (or their name) can't open or close one.
+var promptTags = regexp.MustCompile(`(?i)<\s*/?\s*(context|student_message|teacher_message)\b`)
 
 var weekdays = []string{"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"}
 
@@ -185,7 +185,7 @@ func (s *Server) turnContext(st *db.Student, conv *db.Conversation) string {
 	return c + "</context>"
 }
 
-// neutralize breaks any <context> or <student_message> tag in student text.
+// neutralize breaks any of the promptTags in a student's or teacher's text.
 func neutralize(s string) string {
 	return promptTags.ReplaceAllStringFunc(s, func(m string) string { return "‹" + m[1:] })
 }

@@ -173,7 +173,26 @@ func TestTurnCapsToolCallsAndResults(t *testing.T) {
 			t.Fatalf("tool result of %d bytes, valid UTF-8 %v", len(s), utf8.ValidString(s))
 		}
 	}
-	if !strings.Contains(llm.requests[1], "too many tool calls") || !strings.Contains(llm.requests[0], `"max_tokens":4096`) {
+	if !strings.Contains(llm.requests[1], "too many tool calls") || !strings.Contains(llm.requests[0], fmt.Sprintf(`"max_tokens":%d`, MaxTokens)) {
 		t.Error("want the extra calls refused and max_tokens set")
+	}
+}
+
+func TestTeacherTurnUsesTeacherPrompt(t *testing.T) {
+	llm := &fakeLLM{responses: []string{answer("Acá tenés el examen.")}}
+	tt := &Tutor{LLM: llm, Model: "m"}
+	if _, text, err := tt.TeacherTurn(context.Background(), nil, openai.UserMessage("armame un examen"), nil, func(string, string) {}); err != nil || text != "Acá tenés el examen." {
+		t.Fatalf("TeacherTurn = %q, %v", text, err)
+	}
+	if !strings.Contains(llm.requests[0], "teaching assistant of Árbol") || strings.Contains(llm.requests[0], "study tutor of Árbol") {
+		t.Errorf("the request does not use the teacher prompt: %.200s", llm.requests[0])
+	}
+}
+
+func TestTurnRejectsEmptyAnswer(t *testing.T) {
+	llm := &fakeLLM{responses: []string{answer("")}}
+	tt := &Tutor{LLM: llm, Model: "m"}
+	if added, _, err := tt.Turn(context.Background(), nil, openai.UserMessage("hola"), nil, func(string, string) {}); err == nil || added != nil {
+		t.Errorf("Turn with an empty answer = %v, %v; want an error", added, err)
 	}
 }

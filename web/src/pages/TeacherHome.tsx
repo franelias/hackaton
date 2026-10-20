@@ -14,7 +14,7 @@ export default function TeacherHome() {
 
   const atRisk = teacher.subjects.reduce((n, s) => n + s.health.withered, 0)
   return (
-    <div className="page">
+    <div className="page wide">
       <div className="greeting">
         <div>
           <h1>Hola, {teacher.name.split(' ')[0]}</h1>

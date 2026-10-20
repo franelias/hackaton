@@ -33,7 +33,7 @@ export default function TeacherSubject() {
 
   const s = detail.summary
   return (
-    <div className="page">
+    <div className="page wide">
       <Link to="/teacher" className="back">← Mis cursos</Link>
       <div className="greeting">
         <div>

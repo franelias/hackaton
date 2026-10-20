@@ -145,7 +145,7 @@ export default function Tutor() {
   )
 
   return (
-    <div className="page tutor">
+    <div className="page tutor wide">
       <header className="greeting"><div><h1>Tutor</h1><p>Practicá con ejercicios de parciales reales de la FCEIA. Te da pistas antes que la solución.</p></div>
         <button className="btn secondary" onClick={() => setSettingUpExam(true)}>Hacer un simulacro</button></header>
       {settingUpExam && <MockExamForm subjects={examSubjects.map(s => s.name)} initial={subject?.name} onStart={startExam} onCancel={() => setSettingUpExam(false)} />}

@@ -30,7 +30,7 @@ export default function Schedule() {
   const hours = Array.from({ length: Math.ceil((to - from) / 60) }, (_, i) => from / 60 + i)
 
   return (
-    <div className="page">
+    <div className="page wide">
       <header className="greeting"><div><h1>Armá tu horario</h1><p>Elegí las materias que querés cursar. Solo aparecen las que ya podés cursar por correlativas.</p></div></header>
       <div className="schedule">
         <aside className="list-box">

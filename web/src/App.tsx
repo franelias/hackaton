@@ -11,6 +11,7 @@ import Schedule from './pages/Schedule'
 import Account from './pages/Account'
 import TeacherHome from './pages/TeacherHome'
 import TeacherSubject from './pages/TeacherSubject'
+import TeacherAssistant from './pages/TeacherAssistant'
 
 function Logo() {
   return <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M13.5 28C14 22 13 19 14 16h2c1 3 0 6 .5 12z" fill="#7a5236" /><circle cx="15" cy="12" r="10" fill="#456d42" /><circle cx="15" cy="10.5" r="9.5" fill="#55804f" /><circle cx="11.5" cy="7.5" r="3.5" fill="#6f9866" /></svg>
@@ -30,7 +31,10 @@ function Shell() {
             <NavLink to="/tutor">{icon('M2 3h12v8H6l-4 3z')}Tutor</NavLink>
             <NavLink to="/schedule">{icon('M2 4h12v10H2zM2 7h12M6 4v10')}Horarios</NavLink>
           </>}
-          {teacherId && <NavLink to="/teacher">{icon('M1.5 6 8 3l6.5 3L8 9zM4 7.5V11c1.5 1.5 6.5 1.5 8 0V7.5M14.5 6v4')}Mis cursos</NavLink>}
+          {teacherId && <>
+            <NavLink to="/teacher">{icon('M1.5 6 8 3l6.5 3L8 9zM4 7.5V11c1.5 1.5 6.5 1.5 8 0V7.5M14.5 6v4')}Mis cursos</NavLink>
+            <NavLink to="/assistant">{icon('M2 3h12v8H6l-4 3zM5.5 7h5M5.5 5h3')}Asistente</NavLink>
+          </>}
         </nav>
         <NavLink to="/account" className="user">
           <span className="avatar">{(user?.displayName ?? user?.email ?? '?').slice(0, 1).toUpperCase()}</span>
@@ -71,6 +75,7 @@ export default function App() {
               <Route element={<TeacherOnly />}>
                 <Route path="teacher" element={<TeacherHome />} />
                 <Route path="teacher/subjects/:subjectId" element={<TeacherSubject />} />
+                <Route path="assistant" element={<TeacherAssistant />} />
               </Route>
               <Route path="account" element={<Account />} />
             </Route>

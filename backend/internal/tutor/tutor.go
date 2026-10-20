@@ -9,6 +9,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/openai/openai-go/v3"
@@ -23,7 +25,13 @@ const (
 	MaxToolRounds = 12    // model calls of the tool-calling loop
 	MaxToolCalls  = 24    // tool calls across all rounds
 	MaxToolResult = 30000 // bytes of each tool result sent back to the model
-	MaxTokens     = 4096  // tokens of each model answer
+	MaxTokens     = 8192  // tokens of each model answer, reasoning included
+	// MaxTeacherTokens is MaxTokens for the teachers' assistant: an exam with its
+	// answer key is much longer than a tutor reply.
+	MaxTeacherTokens = 16384
+	// MaxReasoning caps the model's thinking, so it never spends the whole
+	// answer budget thinking and replies with nothing.
+	MaxReasoning = 2048
 )
 
 // Completions is the Chat Completions API. *openai.ChatCompletionService
@@ -60,6 +68,15 @@ func NewOpenRouter(apiKey, model string, fallbacks []string) *Tutor {
 // to the history (the user message first) and the answer text. status is
 // called before each tool runs.
 func (t *Tutor) Turn(ctx context.Context, history []openai.ChatCompletionMessageParamUnion, user openai.ChatCompletionMessageParamUnion, tools []Tool, status func(tool, message string)) ([]openai.ChatCompletionMessageParamUnion, string, error) {
+	return t.turn(ctx, SystemPrompt, MaxTokens, history, user, tools, status)
+}
+
+// TeacherTurn is Turn with the teacher assistant's prompt (contract §2.6).
+func (t *Tutor) TeacherTurn(ctx context.Context, history []openai.ChatCompletionMessageParamUnion, user openai.ChatCompletionMessageParamUnion, tools []Tool, status func(tool, message string)) ([]openai.ChatCompletionMessageParamUnion, string, error) {
+	return t.turn(ctx, TeacherPrompt, MaxTeacherTokens, history, user, tools, status)
+}
+
+func (t *Tutor) turn(ctx context.Context, system string, maxTokens int, history []openai.ChatCompletionMessageParamUnion, user openai.ChatCompletionMessageParamUnion, tools []Tool, status func(tool, message string)) ([]openai.ChatCompletionMessageParamUnion, string, error) {
 	byName := map[string]Tool{}
 	var defs []openai.ChatCompletionToolUnionParam
 	for _, tool := range tools {
@@ -70,18 +87,18 @@ func (t *Tutor) Turn(ctx context.Context, history []openai.ChatCompletionMessage
 			Parameters:  tool.Parameters,
 		}))
 	}
-	msgs := append([]openai.ChatCompletionMessageParamUnion{openai.SystemMessage(SystemPrompt)}, history...)
+	msgs := append([]openai.ChatCompletionMessageParamUnion{openai.SystemMessage(system)}, history...)
 	msgs = append(msgs, user)
 	added := []openai.ChatCompletionMessageParamUnion{user}
 
-	var opts []option.RequestOption
+	opts := []option.RequestOption{option.WithJSONSet("reasoning", map[string]any{"max_tokens": MaxReasoning})}
 	if len(t.FallbackModels) > 0 {
 		opts = append(opts, option.WithJSONSet("models", t.FallbackModels))
 	}
 
 	calls := 0
 	for range MaxToolRounds {
-		resp, err := t.LLM.New(ctx, openai.ChatCompletionNewParams{Model: t.Model, Messages: msgs, Tools: defs, MaxTokens: openai.Int(MaxTokens)}, opts...)
+		resp, err := t.LLM.New(ctx, openai.ChatCompletionNewParams{Model: t.Model, Messages: msgs, Tools: defs, MaxTokens: openai.Int(int64(maxTokens))}, opts...)
 		if err != nil {
 			return nil, "", err
 		}
@@ -92,6 +109,10 @@ func (t *Tutor) Turn(ctx context.Context, history []openai.ChatCompletionMessage
 		msgs = append(msgs, msg.ToParam())
 		added = append(added, msg.ToParam())
 		if len(msg.ToolCalls) == 0 {
+			// an empty answer (e.g. the budget went to reasoning) is not saved as a reply
+			if strings.TrimSpace(msg.Content) == "" {
+				return nil, "", fmt.Errorf("tutor: empty answer (finish_reason %s)", resp.Choices[0].FinishReason)
+			}
 			return added, msg.Content, nil
 		}
 		// Every tool call gets its own tool message, in order.

@@ -278,3 +278,10 @@ legend { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
   .class-grid { grid-template-columns: 1fr; }
   .weeks { gap: 4px; } .week span { font-size: 11px; }
 }
+
+/* Teacher assistant */
+.bubble .copy { display: block; margin-top: 10px; font-size: 13px; }
+
+/* Schedule, tutor and teacher pages full width, like My tree */
+.page.wide { max-width: none; margin: 0; padding: 24px 24px 40px; }
+.tutor.wide { max-width: none; }

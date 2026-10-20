@@ -37,7 +37,8 @@ type Server struct {
 	// FCEIA is the FCEIA API as tools, shared with the MCP server.
 	FCEIA *tools.Tools
 
-	chats chatLimiter
+	chats        chatLimiter // per student
+	teacherChats chatLimiter // per teacher
 }
 
 func (s *Server) Routes() http.Handler {
@@ -57,6 +58,8 @@ func (s *Server) Routes() http.Handler {
 		r.Get("/api/me", s.getMe)
 		r.Get("/api/teacher", s.getTeacher)
 		r.Get("/api/teacher/subjects/{subject_id}", s.getTeacherSubject)
+		r.Post("/api/teacher/chat", s.teacherChat)
+		r.Get("/api/teacher/conversations/{conversation_id}", s.getTeacherConversation)
 		r.Post("/api/students", s.createStudent)
 		r.Post("/api/chat", s.chat)
 		r.Post("/api/schedule", s.schedule)
