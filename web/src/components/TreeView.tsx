@@ -7,17 +7,17 @@ import type { HealthState, Plan, PlanSubject, StudentSubject, SubjectState, Tree
 
 interface Props { plan: Plan; tree: Tree | null; selected: number | null; onSelect: (id: number | null) => void }
 
-interface Nodo { s: PlanSubject; est: SubjectState; info?: StudentSubject; par: Nodo | null; hijos: Nodo[]; n: number; peso: number; ang: number; r: number;
+export interface Nodo { s: PlanSubject; est: SubjectState; info?: StudentSubject; par: Nodo | null; hijos: Nodo[]; n: number; peso: number; ang: number; r: number;
   hojas: { dx: number; dy: number; rot: number; k: number; t: number; v: number }[]; ramaHojas: { f: number; rot: number; k: number; t: number; v: number }[] }
 
-const W = 1000, H = 640, CX = 500, HORQUILLA = 470, SUELO = H - 34, R0 = 168, DR = 60
-const SALUD: Record<HealthState, number> = { lush: 1, wilted: .55, withered: .14 }
+export const W = 1000, H = 640, CX = 500, HORQUILLA = 470, SUELO = H - 34, R0 = 168, DR = 60
+export const SALUD: Record<HealthState, number> = { lush: 1, wilted: .55, withered: .14 }
 const BASE: Record<SubjectState, number> = { approved: 11, regular: 9, enrolled: 7, available: 5, locked: 4 }
-const VERDES: Record<SubjectState, string[]> = { approved: ['#4c8a43', '#5f9a4e', '#79b05e'], regular: ['#5f9a4e', '#79b05e', '#94c26c'], enrolled: ['#79b05e', '#94c26c', '#a9cf80'], available: ['#86b66a', '#9cc77a', '#b1d48e'], locked: ['#9cc77a', '#b1d48e', '#c3dca3'] }
+export const VERDES: Record<SubjectState, string[]> = { approved: ['#4c8a43', '#5f9a4e', '#79b05e'], regular: ['#5f9a4e', '#79b05e', '#94c26c'], enrolled: ['#79b05e', '#94c26c', '#a9cf80'], available: ['#86b66a', '#9cc77a', '#b1d48e'], locked: ['#9cc77a', '#b1d48e', '#c3dca3'] }
 
 const hx = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
 export const mix = (a: string, b: string, t: number) => { t = Math.max(0, Math.min(1, t)); const B = hx(b); return '#' + hx(a).map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join('') }
-const seco = (c: string, s: number) => s > .75 ? c : s > .4 ? mix(c, '#c9b04a', (.75 - s) / .35) : mix('#c9b04a', '#9a6a3a', (.4 - s) / .3)
+export const seco = (c: string, s: number) => s > .75 ? c : s > .4 ? mix(c, '#c9b04a', (.75 - s) / .35) : mix('#c9b04a', '#9a6a3a', (.4 - s) / .3)
 const rng = (seed: number) => () => (seed = (seed * 16807) % 2147483647) / 2147483647
 export const corto = (n: string) => {
   const s = n.replace('Estructuras de Datos y Algoritmos', 'EDyA').replace('Análisis Matemático', 'Análisis Mat.').replace('Álgebra y Geometría Analítica', 'Álgebra y Geom.')
@@ -37,7 +37,7 @@ export function caminoDe(plan: Plan, id: number | null): Set<number> | null {
   sube(id); baja(id); return set
 }
 
-function armar(plan: Plan, tree: Tree | null): Nodo[] {
+export function armar(plan: Plan, tree: Tree | null): Nodo[] {
   const info = new Map((tree?.subjects ?? []).map(s => [s.subject_id, s]))
   const maxAnio = Math.max(...plan.subjects.map(s => s.year ?? 0))
   // las optativas entran al árbol solo si el alumno ya las eligió
@@ -63,9 +63,9 @@ function armar(plan: Plan, tree: Tree | null): Nodo[] {
 export default function TreeView({ plan, tree, selected, onSelect }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const nodos = useMemo(() => armar(plan, tree), [plan, tree])
-  const estado = useRef({ salud: SALUD[tree?.health.state ?? 'lush'], objetivo: SALUD[tree?.health.state ?? 'lush'], marca: null as Set<number> | null, sel: selected, caidas: [] as { x: number; y: number; rot: number; k: number; col: string; vy: number; fase: number; vida: number; piso?: boolean; borrar?: number }[], visibles: new Map<string, { x: number; y: number; rot: number; k: number; col: string }>(), primero: true })
+  const estado = useRef({ salud: saludVisual(tree), objetivo: saludVisual(tree), marca: null as Set<number> | null, sel: selected, caidas: [] as { x: number; y: number; rot: number; k: number; col: string; vy: number; fase: number; vida: number; piso?: boolean; borrar?: number }[], visibles: new Map<string, { x: number; y: number; rot: number; k: number; col: string }>(), primero: true })
 
-  useEffect(() => { const e = estado.current; e.objetivo = SALUD[tree?.health.state ?? 'lush']; if (e.primero) { e.salud = e.objetivo } }, [tree])
+  useEffect(() => { const e = estado.current; e.objetivo = saludVisual(tree); if (e.primero) { e.salud = e.objetivo } }, [tree])
   useEffect(() => { estado.current.marca = caminoDe(plan, selected); estado.current.sel = selected; pintar() })
 
   const KX = useMemo(() => Math.min(1.6, 440 / Math.max(1, ...nodos.map(n => Math.abs(Math.cos(n.ang)) * n.r))), [nodos])
@@ -148,4 +148,16 @@ export default function TreeView({ plan, tree, selected, onSelect }: Props) {
   return <svg ref={svgRef} className="arbol-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Árbol del plan de estudios"
     onClick={ev => { const g = (ev.target as Element).closest('.nodo') as SVGGElement | null; const id = g ? Number(g.dataset.id) : null; onSelect(id === selected ? null : id) }}
     onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { const g = (ev.target as Element).closest('.nodo') as SVGGElement | null; if (g) { ev.preventDefault(); onSelect(Number(g.dataset.id)) } } }} />
+}
+
+// Salud continua para el dibujo: el estado lo decide el backend (`health.state`, con sus umbrales y
+// la época de parciales); dentro de ese estado, los días desde `last_activity` dan el punto exacto,
+// así el árbol se va secando de a poco y no en 3 saltos.
+const BANDAS: Record<HealthState, [number, number, number, number]> = { lush: [1, .86, 0, 5], wilted: [.75, .42, 5, 10], withered: [.35, .1, 10, 16] }
+export function saludVisual(tree: Tree | null): number {
+  if (!tree) return 1
+  const [alto, bajo, d0, d1] = BANDAS[tree.health.state], ult = tree.health.last_activity
+  if (!ult) return alto
+  const dias = (Date.now() - new Date(ult).getTime()) / 864e5, t = Math.max(0, Math.min(1, (dias - d0) / (d1 - d0)))
+  return alto + (bajo - alto) * t
 }

@@ -215,3 +215,48 @@ legend { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
 }
 .tarjeta > .btn { align-self: flex-start; }
 .burbuja.assistant { white-space: normal; } .burbuja p + p, .burbuja ul, .burbuja ol { margin-top: 8px; } .burbuja ul, .burbuja ol { padding-left: 20px; margin-bottom: 0; } .burbuja code { background: #f3f2ec; border-radius: 6px; padding: 1px 5px; font-size: .92em; }
+
+/* Árbol 3D */
+.arbol3d { position: relative; width: 100%; aspect-ratio: 1000 / 640; min-height: 420px; overflow: hidden; }
+.arbol3d canvas { display: block; touch-action: none; }
+.arbol3d.cargando { display: grid; place-items: center; color: var(--suave); font-weight: 700; background: linear-gradient(#d5e8ef, #f1f3e8 62%, #f9e2b4); }
+.escena-arbol .vista { position: absolute; left: 16px; top: 16px; z-index: 3; }
+.pild3d { font: 700 11px/1 "Nunito", sans-serif; padding: 5px 9px; border-radius: 999px; background: #fff; border: 1px solid #cfd8c4; color: #3d4a37; white-space: nowrap; transition: opacity .2s; }
+.pild3d.approved { background: #e8f0df; border-color: #bfd3ac; color: #2b2a22; } .pild3d.regular { background: #fbecc9; border-color: #efcf86; color: #2b2a22; }
+.pild3d.enrolled { background: #e4edf6; border-color: #b9cde2; color: #2b2a22; } .pild3d.locked { background: #f6f5f0; border-color: #dcdcd4; color: #8a867a; }
+.pild3d.cuello { border-color: #c98a2b; } .pild3d.meta { background: #fdf3dc; border-color: #f2c14e; font-weight: 800; }
+.pild3d.oculta { opacity: 0; } .pild3d.hover { opacity: 1; box-shadow: 0 2px 8px rgba(43,42,34,.2); }
+.pild3d.apagada { opacity: .2; } .pild3d.sel { border: 2px solid #2b2a22; opacity: 1; }
+.pild3d.tapada { opacity: 0; }
+.pild3d.tapada.hover, .pild3d.tapada.sel { opacity: 1; z-index: 2; }
+
+/* el panel de la materia va al costado del árbol, afuera de la escena */
+.arbol-y-panel { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.arbol-y-panel .panel { position: sticky; top: 16px; right: auto; width: auto; max-height: calc(100vh - 32px); background: var(--superficie); border: 1px solid var(--borde); box-shadow: none; }
+@media (max-width: 1100px) { .arbol-y-panel { grid-template-columns: 1fr; } .arbol-y-panel .panel { position: static; max-height: none; margin: 0; } }
+
+/* Mi árbol a lo ancho: margen izquierdo chico, el panel pegado al borde derecho */
+.pagina.pagina-arbol { max-width: none; margin: 0; padding: 24px 0 40px 24px; }
+.pagina-arbol > .saludo, .pagina-arbol > .alerta, .pagina-arbol > .aviso, .pagina-arbol > .resumen { margin-right: 24px; }
+.pagina-arbol .arbol-y-panel { grid-template-columns: minmax(0, 1fr) 340px; }
+.pagina-arbol .arbol-y-panel .panel { border-right: 0; border-radius: 20px 0 0 20px; top: 0; }
+.pagina-arbol .arbol3d { aspect-ratio: auto; height: calc(100vh - 150px); min-height: 480px; }
+.resumen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.resumen .tarjeta { gap: 10px; }
+.barra-fila { display: grid; grid-template-columns: 60px 1fr 40px; align-items: center; gap: 10px; font-size: 14px; }
+.barra-fila.ancha { grid-template-columns: minmax(0, 1.3fr) 1fr 28px; }
+.barra-fila span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barra-fila b { text-align: right; font-weight: 800; }
+.barra { height: 8px; border-radius: 4px; background: #ecece6; overflow: hidden; }
+.barra i { display: block; height: 100%; border-radius: 4px; background: var(--verde); }
+.cursa-fila { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--borde); }
+.cursa-fila b { display: block; font-size: 14px; } .cursa-fila span { color: var(--suave); font-size: 12px; }
+.num { font-variant-numeric: tabular-nums; }
+@media (max-width: 1100px) { .pagina.pagina-arbol { padding: 18px 14px 32px; } .pagina-arbol > * { margin-right: 0 !important; } .pagina-arbol .arbol-y-panel .panel { border-right: 1px solid var(--borde); border-radius: 20px; } .resumen { grid-template-columns: 1fr; } .pagina-arbol .arbol3d { height: 70vh; } }
+
+/* arriba de la escena: 2D/3D, buscador y "todos los nombres" */
+.escena-arbol .arriba-escena { position: absolute; left: 16px; top: 16px; z-index: 3; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.escena-arbol .arriba-escena .vista { position: static; }
+.buscar-materia { width: 260px; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--borde); background: rgba(255,255,255,.95); font-size: 14px; }
+.arriba-escena .todas { flex-direction: row; align-items: center; gap: 6px; background: rgba(255,255,255,.9); border: 1px solid var(--borde); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.arriba-escena .todas input { padding: 0; accent-color: var(--verde); }
