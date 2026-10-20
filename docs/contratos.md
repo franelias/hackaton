@@ -402,6 +402,8 @@ La lógica de las tools vive en el módulo compartido `fceia/` (Go): el backend 
 ### `build_schedule(subject_ids: int[], approved_subject_ids?: int[], regular_subject_ids?: int[], semester?: str, preferences?: { shift?: "morning"|"afternoon"|"evening", free_days?: int[] })`
 (`GET /subjects/{id}`, `/subjects/{id}/sessions`, `/subjects/{id}/relations`; hasta 12 materias de una misma carrera)
 
+El algoritmo es determinista, sin IA (`fceia/schedule`). Diagrama de flujo: [`armador-horarios.svg`](armador-horarios.svg).
+
 - **Correlativas**: si llega `approved_subject_ids` o `regular_subject_ids`, las materias con correlativas sin cumplir salen en `not_enabled` y no se arman. Una correlativa `regular` se cumple con regular o aprobada; el resto exige aprobada. Si no llega ninguno, no se chequea y hay un `warning`. `POST /api/schedule` los arma desde el estado del alumno.
 - **Comisiones**: salen de `notes` (`Com.: 630`, `Com: 630 y Com: 660`). Sin etiquetas, la materia tiene una sola. Si la materia tiene comisiones etiquetadas, las clases sin etiqueta se ignoran (duplicados parciales de la API) y se avisa. LCC no tiene comisiones alternativas.
 - **Semestre**: por materia, el más reciente (`2026-2S`); si solo tiene "última publicación" va con `stale: true` y un aviso. `semester` fuerza uno.
