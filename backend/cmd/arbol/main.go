@@ -45,7 +45,7 @@ func rootCmd() *cobra.Command {
 		},
 	}
 	root.PersistentFlags().StringVar(&envFile, "env-file", ".env", "dotenv file to load (variables already set win)")
-	root.AddCommand(upCmd(), serveCmd(), mcpCmd(), migrateCmd(), importCmd(), seedCmd(), planCmd())
+	root.AddCommand(upCmd(), serveCmd(), mcpCmd(), migrateCmd(), importCmd(), seedCmd(), planCmd(), teacherCmd())
 	return root
 }
 

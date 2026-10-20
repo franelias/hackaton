@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TreeView from '../components/TreeView'
 import { api } from '../lib/api'
+import { queryClient } from '../lib/queries'
 import { useSession } from '../lib/session'
 import type { Alert, PlanSubject, SubjectState } from '../lib/types'
 
@@ -30,9 +31,11 @@ export default function MyTree() {
   const subtitle = health === 'lush' ? `Tu árbol está frondoso. Llevás ${approvedCount} de ${total} materias aprobadas.`
     : `Tu árbol está ${HEALTH_LABEL[health]}: tu última actividad fue ${ago(tree.health.last_activity)}. Lo que aprobaste sigue ahí.`
 
+  // the API already returned the new tree; only the alerts may have changed
+  const refreshAlerts = () => { queryClient.invalidateQueries({ queryKey: ['alerts'] }) }
   const run = async (f: () => Promise<unknown>, ok?: string) => { setBusy(true); setNotice(null)
     try { await f(); if (ok) setNotice(ok) } catch (e) { setNotice((e as Error).message) } finally { setBusy(false) } }
-  const checkIn = () => run(async () => { setTree(await api.activity(studentId, { type: 'checkin' })); await refresh() }, '¡Listo! Tu árbol recibió agua.')
+  const checkIn = () => run(async () => { setTree(await api.activity(studentId, { type: 'checkin' })); refreshAlerts() }, '¡Listo! Tu árbol recibió agua.')
   const act = (a: Alert) => { const t = a.action.type
     if (t === 'open_tutor') nav(`/tutor${a.action.subject_id ? `?subject=${a.action.subject_id}` : ''}`)
     else if (t === 'build_schedule') nav('/schedule')
@@ -66,8 +69,8 @@ export default function MyTree() {
         </div>
         <aside className="panel" aria-live="polite">
           {m ? <SubjectCard m={m} state={stateOf(m.subject_id)} stateOf={stateOf} byId={byId} busy={busy}
-              onChange={s => run(async () => { setTree(await api.setSubject(studentId, m.subject_id, s)); await refresh() }, 'Guardado.')}
-              onExamDate={date => run(async () => { setTree(await api.activity(studentId, { type: 'exam', subject_id: m.subject_id, date })); await refresh() }, 'Anotamos la fecha del parcial.')}
+              onChange={s => run(async () => { setTree(await api.setSubject(studentId, m.subject_id, s)); refreshAlerts() }, 'Guardado.')}
+              onExamDate={date => run(async () => { setTree(await api.activity(studentId, { type: 'exam', subject_id: m.subject_id, date })); refreshAlerts() }, 'Anotamos la fecha del parcial.')}
               onTutor={() => nav(`/tutor?subject=${m.subject_id}`)} onClose={() => setSel(null)} />
             : <div>
                 <h2>Tu próximo paso</h2>

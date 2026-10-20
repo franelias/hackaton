@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { api, type SubjectMark } from '../lib/api'
+import { facultiesQuery, planQuery, queryClient } from '../lib/queries'
 import { useSession } from '../lib/session'
 import type { Faculty, Plan, PlanSubject } from '../lib/types'
 
@@ -20,7 +21,7 @@ export default function Onboarding() {
   const [id, setId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null), [sending, setSending] = useState(false)
   // with a single option, it is picked already
-  useEffect(() => { api.faculties().then(fs => { setFaculties(fs); if (fs.length === 1) pickFaculty(fs[0]) }).catch(e => setError(`No pudimos cargar las facultades: ${e.message}`)) }, [])
+  useEffect(() => { queryClient.fetchQuery(facultiesQuery).then(fs => { setFaculties(fs); if (fs.length === 1) pickFaculty(fs[0]) }).catch(e => setError(`No pudimos cargar las facultades: ${e.message}`)) }, [])
   const pickFaculty = (f?: Faculty) => { setFacultyId(f?.faculty_id ?? ''); setCareerId(f?.careers.length === 1 ? f.careers[0].career_id : null) }
   const careers = faculties?.find(f => f.faculty_id === facultyId)?.careers ?? []
   const byYear = useMemo(() => { const m = new Map<number, PlanSubject[]>()
@@ -32,7 +33,7 @@ export default function Onboarding() {
 
   const create = async () => { if (careerId == null) return; setSending(true); setError(null)
     // if the student was created and the plan failed, retrying does not create it again
-    try { const sid = id ?? (await api.createStudent(name.trim(), facultyId, careerId)).student_id; setId(sid); setPlan(await api.plan(careerId)); setStep(2) }
+    try { const sid = id ?? (await api.createStudent(name.trim(), facultyId, careerId)).student_id; setId(sid); setPlan(await queryClient.fetchQuery(planQuery(careerId))); setStep(2) }
     catch (e) { setError((e as Error).message) } finally { setSending(false) } }
   // all marks in a single request
   const finish = async () => { if (!id) return; setSending(true); setError(null)

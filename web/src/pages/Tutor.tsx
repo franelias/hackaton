@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { keys, queryClient } from '../lib/queries'
 import { PhotoError, preparePhoto } from '../lib/photo'
 import RichText, { TypedText } from '../components/RichText'
 import { useSession } from '../lib/session'
@@ -53,7 +54,7 @@ export default function Tutor() {
   useEffect(() => { if (!studentId || !conversation || sending || conversation === justCreated.current) return
     let current = true
     setAnimating(false); setMessages([]); setLoadingConversation(true)
-    api.conversation(studentId, conversation).then(r => { if (current) setMessages(r.messages) }).catch(() => { if (current) setMessages([]) })
+    queryClient.fetchQuery({ queryKey: keys.conversation(studentId, conversation), queryFn: () => api.conversation(studentId, conversation) }).then(r => { if (current) setMessages(r.messages) }).catch(() => { if (current) setMessages([]) })
       .finally(() => { if (current) setLoadingConversation(false) })
     return () => { current = false; setLoadingConversation(false) } }, [studentId, conversation]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -70,6 +71,8 @@ export default function Tutor() {
       onText: d => { setStatus(null); setAnimating(true); append(d) },
       onDone: d => {
         justCreated.current = d.conversation_id; setConversation(d.conversation_id)
+        // the cached history of this conversation is one turn behind now
+        queryClient.removeQueries({ queryKey: keys.conversation(studentId, d.conversation_id) })
         setList(l => l.some(c => c.id === d.conversation_id) ? l.map(c => c.id === d.conversation_id ? { ...c, date: new Date().toISOString() } : c)
           : [{ id: d.conversation_id, title: msg ? msg.slice(0, 60) : 'Foto de un ejercicio', date: new Date().toISOString(), mockExam: opts.mockExam }, ...l])
         setExam(x => x && !x.conversation && opts.mockExam ? { ...x, conversation: d.conversation_id } : x)
