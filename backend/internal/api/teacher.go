@@ -198,15 +198,22 @@ func (s *Server) classes(subjects []db.Subject) (map[int][]course.Member, error)
 		},
 		func() error { return s.DB.Find(&periods, "faculty = ?", faculty).Error },
 		func() error { return s.DB.Find(&states, "student_id IN ?", studentIDs).Error },
-		func() error { return s.DB.Order("created_at").Find(&acts, "student_id IN ?", studentIDs).Error },
+		func() error { return db.LoadActivities(s.DB, studentIDs, &acts) },
 	); err != nil {
 		return nil, err
 	}
 
 	// the same tree.Input that state builds, from the rows loaded above
+	// each career's subjects and correlativas once, not scanned again per student
 	careerOf := map[int]int{}
+	subjectsOf := map[int][]db.Subject{}
+	prereqsOf := map[int][]db.Prerequisite{}
 	for _, m := range planSubjects {
 		careerOf[m.ID] = m.CareerID
+		subjectsOf[m.CareerID] = append(subjectsOf[m.CareerID], m)
+	}
+	for _, p := range prereqs {
+		prereqsOf[careerOf[p.SubjectID]] = append(prereqsOf[careerOf[p.SubjectID]], p)
 	}
 	statesOf := map[int]map[int]string{}
 	for _, x := range states {
@@ -234,16 +241,12 @@ func (s *Server) classes(subjects []db.Subject) (map[int][]course.Member, error)
 		if in.States == nil {
 			in.States = map[int]string{}
 		}
-		for _, m := range planSubjects {
-			if m.CareerID == st.CareerID {
-				in.Plan[m.ID] = nil
-				in.Info[m.ID] = tree.SubjectInfo{Name: m.Name, Bottleneck: m.Bottleneck, UnlocksTotal: m.UnlocksTotal}
-			}
+		for _, m := range subjectsOf[st.CareerID] {
+			in.Plan[m.ID] = nil
+			in.Info[m.ID] = tree.SubjectInfo{Name: m.Name, Bottleneck: m.Bottleneck, UnlocksTotal: m.UnlocksTotal}
 		}
-		for _, p := range prereqs {
-			if careerOf[p.SubjectID] == st.CareerID {
-				in.Plan[p.SubjectID] = append(in.Plan[p.SubjectID], tree.Prereq{RequiresID: p.RequiresID, Condition: p.Condition})
-			}
+		for _, p := range prereqsOf[st.CareerID] {
+			in.Plan[p.SubjectID] = append(in.Plan[p.SubjectID], tree.Prereq{RequiresID: p.RequiresID, Condition: p.Condition})
 		}
 		t := tree.Build(in)
 		m := course.Member{ID: st.ID, Name: st.Name, Activities: in.Activities}

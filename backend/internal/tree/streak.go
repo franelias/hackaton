@@ -4,15 +4,15 @@ import "time"
 
 const MaxWildcards = 2
 
-// streak counts consecutive ISO weeks with a study session (exercise, mock
-// exam or chat; a checkin does not count). An empty week spends a wildcard or
+// streak counts consecutive ISO weeks with any activity (exercise, mock
+// exam, chat or a checkin). An empty week spends a wildcard or
 // breaks the streak; a recess week freezes it; the current week only counts
 // once it has a session. A wildcard is earned every 4 weeks of streak.
 func streak(in Input) Streak {
 	weeks := map[time.Time]bool{}
 	var first time.Time
 	for _, a := range in.Activities {
-		if !studySession(a) {
+		if !streakActivity(a) {
 			continue
 		}
 		w := monday(day(a.CreatedAt))
@@ -46,7 +46,12 @@ func streak(in Input) Streak {
 	return s
 }
 
-// studySession: what counts for the streak (a checkin does not).
+// streakActivity: what counts for the streak (a study session or a checkin).
+func streakActivity(a Activity) bool {
+	return studySession(a) || a.Type == "checkin"
+}
+
+// studySession: real study, as opposed to a checkin.
 func studySession(a Activity) bool {
 	return a.Type == "exercise" || a.Type == "mock_exam" || a.Type == "chat"
 }

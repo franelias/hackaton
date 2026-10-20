@@ -38,6 +38,9 @@ type Server struct {
 
 	chats        chatLimiter // per student
 	teacherChats chatLimiter // per teacher
+
+	careerNames  lookup[planKey, string] // career name by (faculty, career)
+	subjectNames lookup[planKey, string] // subject name by (faculty, subject)
 }
 
 func (s *Server) Routes() http.Handler {

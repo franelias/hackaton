@@ -8,7 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"firebase.google.com/go/v4/auth"
@@ -67,6 +70,9 @@ type Options struct {
 
 // Run sends the due nudges once and returns how many students got one. A
 // failure with one student is logged and does not stop the others.
+//
+// Students are handled in batches whose data is loaded in a few queries, not
+// a few per student: the database is remote and a round trip is what costs.
 func (n *Notifier) Run(ctx context.Context, opt Options) (int, error) {
 	now := n.Now()
 	if h := now.In(loc).Hour(); !opt.AnyHour && (h < FromHour || h >= ToHour) {
@@ -81,19 +87,135 @@ func (n *Notifier) Run(ctx context.Context, opt Options) (int, error) {
 		return 0, err
 	}
 	sent := 0
-	for i := range students {
+	plans := map[planKey]*db.Plan{} // the plan is the same for every student of a career
+	var errs []error
+	for batch := range slices.Chunk(students, batchSize) {
 		if err := ctx.Err(); err != nil {
 			return sent, err
 		}
-		ok, err := n.student(ctx, &students[i], now)
+		got, err := n.batch(ctx, batch, plans, now)
+		sent += got
 		if err != nil {
-			log.Printf("notify s-%03d: %v", students[i].ID, err)
-		}
-		if ok {
-			sent++
+			errs = append(errs, err)
 		}
 	}
-	return sent, nil
+	return sent, errors.Join(errs...)
+}
+
+const (
+	batchSize = 200 // students loaded at once
+	workers   = 8   // students handled at once; the database pool holds 10
+)
+
+type planKey struct {
+	faculty string
+	career  int
+}
+
+// batch sends the due nudges of the students and returns how many got one.
+func (n *Notifier) batch(ctx context.Context, students []db.Student, plans map[planKey]*db.Plan, now time.Time) (int, error) {
+	ids := make([]int, len(students))
+	for i, st := range students {
+		ids[i] = st.ID
+	}
+	today, err := n.sentToday(ids, now)
+	if err != nil {
+		return 0, err
+	}
+	var due []*db.Student
+	var dueIDs, pushIDs []int
+	for i, st := range students {
+		if today[st.ID] >= PerDay {
+			continue
+		}
+		due = append(due, &students[i])
+		dueIDs = append(dueIDs, st.ID)
+		if st.NotifyPush && n.Push != nil {
+			pushIDs = append(pushIDs, st.ID)
+		}
+	}
+	if len(due) == 0 {
+		return 0, nil
+	}
+
+	var missing []planKey
+	for _, st := range due {
+		if k := (planKey{st.Faculty, st.CareerID}); plans[k] == nil && !slices.Contains(missing, k) {
+			missing = append(missing, k)
+		}
+	}
+	var rows map[int]*db.Rows
+	tokens := map[int][]string{}
+	loaded := make([]*db.Plan, len(missing))
+	loads := []func() error{
+		func() (err error) { rows, err = db.LoadRows(n.DB, dueIDs); return err },
+		func() error { return n.loadTokens(pushIDs, tokens) },
+	}
+	for i, k := range missing {
+		loads = append(loads, func() (err error) { loaded[i], err = db.LoadPlan(n.DB, k.faculty, k.career); return err })
+	}
+	if err := db.Parallel(loads...); err != nil {
+		return 0, err
+	}
+	for i, k := range missing {
+		plans[k] = loaded[i]
+	}
+
+	var sent atomic.Int64
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, workers)
+	for _, st := range due {
+		if ctx.Err() != nil {
+			break
+		}
+		sem <- struct{}{}
+		wg.Go(func() {
+			defer func() { <-sem }()
+			r := rows[st.ID]
+			if r == nil {
+				r = &db.Rows{}
+			}
+			in := plans[planKey{st.Faculty, st.CareerID}].Input(st, *r, now)
+			ok, err := n.student(ctx, st, in, tokens[st.ID])
+			if err != nil {
+				log.Printf("notify s-%03d: %v", st.ID, err)
+			}
+			if ok {
+				sent.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+	return int(sent.Load()), ctx.Err()
+}
+
+// sentToday counts the reminders each student got today (Argentina).
+func (n *Notifier) sentToday(ids []int, now time.Time) (map[int]int, error) {
+	y, m, d := now.In(loc).Date()
+	var rows []struct{ StudentID, N int }
+	err := n.DB.Model(&db.Notification{}).Select("student_id, count(*) AS n").
+		Where("student_id IN ? AND sent_at >= ?", ids, time.Date(y, m, d, 0, 0, 0, 0, loc)).
+		Group("student_id").Scan(&rows).Error
+	out := make(map[int]int, len(rows))
+	for _, r := range rows {
+		out[r.StudentID] = r.N
+	}
+	return out, err
+}
+
+// loadTokens adds the push tokens of the students to out, by student.
+func (n *Notifier) loadTokens(ids []int, out map[int][]string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	var rows []db.PushToken
+	if err := n.DB.Find(&rows, "student_id IN ?", ids).Error; err != nil {
+		return err
+	}
+	for _, t := range rows {
+		out[t.StudentID] = append(out[t.StudentID], t.Token)
+	}
+	return nil
 }
 
 // Loop runs Run every interval until ctx is done.
@@ -114,32 +236,14 @@ func (n *Notifier) Loop(ctx context.Context, every time.Duration) {
 	}
 }
 
-// student sends the first nudge not sent yet, if the student has a channel
-// and did not get one today.
-func (n *Notifier) student(ctx context.Context, st *db.Student, now time.Time) (bool, error) {
-	y, m, d := now.In(loc).Date()
-	var today int64
-	if err := n.DB.Model(&db.Notification{}).Where("student_id = ? AND sent_at >= ?", st.ID, time.Date(y, m, d, 0, 0, 0, 0, loc)).Count(&today).Error; err != nil {
-		return false, err
-	}
-	if today >= PerDay {
-		return false, nil
-	}
-	in, err := db.TreeInput(n.DB, st, now)
-	if err != nil {
-		return false, err
-	}
+// student sends the first nudge not sent yet, if the student has a channel.
+// The caller checked the daily cap and loaded the tree input and push tokens.
+func (n *Notifier) student(ctx context.Context, st *db.Student, in tree.Input, tokens []string) (bool, error) {
 	nudges := tree.Nudges(in)
 	if len(nudges) == 0 {
 		return false, nil
 	}
 
-	var tokens []string
-	if st.NotifyPush && n.Push != nil {
-		if err := n.DB.Model(&db.PushToken{}).Where("student_id = ?", st.ID).Pluck("token", &tokens).Error; err != nil {
-			return false, err
-		}
-	}
 	var email string
 	if st.NotifyEmail && n.Mail != nil && n.Users != nil {
 		u, err := n.Users.GetUser(ctx, st.FirebaseUID)

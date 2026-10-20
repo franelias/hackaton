@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -68,6 +69,9 @@ func (s *Server) deleteMCPToken(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// mcpTouchEvery is how often a token's last_used_at is refreshed.
+const mcpTouchEvery = 5 * time.Minute
+
 // MCPHandler serves /mcp: the FCEIA tools plus the student's own tree, for the
 // student's own MCP client. Every request carries the personal token, and the
 // server is stateless, so a session can't outlive a revoked token or be
@@ -83,8 +87,12 @@ func (s *Server) MCPHandler() http.Handler {
 			writeErr(w, http.StatusUnauthorized, "unauthorized", "falta el header Authorization: Bearer <token de Árbol>")
 			return
 		}
-		var st db.Student
-		err := s.DB.Joins("JOIN mcp_tokens t ON t.student_id = students.id AND t.token_hash = ?", hashToken(raw)).First(&st).Error
+		var found struct {
+			db.Student
+			LastUsedAt *time.Time
+		}
+		err := s.DB.Model(&db.Student{}).Select("students.*, t.last_used_at").
+			Joins("JOIN mcp_tokens t ON t.student_id = students.id AND t.token_hash = ?", hashToken(raw)).First(&found).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			writeErr(w, http.StatusUnauthorized, "unauthorized", "token inválido o revocado")
 			return
@@ -93,7 +101,12 @@ func (s *Server) MCPHandler() http.Handler {
 			s.dbErr(w, err, "")
 			return
 		}
-		s.DB.Model(&db.MCPToken{}).Where("student_id = ?", st.ID).Update("last_used_at", s.Now())
+		st := found.Student
+		// A write per request would be a round trip on every tool call; a
+		// coarse "last used" is enough to tell a live token from a forgotten one.
+		if now := s.Now(); found.LastUsedAt == nil || now.Sub(*found.LastUsedAt) > mcpTouchEvery {
+			s.DB.Model(&db.MCPToken{}).Where("student_id = ?", st.ID).Update("last_used_at", now)
+		}
 		h.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), studentKey, &st)))
 	})
 }

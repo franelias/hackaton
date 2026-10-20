@@ -406,18 +406,30 @@ func (s *Server) writeTree(w http.ResponseWriter, st *db.Student) {
 // state builds the student's tree, syncs the alerts table with the conditions
 // that hold now and returns the open (not dismissed) alerts.
 func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
-	in, err := db.TreeInput(s.DB, st, s.Now())
-	if err != nil {
-		return tree.Tree{}, nil, err
+	_, t, open, err := s.stateInput(st)
+	return t, open, err
+}
+
+// stateInput is state that also returns the tree.Input the tree was built
+// from, for callers that need more of it than the tree has.
+func (s *Server) stateInput(st *db.Student) (tree.Input, tree.Tree, []db.Alert, error) {
+	var in tree.Input
+	var rows []db.Alert
+	// the stored alerts don't depend on the tree: load them in the same round trip
+	if err := parallel(
+		func() (err error) { in, err = db.TreeInput(s.DB, st, s.Now()); return err },
+		func() error { return s.DB.Find(&rows, "student_id = ?", st.ID).Error },
+	); err != nil {
+		return tree.Input{}, tree.Tree{}, nil, err
 	}
 	t := tree.Build(in)
 	if t.Subjects == nil {
 		t.Subjects = []tree.Subject{}
 	}
 
-	open, err := s.syncAlerts(st.ID, t.Alerts)
+	open, err := s.syncAlerts(st.ID, rows, t.Alerts)
 	if err != nil {
-		return tree.Tree{}, nil, err
+		return tree.Input{}, tree.Tree{}, nil, err
 	}
 	alerted := map[int]bool{}
 	for _, a := range open {
@@ -426,23 +438,19 @@ func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
 		}
 	}
 	tree.MarkDry(&t, alerted)
-	return t, open, nil
+	return in, t, open, nil
 }
 
 // alertsLock is the advisory lock class of syncAlerts: pg_advisory_xact_lock(alertsLock, student).
 const alertsLock = 1
 
-// syncAlerts makes the student's alert rows match want: new conditions are
+// syncAlerts makes the student's alert rows (rows, as just loaded) match want: new conditions are
 // inserted, a changed key reopens a dismissed alert, and conditions that no
 // longer hold are deleted. Only the rows that change are written: it runs on
 // every read of the tree and the alerts, and most of the time nothing changes.
 // The app reads the tree and the alerts at once, so the writes take a lock per
 // student and diff again under it: two syncs never insert the same alert.
-func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error) {
-	var rows []db.Alert
-	if err := s.DB.Find(&rows, "student_id = ?", studentID).Error; err != nil {
-		return nil, err
-	}
+func (s *Server) syncAlerts(studentID int, rows []db.Alert, want []tree.Alert) ([]db.Alert, error) {
 	d := diffAlerts(studentID, rows, want)
 	if len(d.save) > 0 || len(d.remove) > 0 {
 		err := s.DB.Transaction(func(tx *gorm.DB) error {

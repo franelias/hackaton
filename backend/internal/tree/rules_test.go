@@ -53,7 +53,7 @@ func TestStreak(t *testing.T) {
 		want    Streak
 	}{
 		{"none", nil, nil, Streak{}},
-		{"checkins do not count", []Activity{checkinDaysAgo(1), checkinDaysAgo(8)}, nil, Streak{}},
+		{"checkins count", []Activity{checkinDaysAgo(1), checkinDaysAgo(8)}, nil, Streak{Weeks: 2, Best: 2}},
 		{"3 weeks up to last, current empty", sessions(3, 2, 1), nil, Streak{Weeks: 3, Best: 3}},
 		{"current week counts once it has a session", sessions(2, 1, 0), nil, Streak{Weeks: 3, Best: 3}},
 		{"empty last week spends the wildcard", sessions(6, 5, 4, 3, 2), nil, Streak{Weeks: 5, Best: 5, Wildcards: 0}},

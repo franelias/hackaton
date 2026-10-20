@@ -86,26 +86,15 @@ func (s *Server) localTools(st *db.Student, conv *db.Conversation) []tutor.Tool 
 }
 
 func (s *Server) viewTree(st *db.Student) (string, bool) {
-	t, alerts, err := s.state(st)
+	in, t, alerts, err := s.stateInput(st)
 	if err != nil {
 		return internalErr(err)
 	}
-	var subjects []db.Subject
-	if err := s.DB.Find(&subjects, "faculty = ? AND career_id = ?", st.Faculty, st.CareerID).Error; err != nil {
-		return internalErr(err)
-	}
-	names := map[int]string{}
-	for _, m := range subjects {
-		names[m.ID] = m.Name
-	}
-	var exercises []db.Activity
-	if err := s.DB.Find(&exercises, "student_id = ? AND type = 'exercise'", st.ID).Error; err != nil {
-		return internalErr(err)
-	}
+	// the subject names and the exercises are already in the input
 	var acts []tree.Activity
-	for _, a := range exercises {
-		if a.Topic != nil {
-			acts = append(acts, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Topic: *a.Topic, Result: a.Result})
+	for _, a := range in.Activities {
+		if a.Type == "exercise" && a.Topic != "" {
+			acts = append(acts, a)
 		}
 	}
 	topics := tree.Topics(acts)
@@ -127,7 +116,7 @@ func (s *Server) viewTree(st *db.Student) (string, bool) {
 		Alerts   []alert     `json:"alerts"`
 	}{Health: t.Health, Streak: t.Streak}
 	for _, x := range t.Subjects {
-		out.Subjects = append(out.Subjects, subject{x, names[x.SubjectID], topics[x.SubjectID]})
+		out.Subjects = append(out.Subjects, subject{x, in.Info[x.SubjectID].Name, topics[x.SubjectID]})
 	}
 	for _, a := range alerts {
 		out.Alerts = append(out.Alerts, alert{a.Level, a.Type, a.Message, a.SubjectID})

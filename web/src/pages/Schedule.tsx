@@ -43,7 +43,7 @@ export default function Schedule() {
   const { plan, tree, studentId } = useSession()
   const candidates = useMemo(() => {
     const states = new Map((tree?.subjects ?? []).map(s => [s.subject_id, s.state]))
-    return (plan?.subjects ?? []).filter(s => ['enrolled', 'available'].includes(states.get(s.subject_id) ?? '')).sort((a, b) => b.unlocks_total - a.unlocks_total)
+    return (plan?.subjects ?? []).filter(s => states.get(s.subject_id) === 'enrolled').sort((a, b) => b.unlocks_total - a.unlocks_total)
   }, [plan, tree])
   const [picked, setPicked] = useState<number[]>(() => (tree?.subjects ?? []).filter(s => s.state === 'enrolled').map(s => s.subject_id))
   const [shift, setShift] = useState<SchedulePreferences['shift'] | ''>('')

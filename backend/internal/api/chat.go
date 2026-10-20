@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -87,12 +88,11 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		s.dbErr(w, err, "")
 		return
 	}
-	var rows []db.ConversationMessage
-	if err := s.DB.Order("id").Find(&rows, "conversation_id = ?", conv.ID).Error; err != nil {
+	rows, err := loadHistory(s.DB, conv.ID)
+	if err != nil {
 		s.dbErr(w, err, "")
 		return
 	}
-	rows = recent(rows, maxHistory)
 	history := make([]openai.ChatCompletionMessageParamUnion, len(rows))
 	for i, m := range rows {
 		if err := json.Unmarshal(m.Content, &history[i]); err != nil {
@@ -131,28 +131,15 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = s.DB.Transaction(func(tx *gorm.DB) error {
-		for i, m := range added {
-			content, err := json.Marshal(m)
-			if err != nil {
+	msgs, err := turnMessages(conv.ID, added, body.Message, text)
+	if err == nil {
+		err = s.DB.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Create(&msgs).Error; err != nil {
 				return err
 			}
-			// GetRole() is empty for constant roles until marshaled, so read it from the JSON.
-			var role struct{ Role string }
-			json.Unmarshal(content, &role)
-			row := db.ConversationMessage{ConversationID: conv.ID, Role: role.Role, Content: content}
-			switch i {
-			case 0:
-				row.Text = &body.Message
-			case len(added) - 1:
-				row.Text = &text
-			}
-			if err := tx.Create(&row).Error; err != nil {
-				return err
-			}
-		}
-		return tx.Create(&db.Activity{StudentID: st.ID, Type: "chat"}).Error
-	})
+			return tx.Create(&db.Activity{StudentID: st.ID, Type: "chat"}).Error
+		})
+	}
 	if err != nil {
 		log.Printf("chat: saving turn: %v", err)
 		send("error", map[string]any{"error": map[string]string{"code": "internal", "message": "No se pudo guardar la conversación."}})
@@ -173,14 +160,21 @@ func (s *Server) turnContext(st *db.Student, conv *db.Conversation) string {
 	if faculty := db.FacultyNames[st.Faculty]; faculty != "" {
 		c += " Facultad: " + faculty + "."
 	}
-	var career db.Career
-	if s.DB.First(&career, "faculty = ? AND id = ?", st.Faculty, st.CareerID).Error == nil {
-		c += " Carrera: " + career.Name + "."
+	// the names almost never change, so they are not a round trip per turn
+	if name, err := s.careerNames.get(planKey{st.Faculty, st.CareerID}, func() (string, error) {
+		var career db.Career
+		err := s.DB.First(&career, "faculty = ? AND id = ?", st.Faculty, st.CareerID).Error
+		return career.Name, err
+	}); err == nil {
+		c += " Carrera: " + name + "."
 	}
 	if conv.MockStartedAt != nil && conv.MockSubjectID != nil && conv.MockMinutes != nil {
-		var subj db.Subject
-		s.DB.First(&subj, "faculty = ? AND id = ?", st.Faculty, *conv.MockSubjectID)
-		c += fmt.Sprintf(" Simulacro en curso de %s: pasaron %d de %d minutos.", subj.Name, int(now.Sub(*conv.MockStartedAt).Minutes()), *conv.MockMinutes)
+		name, _ := s.subjectNames.get(planKey{st.Faculty, *conv.MockSubjectID}, func() (string, error) {
+			var subj db.Subject
+			err := s.DB.First(&subj, "faculty = ? AND id = ?", st.Faculty, *conv.MockSubjectID).Error
+			return subj.Name, err
+		})
+		c += fmt.Sprintf(" Simulacro en curso de %s: pasaron %d de %d minutos.", name, int(now.Sub(*conv.MockStartedAt).Minutes()), *conv.MockMinutes)
 	}
 	return c + "</context>"
 }
@@ -204,6 +198,19 @@ func studentName(name string) string {
 		name = string(r[:60])
 	}
 	return name
+}
+
+// loadHistory reads the last maxHistory messages of a conversation, oldest
+// first and starting at a user message: the conversation grows with every
+// turn but only its tail goes to the model. It reads one row more than the
+// window so recent can tell the conversation is longer.
+func loadHistory(g *gorm.DB, conversationID int) ([]db.ConversationMessage, error) {
+	var rows []db.ConversationMessage
+	if err := g.Order("id DESC").Limit(maxHistory+1).Find(&rows, "conversation_id = ?", conversationID).Error; err != nil {
+		return nil, err
+	}
+	slices.Reverse(rows)
+	return recent(rows, maxHistory), nil
 }
 
 // recent keeps at most the last n messages, starting at a user message so no
@@ -310,4 +317,28 @@ func (s *Server) schedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// turnMessages are the rows of a turn's messages: the first is what the user
+// said and the last what the model answered, the ones in between (tool calls
+// and results) have no text. They go in with one insert, in order.
+func turnMessages(conversationID int, added []openai.ChatCompletionMessageParamUnion, userText, answer string) ([]db.ConversationMessage, error) {
+	rows := make([]db.ConversationMessage, len(added))
+	for i, m := range added {
+		content, err := json.Marshal(m)
+		if err != nil {
+			return nil, err
+		}
+		// GetRole() is empty for constant roles until marshaled, so read it from the JSON.
+		var role struct{ Role string }
+		json.Unmarshal(content, &role)
+		rows[i] = db.ConversationMessage{ConversationID: conversationID, Role: role.Role, Content: content}
+		switch i {
+		case 0:
+			rows[i].Text = &userText
+		case len(added) - 1:
+			rows[i].Text = &answer
+		}
+	}
+	return rows, nil
 }

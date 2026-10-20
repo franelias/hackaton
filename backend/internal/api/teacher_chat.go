@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/openai/openai-go/v3"
-	"gorm.io/gorm"
 
 	"github.com/franelias/hackaton/backend/internal/db"
 	"github.com/franelias/hackaton/backend/internal/tutor"
@@ -72,13 +71,12 @@ func (s *Server) teacherChat(w http.ResponseWriter, r *http.Request) {
 	var rows []db.ConversationMessage
 	var subjects []db.Subject
 	if err := parallel(
-		func() error { return s.DB.Order("id").Find(&rows, "conversation_id = ?", conv.ID).Error },
+		func() (err error) { rows, err = loadHistory(s.DB, conv.ID); return err },
 		func() (err error) { subjects, err = s.taught(t); return err },
 	); err != nil {
 		s.dbErr(w, err, "")
 		return
 	}
-	rows = recent(rows, maxHistory)
 	history := make([]openai.ChatCompletionMessageParamUnion, len(rows))
 	for i, m := range rows {
 		if err := json.Unmarshal(m.Content, &history[i]); err != nil {
@@ -119,28 +117,10 @@ func (s *Server) teacherChat(w http.ResponseWriter, r *http.Request) {
 		send("error", map[string]any{"error": map[string]string{"code": "tutor_unavailable", "message": "El asistente no está disponible ahora. Probá de nuevo en un rato."}})
 		return
 	}
-	err = s.DB.Transaction(func(tx *gorm.DB) error {
-		for i, m := range added {
-			content, err := json.Marshal(m)
-			if err != nil {
-				return err
-			}
-			// GetRole() is empty for constant roles until marshaled, so read it from the JSON.
-			var role struct{ Role string }
-			json.Unmarshal(content, &role)
-			row := db.ConversationMessage{ConversationID: conv.ID, Role: role.Role, Content: content}
-			switch i {
-			case 0:
-				row.Text = &body.Message
-			case len(added) - 1:
-				row.Text = &text
-			}
-			if err := tx.Create(&row).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	msgs, err := turnMessages(conv.ID, added, body.Message, text)
+	if err == nil {
+		err = s.DB.Create(&msgs).Error // one statement: all or nothing
+	}
 	if err != nil {
 		log.Printf("teacher chat: saving turn: %v", err)
 		send("error", map[string]any{"error": map[string]string{"code": "internal", "message": "No se pudo guardar la conversación."}})
