@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CircleAlert, Droplets, Flame } from 'lucide-react'
 import { toast } from 'sonner'
 import TreeView, { BOTTLENECK, DRY_BRANCH, PILL, mark } from '../components/TreeView'
+import { hasWebGL } from '../components/webgl'
 import { useDismissAlert, useTreeChange, type TreeChange } from '../lib/mutations'
 import { isSlot, useElectives } from '../lib/electives'
 import { useSession } from '../lib/session'
@@ -12,11 +13,19 @@ import SubjectCard from '@/components/SubjectCard'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 
 const HEALTH_LABEL = { lush: 'frondoso', wilted: 'mustio', withered: 'seco' }
 // the legend draws the same mark and name tag the tree uses for each state (see TreeView)
 const LEGEND: [SubjectState, string][] = [['approved', 'Aprobada'], ['regular', 'Regular'], ['enrolled', 'Cursando'], ['available', 'La podés cursar'], ['locked', 'Todavía no']]
+
+// three.js is loaded only when the 3D view is shown
+const TreeView3D = lazy(() => import('../components/TreeView3D'))
+const VIEW_KEY = 'arbol.view'
 
 const ago = (iso: string | null) => { if (!iso) return null; const d = Math.floor((Date.now() - new Date(iso).getTime()) / 864e5); return d <= 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días` }
 
@@ -24,6 +33,9 @@ export default function MyTree() {
   const { plan, tree, alerts, studentId, user, error } = useSession()
   const nav = useNavigate()
   const [sel, setSel] = useState<number | null>(null)
+  const [view, setView] = useState<'2d' | '3d'>(() => { try { const g = localStorage.getItem(VIEW_KEY); if (g === '2d' || g === '3d') return g } catch { /* no storage */ } return hasWebGL() ? '3d' : '2d' })
+  const [allNames, setAllNames] = useState(false), [search, setSearch] = useState('')
+  const changeView = (x: '2d' | '3d') => { setView(x); try { localStorage.setItem(VIEW_KEY, x) } catch { /* no storage */ } }
   const treeChange = useTreeChange(studentId ?? ''), dismiss = useDismissAlert(studentId ?? '')
   const busy = treeChange.isPending
   const states = useMemo(() => new Map((tree?.subjects ?? []).map(s => [s.subject_id, s])), [tree])
@@ -32,6 +44,9 @@ export default function MyTree() {
   const electives = useElectives(studentId ?? '', plan)
   if (error && !tree) return <PageError message={error} />
   if (!plan || !tree || !studentId) return <PageLoading label="Cargando tu árbol" />
+  const treePlan = electives.treePlan ?? plan
+  // picking a subject from the list selects it, which highlights its prerequisite path
+  const searchFor = (text: string) => { setSearch(text); const n = text.trim().toLowerCase(); const s = treePlan.subjects.find(x => x.name.toLowerCase() === n); if (s) { setSel(s.subject_id); setSearch('') } }
 
   const firstName = (user?.displayName ?? '').split(' ')[0]
   const health = tree.health.state
@@ -68,8 +83,18 @@ export default function MyTree() {
 
       {/* the tree is the page; everything else lives in the side column */}
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem] xl:gap-5">
-        <Card className="tree-enter gap-0 overflow-hidden rounded-3xl bg-[#eef0e4] py-0 ring-foreground/5">
-          <TreeView plan={electives.treePlan ?? plan} tree={tree} selected={sel} onSelect={setSel} />
+        <Card className="tree-enter relative gap-0 overflow-hidden rounded-3xl bg-[#eef0e4] py-0 ring-foreground/5">
+          {view === '3d' ? <Suspense fallback={<div className="tree-3d loading">Preparando el árbol en 3D…</div>}><TreeView3D plan={treePlan} tree={tree} selected={sel} onSelect={setSel} allNames={allNames} /></Suspense>
+            : <TreeView plan={treePlan} tree={tree} selected={sel} onSelect={setSel} />}
+          {/* over the scene: 2D/3D, subject search and (3D) all names */}
+          <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
+            <ToggleGroup type="single" variant="outline" size="sm" spacing={0} aria-label="Vista del árbol" className="bg-card/95" value={view} onValueChange={v => { if (v) changeView(v as '2d' | '3d') }}>
+              <ToggleGroupItem value="2d">2D</ToggleGroupItem><ToggleGroupItem value="3d">3D</ToggleGroupItem>
+            </ToggleGroup>
+            <Input className="h-8 w-64 rounded-full bg-card/95" list="plan-subjects" value={search} onChange={e => searchFor(e.target.value)} placeholder="Buscar una materia…" aria-label="Buscar una materia" />
+            <datalist id="plan-subjects">{treePlan.subjects.map(s => <option key={s.subject_id} value={s.name} />)}</datalist>
+            {view === '3d' && <Label className="h-8 rounded-full border bg-card/95 px-3 text-sm"><Checkbox checked={allNames} onCheckedChange={v => setAllNames(v === true)} />Todos los nombres</Label>}
+          </div>
         </Card>
 
         <aside className="side-enter grid items-start gap-4 md:grid-cols-2 xl:sticky xl:top-6 xl:flex xl:flex-col">

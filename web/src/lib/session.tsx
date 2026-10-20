@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { api, ApiError } from './api'
 import { MOCK } from './config'
 import { firebaseAuth } from './firebase'
+import { withHealthOverride } from './healthOverride'
 import { disablePush, syncPush } from './push'
 import { keys, planQuery, queryClient } from './queries'
 import type { Alert, Me, Plan, Tree } from './types'
@@ -42,7 +43,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // signed in: does the user already have a student? is it a teacher?
   const me = useQuery({ queryKey: keys.me(uid ?? ''), queryFn: api.me, enabled: authReady && !!uid })
   const studentId = me.data?.student_id ?? null, teacherId = me.data?.teacher_id ?? null
-  const tree = useQuery({ queryKey: keys.tree(studentId ?? ''), queryFn: () => api.tree(studentId!), enabled: !!studentId })
+  const tree = useQuery({ queryKey: keys.tree(studentId ?? ''), queryFn: () => api.tree(studentId!), enabled: !!studentId, select: withHealthOverride })
   const alerts = useQuery({ queryKey: keys.alerts(studentId ?? ''), queryFn: () => api.alerts(studentId!), enabled: !!studentId })
   // the plan is the one of the student's career; it is public and does not change
   const careerId = tree.data?.career_id

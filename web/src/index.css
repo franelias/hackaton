@@ -156,6 +156,24 @@
   @keyframes rise { from { opacity: 0; transform: translateY(12px) scale(.985); } }
   @media (prefers-reduced-motion: reduce) { .tree-enter, .side-enter { animation: none; } }
   .tree-svg .node:hover .pill, .tree-svg .node:focus-visible .pill { filter: drop-shadow(0 2px 4px oklch(0.27 0.012 110 / .25)); }
+  .tree-svg .hidden-label { opacity: 0; transition: opacity .15s; }
+  .tree-svg .node:hover .hidden-label, .tree-svg .node:focus-visible .hidden-label { opacity: 1; }
+  /* 2D and 3D take the same height, so switching views does not move the page */
+  .tree-svg, .tree-3d { display: block; width: 100%; height: calc(100dvh - 190px); min-height: 480px; }
+  @media (max-width: 1023px) { .tree-svg, .tree-3d { height: 70vh; } }
+
+  /* The 3D tree (TreeView3D): canvas and the subject labels over it */
+  .tree-3d { position: relative; overflow: hidden; }
+  .tree-3d canvas { display: block; touch-action: none; }
+  .tree-3d.loading { display: grid; place-items: center; font-weight: 700; color: var(--muted-foreground); background: linear-gradient(#d5e8ef, #f1f3e8 62%, #f9e2b4); }
+  .pill-3d { font: 700 11px/1 'Nunito Variable', sans-serif; padding: 5px 9px; border-radius: 999px; background: #fff; border: 1px solid #cfd8c4; color: #3d4a37; white-space: nowrap; transition: opacity .2s; }
+  .pill-3d.approved { background: #e8f0df; border-color: #bfd3ac; color: #2b2a22; } .pill-3d.regular { background: #fbecc9; border-color: #efcf86; color: #2b2a22; }
+  .pill-3d.enrolled { background: #e4edf6; border-color: #b9cde2; color: #2b2a22; } .pill-3d.locked { background: #f6f5f0; border-color: #dcdcd4; color: #8a867a; }
+  .pill-3d.bottleneck { border-color: #c98a2b; } .pill-3d.goal { background: #fdf3dc; border-color: #f2c14e; font-weight: 800; }
+  .pill-3d.hidden { opacity: 0; } .pill-3d.hover { opacity: 1; box-shadow: 0 2px 8px rgba(43,42,34,.2); }
+  .pill-3d.dimmed { opacity: .2; } .pill-3d.selected { border: 2px solid #2b2a22; opacity: 1; }
+  .pill-3d.covered { opacity: 0; }
+  .pill-3d.covered.hover, .pill-3d.covered.selected { opacity: 1; z-index: 2; }
 
   /* Tutor: rich text inside a reply */
   .rich p + p, .rich ul, .rich ol, .rich pre { margin-top: .5rem; }

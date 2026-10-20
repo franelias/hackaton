@@ -1,6 +1,7 @@
 // Demo mode: implements the backend contract in memory, with the real LCC plan.
 // Used when there is no VITE_API_URL or Firebase config. Health comes from the days since the last
-// activity, with the backend thresholds (internal/tree/health.go): 5 days wilted, 10 withered.
+// activity, with the backend thresholds (internal/tree/health.go): 5 days wilted, 10 withered. Ana starts
+// with 11 days without activity; any activity ("Estudié hoy", an exercise, a chat message) revives her.
 import planJson from './plan.json'
 import { ApiError, type Api, type ChatHandlers } from '../lib/api'
 import { mockClass, mockTeacher } from './classes'
@@ -9,8 +10,8 @@ import type { Activity, Alert, ChatMessage, Fail, NotificationPrefs, Plan, Sched
 const plan = planJson as unknown as Plan
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
 const day = 864e5
-let lastActivity = Date.now() - day
-const inactiveDays = () => Math.floor((Date.now() - lastActivity) / day)
+let lastActivity = Date.now() - 11 * day
+const inactiveDays = () => (Date.now() - lastActivity) / day
 const healthOf = (): Tree['health']['state'] => inactiveDays() >= 10 ? 'withered' : inactiveDays() >= 5 ? 'wilted' : 'lush'
 
 // Ana: passed almost all of 1st year and is taking 2nd-year subjects
@@ -22,12 +23,13 @@ const fails = new Map<number, Fail[]>([[3, [{ id: 1, grade: 4 }]]])
 let nextFail = 2
 let studentId: string | null = 's-001'
 const dismissed = new Set<string>()
+// inactivity alerts (contract §2.3); a dismissed one does not come back while the level is the same
 function alerts(): Alert[] {
-  const h = healthOf(), days = inactiveDays()
-  if (h === 'lush' || dismissed.has('al-1')) return []
-  return [{ id: 'al-1', level: h === 'withered' ? 'high' : 'medium', type: 'inactivity', subject_id: 5,
-    message: h === 'withered' ? `Hace ${days} días que no pasás por acá. ¿Querés que te contactemos con un tutor o alguien de tu año?` : 'Se viene el parcial de Análisis Matemático II, ¿practicamos 1 ejercicio?',
-    action: { type: h === 'withered' ? 'contact_tutor' : 'open_tutor', subject_id: 5 } }]
+  const d = inactiveDays(), a: Alert[] = []
+  if (d >= 15) a.push({ id: 'al-3', level: 'high', type: 'inactivity', message: 'Hace 15 días que no pasás por acá. ¿Querés que te contactemos con un tutor o alguien de tu año?', action: { type: 'contact_tutor' } })
+  else if (d >= 10) a.push({ id: 'al-2', level: 'medium', type: 'inactivity', subject_id: 5, message: 'Se viene el parcial de Análisis Matemático II, ¿practicamos 1 ejercicio?', action: { type: 'open_tutor', subject_id: 5 } })
+  else if (d >= 5) a.push({ id: 'al-1', level: 'low', type: 'inactivity', message: 'Hace unos días que no estudiás. Un ejercicio corto alcanza para que tu árbol vuelva a crecer.', action: { type: 'open_tutor' } })
+  return a.filter(x => !dismissed.has(x.id))
 }
 
 function buildTree(): Tree {
@@ -38,10 +40,10 @@ function buildTree(): Tree {
     const ok = (id: number, cond: string) => { const e = states.get(id); return e === 'approved' || (cond === 'regular' && e === 'regular') }
     const state: SubjectState = st ?? (s.requires.every(r => ok(r.subject_id, r.condition)) ? 'available' : 'locked')
     if (state === 'locked') continue
-    subjects.push({ subject_id: s.subject_id, state, leaves: leaves.get(s.subject_id) ?? 0, flower: s.subject_id === 8, dry: health !== 'lush' && s.subject_id === 5,
+    subjects.push({ subject_id: s.subject_id, state, leaves: leaves.get(s.subject_id) ?? 0, flower: s.subject_id === 8, dry: health === 'withered' && s.subject_id === 5,
       ...(state === 'approved' && grades.has(s.subject_id) ? { grade: grades.get(s.subject_id) } : {}), ...(fails.get(s.subject_id)?.length ? { fails: fails.get(s.subject_id) } : {}) })
   }
-  return { student_id: studentId ?? 's-001', career_id: plan.career_id, health: { state: health, last_activity: new Date(lastActivity).toISOString() }, streak: { weeks: health === 'lush' ? 6 : 0, best: 8, wildcards: 1 }, subjects }
+  return { student_id: studentId ?? 's-001', career_id: plan.career_id, health: { state: health, last_activity: new Date(lastActivity).toISOString() }, streak: { weeks: health === 'lush' ? 1 : 0, best: 8, wildcards: 1 }, subjects }
 }
 
 let notificationPrefs: NotificationPrefs = { push: true, email: true }
@@ -64,7 +66,8 @@ async function chat(body: { message: string; conversation_id?: string; image_bas
     : `Estás en modo demo (sin backend), así que te respondo con un ejemplo.\n\nSobre "${body.message.slice(0, 80)}": en los parciales de Análisis Matemático II lo que más se toma es integrales dobles y cambio de variables. Arranquemos con un ejercicio del primer parcial 2023: calculá la integral de x·y sobre el triángulo de vértices (0,0), (1,0) y (0,1). ¿Querés una pista antes de empezar?`
   for (const chunk of reply.match(/[^]{1,40}(\s|$)/g) ?? [reply]) { h.onText?.(chunk); await wait(30) }
   conversations.set(id, [...hist, { role: 'user', text: body.message, created_at: new Date().toISOString() }, { role: 'assistant', text: reply, created_at: new Date().toISOString() }])
-  h.onDone?.({ tree_changed: !mockExam, conversation_id: id })
+  lastActivity = Date.now(); dismissed.clear()   // a chat message counts as activity
+  h.onDone?.({ tree_changed: true, conversation_id: id })
 }
 
 export const mockApi: Api = {
@@ -81,7 +84,7 @@ export const mockApi: Api = {
   addFail: async (_id, subjectId, grade) => { fails.set(subjectId, [...(fails.get(subjectId) ?? []), { id: nextFail++, grade }]); return buildTree() },
   removeFail: async (_id, failId) => { for (const [k, v] of fails) fails.set(k, v.filter(f => f.id !== failId)); return buildTree() },
   setSubjects: async (_id, subjects) => { for (const s of subjects) { states.set(s.subject_id, s.state); if (s.state !== 'approved') grades.delete(s.subject_id) } return buildTree() },
-  activity: async (_id, a: Activity) => { lastActivity = Date.now(); dismissed.clear(); if (a.subject_id) leaves.set(a.subject_id, (leaves.get(a.subject_id) ?? 0) + 1); return buildTree() },
+  activity: async (_id, a: Activity) => { lastActivity = Date.now(); dismissed.clear(); if (a.subject_id && a.type !== 'checkin') leaves.set(a.subject_id, (leaves.get(a.subject_id) ?? 0) + 1); return buildTree() },
   conversation: async (_id, conversation_id) => ({ conversation_id, messages: conversations.get(conversation_id) ?? [] }),
   notifications: async () => notificationPrefs,
   setNotifications: async (_id, prefs) => { notificationPrefs = { ...notificationPrefs, ...prefs }; return notificationPrefs },

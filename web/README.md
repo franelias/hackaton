@@ -25,8 +25,11 @@ Chequeo de tipos: `pnpm exec tsc -b`. Build: `pnpm build`.
 
 **Modo demo:** si falta `VITE_API_URL` o Firebase, la app no llama a nada. Usa `src/mock/mockApi.ts`,
 con el plan real copiado en `src/mock/plan.json`, la alumna Ana (que en el demo también es docente) y un tutor de ejemplo.
-La salud del árbol se calcula como en el backend, con los días desde la última actividad (5 mustio,
-10 seco); para ver un árbol seco hay que entrar como Beto contra el backend.
+La salud se calcula como en el backend, con los días desde la última actividad (5 mustio, 10 seco):
+Ana arranca con 11 días (árbol seco) y "Estudié hoy" o un mensaje al tutor la reviven.
+Para la demo, `?health=lush`, `?health=wilted` o `?health=withered` muestra el árbol en ese estado
+(también contra el backend; solo cambia el dibujo y el saludo, no los datos ni las alertas). Queda
+para toda la pestaña; `?health=off` vuelve al estado real (`src/lib/healthOverride.ts`).
 
 Para el login real, en la consola de Firebase:
 - habilitar Google y Correo/contraseña en *Sign-in method*;
@@ -124,6 +127,46 @@ Notas:
    derecha con sus datos; abajo de esos datos, dibujar su "rama": el camino de correlativas que lleva a
    ella (lo que hay que aprobar antes, de la raíz a la materia), con el estado de cada una. Hoy ese camino
    solo se resalta en el árbol.
+
+## Árbol en 3D (`src/components/TreeView3D.tsx`, three.js 0.180)
+
+En "Mi árbol" hay un selector 2D / 3D (se recuerda en `localStorage`). El 3D se carga con `lazy()`
+para no sumarle three.js a la carga inicial, y sin WebGL arranca en 2D.
+
+- **Forma de árbol real:**
+  - tronco que se afina y raíces que entran al pasto;
+  - un eje central del que salen las ramas, y la copa es un elipsoide;
+  - cada materia es una rama que nace de su correlativa, o del eje si no tiene;
+  - la rama termina en un punto cerca de la superficie de la copa: la altura sale del año y
+    cuatrimestre, y el ángulo alrededor del tronco, del orden de las correlativas (`layout()`), así
+    cada rama queda cerca de la que la habilita;
+  - las ramas se afinan (`taperedTube`), tienen grosor por lo que sostienen y ramitas decorativas.
+- **Follaje:** unas 4.000 hojas en un `InstancedMesh`, en las materias, en las ramitas y de relleno
+  en la copa. Se mueven con el viento. Al bajar la salud cambian de color, caen balanceándose (solo
+  las que estaban visibles) y quedan en el pasto; al revivir rebrotan.
+- **Escena:** el cielo, el pasto y la niebla se apagan con la salud. Lo aprobado es una flor blanca,
+  y la Tesina, una estrella arriba.
+- **Interacción:** girar arrastrando (gira solo hasta que lo tocás) y zoom. Al tocar una materia o
+  su rama se ilumina el camino y se abre la ficha.
+- **Nombres:** etiquetas HTML (`CSS2DRenderer`). Por defecto solo los de lo que se cursa y sus
+  relacionadas; el resto aparece al tocar, al pasar el mouse o al buscar. No se pisan: cada 6 cuadros
+  se proyectan a pantalla y se ocultan las de menos prioridad que choquen (elegida > camino >
+  cursando > regular > aprobada > podés cursar > bloqueada). "Todos los nombres" los muestra todos.
+- **Buscador** arriba del árbol: al elegir una materia se selecciona, se marca su camino y la cámara
+  gira hacia ella.
+- **Salud continua:** `visualHealth()` (en `TreeView.tsx`) toma el estado del backend y, dentro de
+  ese estado, los días desde la última actividad, así el árbol se seca de a poco y no en 3 saltos.
+- "Mi árbol" va a lo ancho: margen izquierdo chico, panel de la materia pegado al borde derecho y el
+  3D con el alto de la pantalla. Abajo, `Summary`: avance por año, cuatrimestres mínimos que faltan
+  (la cadena más larga de correlativas pendientes), materias que se cursan y lo que más destraba.
+  Todo se calcula con el plan y el árbol, sin endpoints nuevos.
+- **Probado:** con Chrome por software (SwiftShader) en frondoso, mustio y seco, sin errores en
+  consola.
+
+Pendiente del 3D:
+- probar el rendimiento en celulares (sombras de 2048 px, 4.000 hojas);
+- falta una prueba de clic automatizada;
+- más estados intermedios de salud (hoy son 3: `lush`, `wilted`, `withered`).
 
 ## Convenciones
 
