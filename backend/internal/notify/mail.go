@@ -34,7 +34,7 @@ func (s SMTP) Mail(ctx context.Context, to, name string, m Message) error {
 	if err != nil {
 		return fmt.Errorf("MAIL_FROM: %w", err)
 	}
-	msg, err := compose(from, to, name, m, strings.TrimRight(s.AppURL, "/")+"/cuenta")
+	msg, err := compose(from, to, name, m, strings.TrimRight(s.AppURL, "/")+"/account")
 	if err != nil {
 		return err
 	}

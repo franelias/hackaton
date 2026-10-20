@@ -204,11 +204,11 @@ func (n *Notifier) link(a tree.Action) string {
 	switch a.Type {
 	case "open_tutor", "contact_tutor":
 		if a.SubjectID != nil {
-			return fmt.Sprintf("%s/tutor?materia=%d", base, *a.SubjectID)
+			return fmt.Sprintf("%s/tutor?subject=%d", base, *a.SubjectID)
 		}
 		return base + "/tutor"
 	case "build_schedule":
-		return base + "/horarios"
+		return base + "/schedule"
 	}
 	return base + "/"
 }

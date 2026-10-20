@@ -12,9 +12,9 @@ import (
 func TestLink(t *testing.T) {
 	n := &Notifier{AppURL: "https://arbol.app/"}
 	cases := map[string]tree.Action{
-		"https://arbol.app/tutor?materia=12": {Type: "open_tutor", SubjectID: new(12)},
+		"https://arbol.app/tutor?subject=12": {Type: "open_tutor", SubjectID: new(12)},
 		"https://arbol.app/tutor":            {Type: "contact_tutor"},
-		"https://arbol.app/horarios":         {Type: "build_schedule"},
+		"https://arbol.app/schedule":         {Type: "build_schedule"},
 		"https://arbol.app/":                 {Type: "view_dates"},
 	}
 	for want, a := range cases {
@@ -27,7 +27,7 @@ func TestLink(t *testing.T) {
 func TestCompose(t *testing.T) {
 	from, _ := mail.ParseAddress("Árbol <recordatorios@arbol.app>")
 	m := Message{Title: "🔥 Tu racha está en juego", Body: "Llevás <3> semanas.", URL: "https://arbol.app/tutor"}
-	raw, err := compose(from, "beto@arbol.demo", "Beto", m, "https://arbol.app/cuenta")
+	raw, err := compose(from, "beto@arbol.demo", "Beto", m, "https://arbol.app/account")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func TestCompose(t *testing.T) {
 	}
 	body := string(raw)
 	// the HTML part escapes the text it gets
-	if !strings.Contains(body, "&lt;3&gt;") || !strings.Contains(body, "Hola Beto") || !strings.Contains(body, "arbol.app/cuenta") {
+	if !strings.Contains(body, "&lt;3&gt;") || !strings.Contains(body, "Hola Beto") || !strings.Contains(body, "arbol.app/account") {
 		t.Errorf("body:\n%s", body)
 	}
 }

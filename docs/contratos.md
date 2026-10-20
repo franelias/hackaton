@@ -177,8 +177,8 @@ Además de las alertas dentro de la app, el backend manda recordatorios afuera, 
 |---|---|---|
 | `streak_risk` | Viernes a domingo, la racha está viva y esta semana todavía no hay sesión de estudio. Un aviso viernes o sábado y otro el domingo ("último día"). Si hay comodín, avisa que se gasta. No en receso | `/tutor` |
 | `wilting_soon` | Mañana el árbol pasa a `wilted` o a `withered` (un día antes de los umbrales de 2.2). En el segundo caso nombra la materia cuya rama se va a secar | `/tutor`, con la materia si la hay |
-| `final_pending` | Hay una materia `regular` desde hace 30 días o más y hay mesas en curso o que empiezan en los próximos 14 días. Una vez por período de mesas | `/tutor?materia=<id>` |
-| `subject_idle` | Una materia `enrolled` lleva 14 días sin sesión de estudio (sin contar receso), contando desde la última, desde que se inscribió o desde que se unió. Si tiene un parcial cargado, lo menciona | `/tutor?materia=<id>` |
+| `final_pending` | Hay una materia `regular` desde hace 30 días o más y hay mesas en curso o que empiezan en los próximos 14 días. Una vez por período de mesas | `/tutor?subject=<id>` |
+| `subject_idle` | Una materia `enrolled` lleva 14 días sin sesión de estudio (sin contar receso), contando desde la última, desde que se inscribió o desde que se unió. Si tiene un parcial cargado, lo menciona | `/tutor?subject=<id>` |
 
 Reglas de envío: cada condición se manda una sola vez (se vuelve a mandar si cambia, por ejemplo otra semana u otra última actividad), como mucho un recordatorio por alumno por día (el primero de la tabla que corresponda) y solo entre las 10 y las 21 de Argentina. `arbol serve` los revisa cada `NOTIFY_INTERVAL` (1 h por defecto); `arbol notify` corre una vez.
 
@@ -240,7 +240,7 @@ data: {"tree_changed": true, "conversation_id": "c-12"}
 | `done` | Siempre, una vez, al final | Cierra el mensaje; guarda `conversation_id` para el próximo mensaje; si `tree_changed` es `true`, vuelve a pedir el árbol (2.2) y las alertas (2.3) |
 | `error` | Si algo falla | Muestra `{ "error": { "code", "message" } }` y cierra |
 
-Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (mensaje vacío o imagen inválida, máx. 5 MB), `403`/`404` (alumno o conversación) o `503` con `code: "tutor_unavailable"` si el backend no tiene configurada la key de OpenRouter.
+Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (mensaje vacío o imagen inválida, máx. 5 MB), `403`/`404` (alumno o conversación), `429` con `code: "rate_limited"` si el alumno tiene un turno en curso o agotó su cuota (8 por minuto, 60 por hora, 200 por día) o `503` con `code: "tutor_unavailable"` si el backend no tiene configurada la key de OpenRouter.
 
 **Conversaciones:** `conversation_id` es opcional. Si no viene, el backend crea una conversación nueva y devuelve su id en `done`. Para seguir la misma, la app lo manda en los mensajes siguientes.
 
@@ -470,7 +470,7 @@ Resumen para quien integró contra la versión del kickoff (issue #1). El detall
 | Actividad `checkin` · `ejercicio` · `simulacro` | `checkin` · `exercise` · `mock_exam` · `exam`. `exam` es nuevo: la fecha de un parcial del alumno (y, con `result`, que lo rindió) | 2.4 |
 | Chat sin conversaciones | `conversation_id` opcional en `POST /api/chat`; si no viene se crea una y vuelve en `done`. Nuevo `GET /api/students/{id}/conversations/{conversation_id}` para recargar los mensajes | 2.4, 2.5 |
 | Eventos SSE `estado` · `texto` · `fin` | `status` · `text` · `done` (`done` trae `tree_changed` y `conversation_id`); `error` igual | 2.5 |
-| — | Antes de abrir el stream, `/api/chat` puede responder JSON con `400`, `403`, `404` o `503 tutor_unavailable` | 2.5 |
+| — | Antes de abrir el stream, `/api/chat` puede responder JSON con `400`, `403`, `404`, `429 rate_limited` o `503 tutor_unavailable` | 2.5 |
 | `POST /api/horario` | `POST /api/schedule` (acepta `preferences`); el backend completa las materias aprobadas y regulares del alumno para chequear correlativas | 2.4, 3 |
 | Reglas de salud, racha y alertas sin definir | Definidas: umbrales, receso, época de parciales, comodines, cuándo aparece y se va cada alerta | 2.2, 2.3 |
 | — | **Vista docente**: `GET /api/me` suma `teacher_id`; nuevos `GET /api/teacher` y `GET /api/teacher/subjects/{subject_id}`. El docente lo carga el backend y se reconoce por el mail verificado del token | 2.6 |

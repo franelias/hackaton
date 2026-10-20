@@ -363,16 +363,68 @@ func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
 	return t, open, nil
 }
 
-// shortcut: two concurrent syncs for the same student can race on the unique key (500); fine for one app per student.
+// alertsLock is the advisory lock class of syncAlerts: pg_advisory_xact_lock(alertsLock, student).
+const alertsLock = 1
+
 // syncAlerts makes the student's alert rows match want: new conditions are
 // inserted, a changed key reopens a dismissed alert, and conditions that no
 // longer hold are deleted. Only the rows that change are written: it runs on
 // every read of the tree and the alerts, and most of the time nothing changes.
+// The app reads the tree and the alerts at once, so the writes take a lock per
+// student and diff again under it: two syncs never insert the same alert.
 func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error) {
 	var rows []db.Alert
 	if err := s.DB.Find(&rows, "student_id = ?", studentID).Error; err != nil {
 		return nil, err
 	}
+	d := diffAlerts(studentID, rows, want)
+	if len(d.save) > 0 || len(d.remove) > 0 {
+		err := s.DB.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(?, ?)", alertsLock, studentID).Error; err != nil {
+				return err
+			}
+			// another sync may have written while this one waited for the lock
+			rows = nil
+			if err := tx.Find(&rows, "student_id = ?", studentID).Error; err != nil {
+				return err
+			}
+			d = diffAlerts(studentID, rows, want)
+			for i := range d.save {
+				if err := tx.Save(&d.save[i]).Error; err != nil {
+					return err
+				}
+			}
+			for _, r := range d.remove {
+				if err := tx.Delete(&r).Error; err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range d.save {
+			if !r.Dismissed {
+				d.open = append(d.open, r)
+			}
+		}
+	}
+	open := d.open
+	sort.Slice(open, func(i, j int) bool {
+		return levelRank[open[i].Level] > levelRank[open[j].Level] || (open[i].Level == open[j].Level && open[i].ID < open[j].ID)
+	})
+	return open, nil
+}
+
+type alertDiff struct {
+	open   []db.Alert // unchanged and not dismissed
+	save   []db.Alert // to insert or update
+	remove []db.Alert // conditions that no longer hold
+}
+
+// diffAlerts compares the stored rows with the conditions that hold now.
+func diffAlerts(studentID int, rows []db.Alert, want []tree.Alert) alertDiff {
 	key := func(typ string, subject *int) string {
 		if subject == nil {
 			return typ
@@ -383,7 +435,7 @@ func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error
 	for _, r := range rows {
 		existing[key(r.Type, r.SubjectID)] = r
 	}
-	var open, save []db.Alert
+	var d alertDiff
 	for _, a := range want {
 		action, _ := json.Marshal(a.Action)
 		r, ok := existing[key(a.Type, a.SubjectID)]
@@ -399,38 +451,15 @@ func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error
 		}
 		r.Level, r.Message, r.Action, r.CondKey = a.Level, a.Message, action, a.Key
 		if !ok || r.Dismissed != before.Dismissed || r.Level != before.Level || r.Message != before.Message || r.CondKey != before.CondKey || !bytes.Equal(r.Action, before.Action) {
-			save = append(save, r)
+			d.save = append(d.save, r)
 		} else if !r.Dismissed {
-			open = append(open, r)
+			d.open = append(d.open, r)
 		}
 	}
-	if len(save) > 0 || len(existing) > 0 {
-		err := s.DB.Transaction(func(tx *gorm.DB) error {
-			for i := range save {
-				if err := tx.Save(&save[i]).Error; err != nil {
-					return err
-				}
-			}
-			for _, r := range existing {
-				if err := tx.Delete(&r).Error; err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		for _, r := range save {
-			if !r.Dismissed {
-				open = append(open, r)
-			}
-		}
+	for _, r := range existing {
+		d.remove = append(d.remove, r)
 	}
-	sort.Slice(open, func(i, j int) bool {
-		return levelRank[open[i].Level] > levelRank[open[j].Level] || (open[i].Level == open[j].Level && open[i].ID < open[j].ID)
-	})
-	return open, nil
+	return d
 }
 
 var levelRank = map[string]int{tree.Low: 0, tree.Medium: 1, tree.High: 2}
