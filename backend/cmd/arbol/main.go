@@ -45,7 +45,7 @@ func rootCmd() *cobra.Command {
 		},
 	}
 	root.PersistentFlags().StringVar(&envFile, "env-file", ".env", "dotenv file to load (variables already set win)")
-	root.AddCommand(upCmd(), serveCmd(), mcpCmd(), migrateCmd(), importCmd(), seedCmd(), planCmd(), teacherCmd())
+	root.AddCommand(upCmd(), serveCmd(), mcpCmd(), migrateCmd(), importCmd(), seedCmd(), planCmd(), teacherCmd(), notifyCmd())
 	return root
 }
 
@@ -58,10 +58,14 @@ func env(key, def string) string {
 
 func openDB() (*gorm.DB, error) { return db.Open(os.Getenv("DATABASE_URL")) }
 
+func firebaseApp(ctx context.Context) (*firebase.App, error) {
+	return firebase.NewApp(ctx, &firebase.Config{ProjectID: os.Getenv("FIREBASE_PROJECT_ID")})
+}
+
 // firebaseAuth uses FIREBASE_PROJECT_ID, and the emulator when
 // FIREBASE_AUTH_EMULATOR_HOST is set.
 func firebaseAuth(ctx context.Context) (*auth.Client, error) {
-	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: os.Getenv("FIREBASE_PROJECT_ID")})
+	app, err := firebaseApp(ctx)
 	if err != nil {
 		return nil, err
 	}

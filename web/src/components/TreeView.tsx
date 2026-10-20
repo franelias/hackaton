@@ -115,11 +115,16 @@ export function pathOf(plan: Plan, id: number | null): Set<number> | null {
   up(id); down(id); return set
 }
 
+// the subject the career ends in (the Tesina): the last of the critical path, which unlocks nothing.
+// It is drawn as the star on top instead of a branch
+export const goalOf = (plan: Plan) => plan.subjects.find(s => s.subject_id === plan.critical_path[plan.critical_path.length - 1] && !s.unlocks.length)
+
 export function layout(plan: Plan, tree: Tree | null): Node[] {
   const info = new Map((tree?.subjects ?? []).map(s => [s.subject_id, s]))
   const maxYear = Math.max(...plan.subjects.map(s => s.year ?? 0))
-  // electives only join the tree once the student has picked them
-  const subs = plan.subjects.filter(s => !s.optional || ['approved', 'regular', 'enrolled'].includes(info.get(s.subject_id)?.state ?? ''))
+  // electives only join the tree once the student has picked them; the thesis is the star, not a branch
+  const goal = goalOf(plan)?.subject_id
+  const subs = plan.subjects.filter(s => s.subject_id !== goal && (!s.optional || ['approved', 'regular', 'enrolled'].includes(info.get(s.subject_id)?.state ?? '')))
   const R = rng(17), nodes = new Map<number, Node>()
   for (const s of subs) { const i = info.get(s.subject_id), state: SubjectState = i?.state ?? 'locked', n = Math.min(18, BASE_LEAVES[state] + (i?.leaves ?? 0))
     nodes.set(s.subject_id, { s: { ...s, year: s.year ?? maxYear }, state, info: i, parent: null, children: [], n: 1, weight: 1, ang: 0, r: 0,
@@ -349,9 +354,10 @@ export default function TreeView({ plan, tree, selected, onSelect }: Props) {
     e.visible = now; e.first = false
 
     // the thesis on top of the crown: the final goal (drawn after the foliage so it is never covered)
-    if (plan.final_goal) o += `<g opacity="${path ? .4 : 1}">
+    const goal = goalOf(plan)
+    if (goal) o += `<g opacity="${path ? .4 : 1}">
       <polygon points="${[...Array(10)].map((_, i) => { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 6 : 13; return `${(CX + rr * Math.cos(a)).toFixed(1)},${(STAR_Y + rr * Math.sin(a)).toFixed(1)}` }).join(' ')}" fill="#f2c14e" stroke="#b8863b"/>
-      <text x="${CX + 20}" y="${STAR_Y + 5}" font-size="12" font-weight="800" fill="#6f6a5c" stroke="#fffdf4" stroke-width="3" paint-order="stroke">${esc(plan.final_goal.name)}</text></g>`
+      <text x="${CX + 20}" y="${STAR_Y + 5}" font-size="12" font-weight="800" fill="#6f6a5c" stroke="#fffdf4" stroke-width="3" paint-order="stroke">${esc(goal.name)}</text></g>`
 
     // the koala lives under the marks and labels, so it can never cover a subject's name
     o += `<g class="koala-slot" pointer-events="none" aria-hidden="true"></g>`

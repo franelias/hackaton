@@ -16,5 +16,10 @@ services:
     volumes: [./firebase.json:/emulator/firebase.json:ro]
     ports: ["9099:9099"]
 
+  # Catches the reminder mails in development: SMTP on 1025, inbox at http://localhost:8025.
+  mail:
+    image: axllent/mailpit:v1.27
+    ports: ["1025:1025", "8025:8025"]
+
 volumes:
   pgdata:

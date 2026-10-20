@@ -77,7 +77,7 @@ func (s *Server) getPlan(w http.ResponseWriter, r *http.Request) {
 	for _, p := range prereqs {
 		requires[p.SubjectID] = append(requires[p.SubjectID], plan.Requirement{SubjectID: p.RequiresID, Condition: p.Condition})
 	}
-	out := plan.Plan{CareerID: c.ID, Name: c.Name, MinTerms: c.MinTerms, CriticalPath: c.CriticalPath, Subjects: []plan.PlanSubject{}, FinalGoal: c.FinalGoal}
+	out := plan.Plan{CareerID: c.ID, Name: c.Name, MinTerms: c.MinTerms, CriticalPath: c.CriticalPath, Subjects: []plan.PlanSubject{}}
 	for _, m := range subjects {
 		out.Subjects = append(out.Subjects, plan.PlanSubject{
 			SubjectID: m.ID, Code: m.Code, Name: m.Name, Year: m.Year, Term: m.Term, Optional: m.Optional,
@@ -185,7 +185,7 @@ func (s *Server) putSubject(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", "state debe ser approved, regular o enrolled")
 		return
 	}
-	if err := s.DB.Save(&db.StudentSubject{StudentID: st.ID, SubjectID: subjectID, State: body.State}).Error; err != nil {
+	if err := db.UpsertSubjectStates(s.DB, []db.StudentSubject{{StudentID: st.ID, SubjectID: subjectID, State: body.State, Since: s.Now()}}); err != nil {
 		s.dbErr(w, err, "")
 		return
 	}
@@ -219,7 +219,7 @@ func (s *Server) putSubjects(w http.ResponseWriter, r *http.Request) {
 	rows := make([]db.StudentSubject, 0, len(states))
 	ids := make([]int, 0, len(states))
 	for id, state := range states {
-		rows = append(rows, db.StudentSubject{StudentID: st.ID, SubjectID: id, State: state})
+		rows = append(rows, db.StudentSubject{StudentID: st.ID, SubjectID: id, State: state, Since: s.Now()})
 		ids = append(ids, id)
 	}
 	if len(rows) > 0 {
@@ -233,7 +233,7 @@ func (s *Server) putSubjects(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// one upsert statement, so it's all or nothing
-		if err := s.DB.Save(&rows).Error; err != nil {
+		if err := db.UpsertSubjectStates(s.DB, rows); err != nil {
 			s.dbErr(w, err, "")
 			return
 		}
@@ -340,44 +340,9 @@ func (s *Server) writeTree(w http.ResponseWriter, st *db.Student) {
 // state builds the student's tree, syncs the alerts table with the conditions
 // that hold now and returns the open (not dismissed) alerts.
 func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
-	var subjects []db.Subject
-	var prereqs []db.Prerequisite
-	var states []db.StudentSubject
-	var acts []db.Activity
-	var periods []db.Period
-	q := s.DB.Model(&db.Subject{}).Select("id").Where("faculty = ? AND career_id = ?", st.Faculty, st.CareerID)
-	if err := parallel(
-		func() error {
-			return s.DB.Find(&subjects, "faculty = ? AND career_id = ?", st.Faculty, st.CareerID).Error
-		},
-		func() error { return s.DB.Find(&prereqs, "faculty = ? AND subject_id IN (?)", st.Faculty, q).Error },
-		func() error { return s.DB.Find(&states, "student_id = ?", st.ID).Error },
-		func() error { return s.DB.Find(&acts, "student_id = ?", st.ID).Error },
-		func() error { return s.DB.Find(&periods, "faculty = ?", st.Faculty).Error },
-	); err != nil {
+	in, err := db.TreeInput(s.DB, st, s.Now())
+	if err != nil {
 		return tree.Tree{}, nil, err
-	}
-
-	in := tree.Input{Plan: map[int][]tree.Prereq{}, Info: map[int]tree.SubjectInfo{}, States: map[int]string{}, Since: st.CreatedAt, Now: s.Now()}
-	for _, m := range subjects {
-		in.Plan[m.ID] = nil
-		in.Info[m.ID] = tree.SubjectInfo{Name: m.Name, Bottleneck: m.Bottleneck, UnlocksTotal: m.UnlocksTotal}
-	}
-	for _, p := range prereqs {
-		in.Plan[p.SubjectID] = append(in.Plan[p.SubjectID], tree.Prereq{RequiresID: p.RequiresID, Condition: p.Condition})
-	}
-	for _, x := range states {
-		in.States[x.SubjectID] = x.State
-	}
-	for _, a := range acts {
-		var topic string
-		if a.Topic != nil {
-			topic = *a.Topic
-		}
-		in.Activities = append(in.Activities, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Topic: topic, Result: a.Result, Date: a.Date, CreatedAt: a.CreatedAt})
-	}
-	for _, p := range periods {
-		in.Periods = append(in.Periods, tree.Period{Kind: p.Kind, From: p.Starts, To: p.Ends})
 	}
 	t := tree.Build(in)
 	if t.Subjects == nil {
@@ -398,16 +363,68 @@ func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
 	return t, open, nil
 }
 
-// shortcut: two concurrent syncs for the same student can race on the unique key (500); fine for one app per student.
+// alertsLock is the advisory lock class of syncAlerts: pg_advisory_xact_lock(alertsLock, student).
+const alertsLock = 1
+
 // syncAlerts makes the student's alert rows match want: new conditions are
 // inserted, a changed key reopens a dismissed alert, and conditions that no
 // longer hold are deleted. Only the rows that change are written: it runs on
 // every read of the tree and the alerts, and most of the time nothing changes.
+// The app reads the tree and the alerts at once, so the writes take a lock per
+// student and diff again under it: two syncs never insert the same alert.
 func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error) {
 	var rows []db.Alert
 	if err := s.DB.Find(&rows, "student_id = ?", studentID).Error; err != nil {
 		return nil, err
 	}
+	d := diffAlerts(studentID, rows, want)
+	if len(d.save) > 0 || len(d.remove) > 0 {
+		err := s.DB.Transaction(func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(?, ?)", alertsLock, studentID).Error; err != nil {
+				return err
+			}
+			// another sync may have written while this one waited for the lock
+			rows = nil
+			if err := tx.Find(&rows, "student_id = ?", studentID).Error; err != nil {
+				return err
+			}
+			d = diffAlerts(studentID, rows, want)
+			for i := range d.save {
+				if err := tx.Save(&d.save[i]).Error; err != nil {
+					return err
+				}
+			}
+			for _, r := range d.remove {
+				if err := tx.Delete(&r).Error; err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range d.save {
+			if !r.Dismissed {
+				d.open = append(d.open, r)
+			}
+		}
+	}
+	open := d.open
+	sort.Slice(open, func(i, j int) bool {
+		return levelRank[open[i].Level] > levelRank[open[j].Level] || (open[i].Level == open[j].Level && open[i].ID < open[j].ID)
+	})
+	return open, nil
+}
+
+type alertDiff struct {
+	open   []db.Alert // unchanged and not dismissed
+	save   []db.Alert // to insert or update
+	remove []db.Alert // conditions that no longer hold
+}
+
+// diffAlerts compares the stored rows with the conditions that hold now.
+func diffAlerts(studentID int, rows []db.Alert, want []tree.Alert) alertDiff {
 	key := func(typ string, subject *int) string {
 		if subject == nil {
 			return typ
@@ -418,7 +435,7 @@ func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error
 	for _, r := range rows {
 		existing[key(r.Type, r.SubjectID)] = r
 	}
-	var open, save []db.Alert
+	var d alertDiff
 	for _, a := range want {
 		action, _ := json.Marshal(a.Action)
 		r, ok := existing[key(a.Type, a.SubjectID)]
@@ -434,38 +451,15 @@ func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error
 		}
 		r.Level, r.Message, r.Action, r.CondKey = a.Level, a.Message, action, a.Key
 		if !ok || r.Dismissed != before.Dismissed || r.Level != before.Level || r.Message != before.Message || r.CondKey != before.CondKey || !bytes.Equal(r.Action, before.Action) {
-			save = append(save, r)
+			d.save = append(d.save, r)
 		} else if !r.Dismissed {
-			open = append(open, r)
+			d.open = append(d.open, r)
 		}
 	}
-	if len(save) > 0 || len(existing) > 0 {
-		err := s.DB.Transaction(func(tx *gorm.DB) error {
-			for i := range save {
-				if err := tx.Save(&save[i]).Error; err != nil {
-					return err
-				}
-			}
-			for _, r := range existing {
-				if err := tx.Delete(&r).Error; err != nil {
-					return err
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
-		for _, r := range save {
-			if !r.Dismissed {
-				open = append(open, r)
-			}
-		}
+	for _, r := range existing {
+		d.remove = append(d.remove, r)
 	}
-	sort.Slice(open, func(i, j int) bool {
-		return levelRank[open[i].Level] > levelRank[open[j].Level] || (open[i].Level == open[j].Level && open[i].ID < open[j].ID)
-	})
-	return open, nil
+	return d
 }
 
 var levelRank = map[string]int{tree.Low: 0, tree.Medium: 1, tree.High: 2}

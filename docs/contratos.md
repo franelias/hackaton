@@ -61,8 +61,8 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
 {
   "career_id": 1,
   "name": "Licenciatura en Ciencias de la Computación",
-  "min_terms": 7,
-  "critical_path": [1, 4, 7, 10, 15, 21, 24],
+  "min_terms": 9,
+  "critical_path": [1, 4, 7, 10, 15, 21, 24, 28, 31],
   "subjects": [
     {
       "subject_id": 6,
@@ -71,37 +71,29 @@ Igual para todos los alumnos de la carrera. Fran lo calcula desde la API con la 
       "year": 1,
       "term": 2,
       "requires": [ { "subject_id": 3, "condition": "approved" } ],
-      "unlocks": [12, 15],
-      "unlocks_total": 17,
+      "unlocks": [8,  9,  12],
+      "unlocks_total": 20,
       "bottleneck": true,
       "optional": false,
       "slack": 0,
       "postpone_year_delay": 2
     }
-  ],
-  "final_goal": {
-    "subject_id": 31,
-    "code": "r523",
-    "name": "Tesina",
-    "year": 5,
-    "term": 2,
-    "requires_all": true
-  }
+  ]
 }
 ```
 
 | Campo | Notas |
 |---|---|
+| `requires` | Solo las correlativas **directas**: si C pide A y B, y B ya pide A, C trae solo B (A es implícita). La app no tiene que deducir nada: `requires` y `unlocks` son las aristas del árbol |
 | `requires[].condition` | `approved` · `regular`. Sale de `requirement` en `/relations` (`null` → `approved`, confirmado para LCC con los programas 2024) |
-| `unlocks` | Materias que la requieren directamente (de `required_by`) |
+| `unlocks` | Materias que la requieren directamente, con la misma reducción |
 | `unlocks_total` | Directas + indirectas; la app lo usa para el grosor del tronco |
 | `bottleneck` | Cuello de botella: `unlocks_total >= 8` (ver `camino-critico.md`) |
 | `optional` | `true` en las electivas: no entran en el plan base; se suman al camino crítico cuando el alumno las elige |
 | `slack` | Holgura: cuatrimestres que se puede demorar sin atrasar la carrera (0 = camino crítico) |
 | `postpone_year_delay` | Cuatrimestres que se atrasa la carrera si se pospone un año |
 | `term` | Cuatrimestre dentro del año (`1` o `2`) |
-| `min_terms`, `critical_path` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga |
-| `final_goal` | La Tesina, objetivo final: fuera de `subjects` y de las correlativas; `requires_all: true` = hay que tener aprobadas todas las demás para presentarla. No cuenta en `min_terms` ni en `unlocks_total` |
+| `min_terms`, `critical_path` | A nivel del plan: largo y cadena de `subject_id` de la ruta más larga. En LCC termina en la Tesina (`31`), que es una materia más de `subjects`: depende de todas las obligatorias y las optativas |
 
 La app calcula el layout (posición de cada rama) a partir de `requires` y `unlocks`. El backend no manda coordenadas.
 
@@ -169,6 +161,28 @@ Reglas del MVP (umbrales iniciales, a calibrar):
 
 Las alertas se recalculan en cada lectura o escritura del alumno. Una alerta descartada no vuelve mientras la condición sea la misma; reaparece si cambia (otro nivel de inactividad u otra fecha de parcial). Cuando la condición deja de cumplirse (por ejemplo, el alumno vuelve a tener actividad), la alerta desaparece sola.
 
+### 2.3.1 Recordatorios (push y mail)
+
+Además de las alertas dentro de la app, el backend manda recordatorios afuera, al estilo Duolingo: por notificación push (FCM, al navegador donde el alumno las activó) y por mail (a la dirección de su cuenta de Firebase). Miran hacia adelante: avisan antes de que algo se pierda.
+
+| `kind` | Cuándo | Link |
+|---|---|---|
+| `streak_risk` | Viernes a domingo, la racha está viva y esta semana todavía no hay sesión de estudio. Un aviso viernes o sábado y otro el domingo ("último día"). Si hay comodín, avisa que se gasta. No en receso | `/tutor` |
+| `wilting_soon` | Mañana el árbol pasa a `wilted` o a `withered` (un día antes de los umbrales de 2.2). En el segundo caso nombra la materia cuya rama se va a secar | `/tutor`, con la materia si la hay |
+| `final_pending` | Hay una materia `regular` desde hace 30 días o más y hay mesas en curso o que empiezan en los próximos 14 días. Una vez por período de mesas | `/tutor?subject=<id>` |
+| `subject_idle` | Una materia `enrolled` lleva 14 días sin sesión de estudio (sin contar receso), contando desde la última, desde que se inscribió o desde que se unió. Si tiene un parcial cargado, lo menciona | `/tutor?subject=<id>` |
+
+Reglas de envío: cada condición se manda una sola vez (se vuelve a mandar si cambia, por ejemplo otra semana u otra última actividad), como mucho un recordatorio por alumno por día (el primero de la tabla que corresponda) y solo entre las 10 y las 21 de Argentina. `arbol serve` los revisa cada `NOTIFY_INTERVAL` (1 h por defecto); `arbol notify` corre una vez.
+
+| Endpoint | Body | Respuesta |
+|---|---|---|
+| `GET /api/students/{student_id}/notifications` | — | `{"push": true, "email": true}` |
+| `PUT /api/students/{student_id}/notifications` | `{"push"?: bool, "email"?: bool}` (lo que falta queda igual) | `200` con las preferencias |
+| `POST /api/students/{student_id}/push-tokens` | `{"token": "<FCM registration token>"}` | `204`. Si el token era de otro alumno (mismo navegador, otra cuenta), pasa a este |
+| `DELETE /api/students/{student_id}/push-tokens/{token}` | — (token con `encodeURIComponent`) | `204` |
+
+El push es solo de datos (`{title, body, url}`); lo muestra `web/public/firebase-messaging-sw.js` con `onBackgroundMessage` (app en segundo plano) y la app con `onMessage` (primer plano). Los tokens que FCM rechaza se borran solos.
+
 ### 2.4 Escritura y chat
 
 | Endpoint | Body | Respuesta |
@@ -218,7 +232,7 @@ data: {"tree_changed": true, "conversation_id": "c-12"}
 | `done` | Siempre, una vez, al final | Cierra el mensaje; guarda `conversation_id` para el próximo mensaje; si `tree_changed` es `true`, vuelve a pedir el árbol (2.2) y las alertas (2.3) |
 | `error` | Si algo falla | Muestra `{ "error": { "code", "message" } }` y cierra |
 
-Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (mensaje vacío o imagen inválida, máx. 5 MB), `403`/`404` (alumno o conversación) o `503` con `code: "tutor_unavailable"` si el backend no tiene configurada la key de OpenRouter.
+Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (mensaje vacío o imagen inválida, máx. 5 MB), `403`/`404` (alumno o conversación), `429` con `code: "rate_limited"` si el alumno tiene un turno en curso o agotó su cuota (8 por minuto, 60 por hora, 200 por día) o `503` con `code: "tutor_unavailable"` si el backend no tiene configurada la key de OpenRouter.
 
 **Conversaciones:** `conversation_id` es opcional. Si no viene, el backend crea una conversación nueva y devuelve su id en `done`. Para seguir la misma, la app lo manda en los mensajes siguientes.
 
@@ -321,9 +335,9 @@ La lógica de las tools vive en el módulo compartido `fceia/` (Go): el backend 
 **Errores**: tool error (`isError: true`) con `{ "error": { "code", "message" } }`; `code` ∈ `not_found` · `api_unavailable` · `invalid_argument`. Un resultado vacío no es error.
 
 ### `search_subject(name: str, career_id?: int)`
-(`GET /subjects?q=&career_id=`; `q` ignora tildes)
+(`GET /subjects?q=&career_id=`; `q` ignora tildes. `year` y `term` son los del plan revisado, con `term` de `1` a `2` dentro del año, igual que en 2.1)
 ```json
-{ "subjects": [ { "subject_id": 12, "code": "r223", "name": "Lógica", "career_id": 1, "year": 2, "term": 4 } ] }
+{ "subjects": [ { "subject_id": 12, "code": "r223", "name": "Lógica", "career_id": 1, "year": 2, "term": 2 } ] }
 ```
 
 ### `frequent_topics(subject_id: int, since?: int)`
@@ -363,7 +377,7 @@ La lógica de las tools vive en el módulo compartido `fceia/` (Go): el backend 
 ```
 
 ### `prerequisites(subject_id: int)`
-(`GET /subjects/{id}/relations` con la revisión manual aplicada (`corrections/`, ver `revision-plan-lcc.md`): hay 3 correlativas de LCC que la API tiene mal y se corrigen; `requirement: null` → `approved`, confirmado)
+(`GET /subjects/{id}/relations` con la revisión manual aplicada (`corrections/`, ver `revision-plan-lcc.md`) y reducida a las correlativas **directas**, igual que el plan (2.1); `requirement: null` → `approved`, confirmado)
 ```json
 { "subject_id": 55,
   "requires": [ { "subject_id": 52, "code": "FB3", "condition": "regular" } ],
@@ -379,6 +393,8 @@ La lógica de las tools vive en el módulo compartido `fceia/` (Go): el backend 
 
 ### `build_schedule(subject_ids: int[], approved_subject_ids?: int[], regular_subject_ids?: int[], semester?: str, preferences?: { shift?: "morning"|"afternoon"|"evening", free_days?: int[] })`
 (`GET /subjects/{id}`, `/subjects/{id}/sessions`, `/subjects/{id}/relations`; hasta 12 materias de una misma carrera)
+
+El algoritmo es determinista, sin IA (`fceia/schedule`). Diagrama de flujo: [`armador-horarios.svg`](armador-horarios.svg).
 
 - **Correlativas**: si llega `approved_subject_ids` o `regular_subject_ids`, las materias con correlativas sin cumplir salen en `not_enabled` y no se arman. Una correlativa `regular` se cumple con regular o aprobada; el resto exige aprobada. Si no llega ninguno, no se chequea y hay un `warning`. `POST /api/schedule` los arma desde el estado del alumno.
 - **Comisiones**: salen de `notes` (`Com.: 630`, `Com: 630 y Com: 660`). Sin etiquetas, la materia tiene una sola. Si la materia tiene comisiones etiquetadas, las clases sin etiqueta se ignoran (duplicados parciales de la API) y se avisa. LCC no tiene comisiones alternativas.
@@ -441,14 +457,15 @@ Resumen para quien integró contra la versión del kickoff (issue #1). El detall
 |---|---|---|
 | Rutas y campos en español (`/api/alumnos/{alumno_id}/arbol`, `salud`, `racha`, `hojas`…) | Todo en inglés: `/api/students/{student_id}/tree`, `/alerts`, `/careers/{id}/plan`, `/schedule`; `health`, `streak`, `leaves`, `flower`, `dry`… | 0, 2 |
 | Enums en español (`frondoso`, `cursando`, `alto`, `abrir_tutor`…) | `lush` · `wilted` · `withered`; `approved` · `regular` · `enrolled` · `available` · `locked`; `low` · `medium` · `high`; `open_tutor` · `build_schedule` · `view_dates` · `contact_tutor` | 2.2, 2.3 |
-| Plan: `nombre`, `materias`, `requiere`, `destraba`, `cuello_de_botella`… | `name`, `subjects`, `requires`, `unlocks`, `unlocks_total`, `bottleneck`, más `min_terms`, `critical_path`, `optional`, `slack`, `postpone_year_delay` y `final_goal` (la Tesina, fuera de `subjects`) | 2.1 |
+| Plan: `nombre`, `materias`, `requiere`, `destraba`, `cuello_de_botella`… | `name`, `subjects`, `requires`, `unlocks`, `unlocks_total`, `bottleneck`, más `min_terms`, `critical_path`, `optional`, `slack` y `postpone_year_delay` | 2.1 |
+| Plan con `final_goal` (la Tesina aparte) | Sin `final_goal`: la Tesina viene dentro de `subjects`, con sus correlativas. `requires` y `unlocks` traen solo las correlativas directas. Práctica Profesional, Taller de Tesina y Tesina tienen correlativas (SIU Guaraní) y Optativa I, II y III dejan de ser `optional` (issue #33) | 2.1 |
 | Sin autenticación; `POST /api/alumnos` devolvía solo el id | **Firebase Auth** (Google o email + contraseña). Todos los endpoints salvo `/plan` piden `Authorization: Bearer <ID token de Firebase>` (`401` / `403`). Nuevo `GET /api/me` para saber si el usuario ya tiene alumno; `POST /api/students` crea el del usuario logueado (`409` si ya existe) | 1.1, 2.4 |
 | IDs de alumno `a-001` | `s-001` (conversaciones `c-N`, alertas `al-N`) | 1 |
 | `POST .../descartar` | `POST /api/students/{id}/alerts/{id}/dismiss` → `204` | 2.3 |
 | Actividad `checkin` · `ejercicio` · `simulacro` | `checkin` · `exercise` · `mock_exam` · `exam`. `exam` es nuevo: la fecha de un parcial del alumno (y, con `result`, que lo rindió) | 2.4 |
 | Chat sin conversaciones | `conversation_id` opcional en `POST /api/chat`; si no viene se crea una y vuelve en `done`. Nuevo `GET /api/students/{id}/conversations/{conversation_id}` para recargar los mensajes | 2.4, 2.5 |
 | Eventos SSE `estado` · `texto` · `fin` | `status` · `text` · `done` (`done` trae `tree_changed` y `conversation_id`); `error` igual | 2.5 |
-| — | Antes de abrir el stream, `/api/chat` puede responder JSON con `400`, `403`, `404` o `503 tutor_unavailable` | 2.5 |
+| — | Antes de abrir el stream, `/api/chat` puede responder JSON con `400`, `403`, `404`, `429 rate_limited` o `503 tutor_unavailable` | 2.5 |
 | `POST /api/horario` | `POST /api/schedule` (acepta `preferences`); el backend completa las materias aprobadas y regulares del alumno para chequear correlativas | 2.4, 3 |
 | Reglas de salud, racha y alertas sin definir | Definidas: umbrales, receso, época de parciales, comodines, cuándo aparece y se va cada alerta | 2.2, 2.3 |
 | — | **Vista docente**: `GET /api/me` suma `teacher_id`; nuevos `GET /api/teacher` y `GET /api/teacher/subjects/{subject_id}`. El docente lo carga el backend y se reconoce por el mail verificado del token | 2.6 |

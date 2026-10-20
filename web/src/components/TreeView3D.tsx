@@ -15,7 +15,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer.js'
-import { dried, GREENS, layout, mix, pathOf, shortName, visualHealth, type Node } from './TreeView'
+import { dried, goalOf, GREENS, layout, mix, pathOf, shortName, visualHealth, type Node } from './TreeView'
 import type { Plan, Tree } from '../lib/types'
 
 interface Props { plan: Plan; tree: Tree | null; selected: number | null; onSelect: (id: number | null) => void; allNames?: boolean }
@@ -245,9 +245,10 @@ export default function TreeView3D({ plan, tree, selected, onSelect, allNames = 
     twigs.forEach((r, i) => { const m = typeof r.from === 'number' ? nodes.find(n => n.s.subject_id === r.from) : null
       if (m && (m.state === 'approved' || m.info?.flower)) for (let k = 0; k < 3; k++) { const f = flower(m.state === 'approved' ? whitePetal : pinkPetal, 1.4); f.userData.off = new THREE.Vector3(R() - .5, R() - .2, R() - .5).multiplyScalar(.35); scene.add(f); flowers.push({ obj: f, tip: i }) } })
     let star: THREE.Mesh | null = null
-    if (plan.final_goal) { star = new THREE.Mesh(geo(new THREE.OctahedronGeometry(.3)), mat({ color: 0xf2c14e, emissive: 0xf2c14e, emissiveIntensity: .5, metalness: .2 }))
+    const goal = goalOf(plan)
+    if (goal) { star =new THREE.Mesh(geo(new THREE.OctahedronGeometry(.3)), mat({ color: 0xf2c14e, emissive: 0xf2c14e, emissiveIntensity: .5, metalness: .2 }))
       star.position.set(0, TOP + .9, 0); scene.add(star)
-      const d = document.createElement('div'); d.className = 'pill-3d goal'; d.textContent = plan.final_goal.name; const o = new CSS2DObject(d); o.center.set(.5, -.9); star.add(o) }
+      const d = document.createElement('div'); d.className = 'pill-3d goal'; d.textContent = goal.name; const o = new CSS2DObject(d); o.center.set(.5, -.9); star.add(o) }
 
     // foliage: a slightly cupped leaf with a pointed tip
     const shape = new THREE.Shape(); shape.moveTo(0, -.5); shape.bezierCurveTo(.46, -.3, .42, .3, 0, .62); shape.bezierCurveTo(-.42, .3, -.46, -.3, 0, -.5)

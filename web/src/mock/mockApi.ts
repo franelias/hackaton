@@ -5,7 +5,7 @@
 import planJson from './plan.json'
 import { ApiError, type Api, type ChatHandlers } from '../lib/api'
 import { mockClass, mockTeacher } from './classes'
-import type { Activity, Alert, ChatMessage, Plan, ScheduleResult, StudentSubject, SubjectState, Tree } from '../lib/types'
+import type { Activity, Alert, ChatMessage, NotificationPrefs, Plan, ScheduleResult, StudentSubject, SubjectState, Tree } from '../lib/types'
 
 const plan = planJson as unknown as Plan
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -41,6 +41,8 @@ function buildTree(): Tree {
   return { student_id: studentId ?? 's-001', career_id: plan.career_id, health: { state: health, last_activity: new Date(lastActivity).toISOString() }, streak: { weeks: health === 'lush' ? 1 : 0, best: 8, wildcards: 1 }, subjects }
 }
 
+let notificationPrefs: NotificationPrefs = { push: true, email: true }
+
 const conversations = new Map<string, ChatMessage[]>()
 let nextConversation = 1
 
@@ -75,6 +77,10 @@ export const mockApi: Api = {
   setSubjects: async (_id, subjects) => { for (const s of subjects) states.set(s.subject_id, s.state); return buildTree() },
   activity: async (_id, a: Activity) => { lastActivity = Date.now(); dismissed.clear(); if (a.subject_id && a.type !== 'checkin') leaves.set(a.subject_id, (leaves.get(a.subject_id) ?? 0) + 1); return buildTree() },
   conversation: async (_id, conversation_id) => ({ conversation_id, messages: conversations.get(conversation_id) ?? [] }),
+  notifications: async () => notificationPrefs,
+  setNotifications: async (_id, prefs) => { notificationPrefs = { ...notificationPrefs, ...prefs }; return notificationPrefs },
+  addPushToken: async () => {},
+  removePushToken: async () => {},
   schedule: async (_sid, subject_ids) => {
     await wait(500)
     const subjectName = (id: number) => plan.subjects.find(s => s.subject_id === id)?.name ?? `Materia ${id}`

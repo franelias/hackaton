@@ -2,7 +2,7 @@
 import { API_URL, MOCK } from './config'
 import { firebaseAuth } from './firebase'
 import { mockApi } from '../mock/mockApi'
-import type { Activity, Alert, ApiErrorBody, ChatMessage, ClassDetail, Faculty, Me, Plan, ScheduleResult, SchedulePreferences, SubjectState, Teacher, Tree } from './types'
+import type { Activity, Alert, ApiErrorBody, ChatMessage, ClassDetail, Faculty, Me, NotificationPrefs, Plan, ScheduleResult, SchedulePreferences, SubjectState, Teacher, Tree } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -84,6 +84,10 @@ const real = {
   setSubjects: (id: string, subjects: SubjectMark[]) => request<Tree>(`/api/students/${id}/subjects`, { method: 'PUT', body: JSON.stringify({ subjects }) }),
   activity: (id: string, a: Activity) => request<Tree>(`/api/students/${id}/activity`, { method: 'POST', body: JSON.stringify(a) }),
   conversation: (id: string, conversationId: string) => request<{ conversation_id: string; messages: ChatMessage[] }>(`/api/students/${id}/conversations/${conversationId}`),
+  notifications: (id: string) => request<NotificationPrefs>(`/api/students/${id}/notifications`),
+  setNotifications: (id: string, prefs: Partial<NotificationPrefs>) => request<NotificationPrefs>(`/api/students/${id}/notifications`, { method: 'PUT', body: JSON.stringify(prefs) }),
+  addPushToken: (id: string, token: string) => request<void>(`/api/students/${id}/push-tokens`, { method: 'POST', body: JSON.stringify({ token }) }),
+  removePushToken: (id: string, token: string) => request<void>(`/api/students/${id}/push-tokens/${encodeURIComponent(token)}`, { method: 'DELETE' }),
   schedule: (student_id: string, subject_ids: number[], preferences?: SchedulePreferences) => request<ScheduleResult>('/api/schedule', { method: 'POST', body: JSON.stringify({ student_id, subject_ids, preferences }) }),
   teacher: () => request<Teacher>('/api/teacher'),
   teacherSubject: (subjectId: number) => request<ClassDetail>(`/api/teacher/subjects/${subjectId}`),
