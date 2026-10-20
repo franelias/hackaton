@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { api, ApiError } from './api'
 import { MOCK } from './config'
 import { firebaseAuth } from './firebase'
+import { disablePush, syncPush } from './push'
 import { keys, planQuery, queryClient } from './queries'
 import type { Alert, Me, Plan, Tree } from './types'
 
@@ -50,9 +51,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const setStudentId = useCallback((id: string) => { if (uid) queryClient.setQueryData<Me>(keys.me(uid), m => ({ teacher_id: null, ...m, student_id: id })) }, [uid])
   const setTree = useCallback((t: Tree) => queryClient.setQueryData(keys.tree(t.student_id), t), [])
   const refresh = useCallback(async () => { await Promise.all([queryClient.invalidateQueries({ queryKey: ['tree'] }), queryClient.invalidateQueries({ queryKey: ['alerts'] })]) }, [])
-  const logOut = useCallback(async () => { const a = firebaseAuth(); if (a) await signOut(a); queryClient.clear() }, [])
   const reloadUser = useCallback(() => { const u = firebaseAuth()?.currentUser; if (u) setUser({ uid: u.uid, displayName: u.displayName, email: u.email }) }, [])
 
+  // on log out, this browser stops receiving this student's reminders
+  const logOut = useCallback(async () => { const a = firebaseAuth(); if (studentId) await disablePush(studentId).catch(() => {}); if (a) await signOut(a); queryClient.clear() }, [studentId])
+  useEffect(() => { if (studentId && !MOCK) syncPush(studentId).catch(() => { /* no push is fine */ }) }, [studentId])
   // expired or invalid token: back to the login; any other error is shown
   const failure = me.error ?? tree.error ?? alerts.error
   useEffect(() => { if (failure instanceof ApiError && failure.status === 401) logOut() }, [failure, logOut])

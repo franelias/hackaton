@@ -169,6 +169,28 @@ Reglas del MVP (umbrales iniciales, a calibrar):
 
 Las alertas se recalculan en cada lectura o escritura del alumno. Una alerta descartada no vuelve mientras la condición sea la misma; reaparece si cambia (otro nivel de inactividad u otra fecha de parcial). Cuando la condición deja de cumplirse (por ejemplo, el alumno vuelve a tener actividad), la alerta desaparece sola.
 
+### 2.3.1 Recordatorios (push y mail)
+
+Además de las alertas dentro de la app, el backend manda recordatorios afuera, al estilo Duolingo: por notificación push (FCM, al navegador donde el alumno las activó) y por mail (a la dirección de su cuenta de Firebase). Miran hacia adelante: avisan antes de que algo se pierda.
+
+| `kind` | Cuándo | Link |
+|---|---|---|
+| `streak_risk` | Viernes a domingo, la racha está viva y esta semana todavía no hay sesión de estudio. Un aviso viernes o sábado y otro el domingo ("último día"). Si hay comodín, avisa que se gasta. No en receso | `/tutor` |
+| `wilting_soon` | Mañana el árbol pasa a `wilted` o a `withered` (un día antes de los umbrales de 2.2). En el segundo caso nombra la materia cuya rama se va a secar | `/tutor`, con la materia si la hay |
+| `final_pending` | Hay una materia `regular` desde hace 30 días o más y hay mesas en curso o que empiezan en los próximos 14 días. Una vez por período de mesas | `/tutor?materia=<id>` |
+| `subject_idle` | Una materia `enrolled` lleva 14 días sin sesión de estudio (sin contar receso), contando desde la última, desde que se inscribió o desde que se unió. Si tiene un parcial cargado, lo menciona | `/tutor?materia=<id>` |
+
+Reglas de envío: cada condición se manda una sola vez (se vuelve a mandar si cambia, por ejemplo otra semana u otra última actividad), como mucho un recordatorio por alumno por día (el primero de la tabla que corresponda) y solo entre las 10 y las 21 de Argentina. `arbol serve` los revisa cada `NOTIFY_INTERVAL` (1 h por defecto); `arbol notify` corre una vez.
+
+| Endpoint | Body | Respuesta |
+|---|---|---|
+| `GET /api/students/{student_id}/notifications` | — | `{"push": true, "email": true}` |
+| `PUT /api/students/{student_id}/notifications` | `{"push"?: bool, "email"?: bool}` (lo que falta queda igual) | `200` con las preferencias |
+| `POST /api/students/{student_id}/push-tokens` | `{"token": "<FCM registration token>"}` | `204`. Si el token era de otro alumno (mismo navegador, otra cuenta), pasa a este |
+| `DELETE /api/students/{student_id}/push-tokens/{token}` | — (token con `encodeURIComponent`) | `204` |
+
+El push es solo de datos (`{title, body, url}`); lo muestra `web/public/firebase-messaging-sw.js` con `onBackgroundMessage` (app en segundo plano) y la app con `onMessage` (primer plano). Los tokens que FCM rechaza se borran solos.
+
 ### 2.4 Escritura y chat
 
 | Endpoint | Body | Respuesta |

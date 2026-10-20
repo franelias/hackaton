@@ -189,7 +189,7 @@ func reset(g *gorm.DB, uid string, d demoStudent, now time.Time) (int, error) {
 			return err
 		}
 		for subject, state := range d.states {
-			if err := tx.Create(&db.StudentSubject{StudentID: st.ID, SubjectID: subject, State: state}).Error; err != nil {
+			if err := tx.Create(&db.StudentSubject{StudentID: st.ID, SubjectID: subject, State: state, Since: st.CreatedAt}).Error; err != nil {
 				return err
 			}
 		}

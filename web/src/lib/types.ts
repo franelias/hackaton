@@ -97,6 +97,9 @@ export interface ScheduleResult {
 }
 export interface SchedulePreferences { shift?: 'morning' | 'afternoon' | 'evening'; free_days?: number[] }
 
+// Reminder channels (streak at risk, tree about to wilt, idle subject)
+export interface NotificationPrefs { push: boolean; email: boolean }
+
 export interface ApiErrorBody { error: { code: string; message: string } }
 
 // Teacher view (§2.6)

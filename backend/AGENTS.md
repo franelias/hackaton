@@ -18,6 +18,7 @@ Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/c
 - FCEIA MCP server for external clients: `arbol mcp` (HTTP `/mcp` on `MCP_PORT`, default 8080) or `arbol mcp --stdio`; see `../fceia/AGENTS.md`
 - Docker: one image for everything, built from the repository root: `docker build -t arbol .` (from `..`); `docker run arbol` serves the API, `docker run arbol mcp` the MCP server, and any other subcommand works the same (`migrate`, `import plan`…)
 - Serve the API: `arbol serve` (`DATABASE_URL`, `PORT`, `FIREBASE_PROJECT_ID`, `FIREBASE_AUTH_EMULATOR_HOST`, `FCEIA_API_BASE`, `OPENROUTER_API_KEY`, `TUTOR_MODEL`, `TUTOR_FALLBACK_MODELS`); without the OpenRouter key `/api/chat` answers 503
+- Reminders (push + mail, `internal/notify`): `arbol serve` sends them every `NOTIFY_INTERVAL` (default `1h`, `off` disables); `arbol notify [--any-hour] [--student s-002]` runs once. Mail goes to `SMTP_ADDR` (Mailpit from compose: SMTP `localhost:1025`, inbox http://localhost:8025) or is logged when unset; push needs `PUSH_PROVIDER=fcm` and real Firebase credentials. `APP_URL` is the base of the links
 - Emulator ID token for curl: `curl -s -X POST 'http://localhost:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake' -H 'Content-Type: application/json' -d '{"email":"x@arbol.dev","password":"secret123","returnSecureToken":true}'` → `idToken`
 
 ## Conventions
@@ -29,6 +30,7 @@ Go backend of Árbol: plan calculation (issue #3) and the HTTP API of `../docs/c
 - Code and wire contract in English; docs prose in Spanish; student-facing messages in Spanish.
 - `internal/tree` is pure too: it builds a student's tree (health, streak, leaves, flower) and the alert conditions from plan, subject states, activities and periods; days and weeks are Argentina civil time. `internal/api` loads from Postgres, calls it, syncs the `alerts` table and marks dry branches.
 - `internal/course` is pure too: it summarizes the students enrolled in a subject for its teacher (`course.Build`: risk order, weekly activity, topics). `internal/api/teacher.go` loads them (their tree via `state`) and calls it.
+- `tree.Nudges` (pure) decides the reminders sent outside the app: `streak_risk`, `wilting_soon`, `final_pending`, `subject_idle`, most urgent first. `internal/notify` sends at most `PerDay` per student per day, between `FromHour` and `ToHour` Argentina, and claims each `(student, kind, subject, cond_key)` in `notifications` before sending (released if no channel delivered). `student_subjects.since` only moves when the state changes (`db.UpsertSubjectStates`). `db.TreeInput` loads a student's `tree.Input` for both the API and the notifier.
 - Plan tables are keyed by `(faculty, id)` (`db.Faculty` = `fceia` today) so other faculties can be added without id collisions.
 - Auth: Firebase ID token in `Authorization: Bearer`; students are linked by `firebase_uid`, teachers by the token's verified email (`teachers.email`, lower case). `api.Verifier` is the seam for tests.
 - Errors: `{"error":{"code","message"}}`, codes `invalid_argument | unauthorized | forbidden | not_found | conflict | internal`.

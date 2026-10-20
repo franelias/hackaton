@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"firebase.google.com/go/v4/auth"
@@ -46,7 +45,7 @@ func (s *Server) Routes() http.Handler {
 	r.Use(limitBody)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins: []string{"*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "OPTIONS"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"Authorization", "Content-Type"},
 	}))
 
@@ -69,6 +68,10 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/alerts", s.getAlerts)
 			r.Post("/alerts/{alert_id}/dismiss", s.dismissAlert)
 			r.Get("/conversations/{conversation_id}", s.getConversation)
+			r.Get("/notifications", s.getNotifications)
+			r.Put("/notifications", s.putNotifications)
+			r.Post("/push-tokens", s.postPushToken)
+			r.Delete("/push-tokens/{token}", s.deletePushToken)
 		})
 	})
 	return r
@@ -196,14 +199,4 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 
-// parallel runs independent queries at once: with a remote database every
-// round trip counts.
-func parallel(queries ...func() error) error {
-	errs := make([]error, len(queries))
-	var wg sync.WaitGroup
-	for i, q := range queries {
-		wg.Go(func() { errs[i] = q() })
-	}
-	wg.Wait()
-	return errors.Join(errs...)
-}
+var parallel = db.Parallel

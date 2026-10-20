@@ -185,7 +185,7 @@ func (s *Server) putSubject(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", "state debe ser approved, regular o enrolled")
 		return
 	}
-	if err := s.DB.Save(&db.StudentSubject{StudentID: st.ID, SubjectID: subjectID, State: body.State}).Error; err != nil {
+	if err := db.UpsertSubjectStates(s.DB, []db.StudentSubject{{StudentID: st.ID, SubjectID: subjectID, State: body.State, Since: s.Now()}}); err != nil {
 		s.dbErr(w, err, "")
 		return
 	}
@@ -219,7 +219,7 @@ func (s *Server) putSubjects(w http.ResponseWriter, r *http.Request) {
 	rows := make([]db.StudentSubject, 0, len(states))
 	ids := make([]int, 0, len(states))
 	for id, state := range states {
-		rows = append(rows, db.StudentSubject{StudentID: st.ID, SubjectID: id, State: state})
+		rows = append(rows, db.StudentSubject{StudentID: st.ID, SubjectID: id, State: state, Since: s.Now()})
 		ids = append(ids, id)
 	}
 	if len(rows) > 0 {
@@ -233,7 +233,7 @@ func (s *Server) putSubjects(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// one upsert statement, so it's all or nothing
-		if err := s.DB.Save(&rows).Error; err != nil {
+		if err := db.UpsertSubjectStates(s.DB, rows); err != nil {
 			s.dbErr(w, err, "")
 			return
 		}
@@ -340,44 +340,9 @@ func (s *Server) writeTree(w http.ResponseWriter, st *db.Student) {
 // state builds the student's tree, syncs the alerts table with the conditions
 // that hold now and returns the open (not dismissed) alerts.
 func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
-	var subjects []db.Subject
-	var prereqs []db.Prerequisite
-	var states []db.StudentSubject
-	var acts []db.Activity
-	var periods []db.Period
-	q := s.DB.Model(&db.Subject{}).Select("id").Where("faculty = ? AND career_id = ?", st.Faculty, st.CareerID)
-	if err := parallel(
-		func() error {
-			return s.DB.Find(&subjects, "faculty = ? AND career_id = ?", st.Faculty, st.CareerID).Error
-		},
-		func() error { return s.DB.Find(&prereqs, "faculty = ? AND subject_id IN (?)", st.Faculty, q).Error },
-		func() error { return s.DB.Find(&states, "student_id = ?", st.ID).Error },
-		func() error { return s.DB.Find(&acts, "student_id = ?", st.ID).Error },
-		func() error { return s.DB.Find(&periods, "faculty = ?", st.Faculty).Error },
-	); err != nil {
+	in, err := db.TreeInput(s.DB, st, s.Now())
+	if err != nil {
 		return tree.Tree{}, nil, err
-	}
-
-	in := tree.Input{Plan: map[int][]tree.Prereq{}, Info: map[int]tree.SubjectInfo{}, States: map[int]string{}, Since: st.CreatedAt, Now: s.Now()}
-	for _, m := range subjects {
-		in.Plan[m.ID] = nil
-		in.Info[m.ID] = tree.SubjectInfo{Name: m.Name, Bottleneck: m.Bottleneck, UnlocksTotal: m.UnlocksTotal}
-	}
-	for _, p := range prereqs {
-		in.Plan[p.SubjectID] = append(in.Plan[p.SubjectID], tree.Prereq{RequiresID: p.RequiresID, Condition: p.Condition})
-	}
-	for _, x := range states {
-		in.States[x.SubjectID] = x.State
-	}
-	for _, a := range acts {
-		var topic string
-		if a.Topic != nil {
-			topic = *a.Topic
-		}
-		in.Activities = append(in.Activities, tree.Activity{Type: a.Type, SubjectID: a.SubjectID, Topic: topic, Result: a.Result, Date: a.Date, CreatedAt: a.CreatedAt})
-	}
-	for _, p := range periods {
-		in.Periods = append(in.Periods, tree.Period{Kind: p.Kind, From: p.Starts, To: p.Ends})
 	}
 	t := tree.Build(in)
 	if t.Subjects == nil {
