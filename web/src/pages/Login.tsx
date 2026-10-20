@@ -2,9 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth'
 import { firebaseAuth, googleProvider } from '../lib/firebase'
-import { useSesion } from '../lib/session'
+import { useSession } from '../lib/session'
 
-const errores: Record<string, string> = {
+const errorMessages: Record<string, string> = {
   'auth/invalid-credential': 'El mail o la contraseña no coinciden.',
   'auth/email-already-in-use': 'Ya hay una cuenta con ese mail. Probá entrar.',
   'auth/weak-password': 'La contraseña tiene que tener al menos 6 caracteres.',
@@ -13,42 +13,42 @@ const errores: Record<string, string> = {
 }
 
 export default function Login() {
-  const { usuario, cargando } = useSesion()
-  const [modo, setModo] = useState<'entrar' | 'crear'>('entrar')
-  const [nombre, setNombre] = useState(''), [mail, setMail] = useState(''), [clave, setClave] = useState('')
-  const [error, setError] = useState<string | null>(null), [enviando, setEnviando] = useState(false), [aviso, setAviso] = useState<string | null>(null)
-  if (!cargando && usuario) return <Navigate to="/" replace />
+  const { user, loading } = useSession()
+  const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn')
+  const [name, setName] = useState(''), [email, setEmail] = useState(''), [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null), [sending, setSending] = useState(false), [notice, setNotice] = useState<string | null>(null)
+  if (!loading && user) return <Navigate to="/" replace />
   const auth = firebaseAuth()
 
-  const correr = async (f: () => Promise<unknown>) => {
-    setError(null); setEnviando(true)
-    try { await f() } catch (e) { const code = (e as { code?: string }).code ?? ''; setError(errores[code] ?? 'No pudimos entrar. Probá de nuevo.') } finally { setEnviando(false) }
+  const run = async (f: () => Promise<unknown>) => {
+    setError(null); setSending(true)
+    try { await f() } catch (e) { const code = (e as { code?: string }).code ?? ''; setError(errorMessages[code] ?? 'No pudimos entrar. Probá de nuevo.') } finally { setSending(false) }
   }
-  const olvide = () => { if (!auth) return; setAviso(null)
-    if (!mail) { setError('Escribí tu mail arriba y te mandamos un link para elegir otra contraseña.'); return }
-    correr(async () => { await sendPasswordResetEmail(auth, mail); setAviso(`Si hay una cuenta con ${mail}, te llega un mail con un link para elegir otra contraseña.`) }) }
-  const enviar = (ev: FormEvent) => { ev.preventDefault(); if (!auth) return
-    correr(async () => { if (modo === 'entrar') await signInWithEmailAndPassword(auth, mail, clave)
-      else { const c = await createUserWithEmailAndPassword(auth, mail, clave); if (nombre) await updateProfile(c.user, { displayName: nombre }) } }) }
+  const forgotPassword = () => { if (!auth) return; setNotice(null)
+    if (!email) { setError('Escribí tu mail arriba y te mandamos un link para elegir otra contraseña.'); return }
+    run(async () => { await sendPasswordResetEmail(auth, email); setNotice(`Si hay una cuenta con ${email}, te llega un mail con un link para elegir otra contraseña.`) }) }
+  const submit = (ev: FormEvent) => { ev.preventDefault(); if (!auth) return
+    run(async () => { if (mode === 'signIn') await signInWithEmailAndPassword(auth, email, password)
+      else { const c = await createUserWithEmailAndPassword(auth, email, password); if (name) await updateProfile(c.user, { displayName: name }) } }) }
 
   return (
-    <div className="entrada">
-      <div className="entrada-caja">
+    <div className="login">
+      <div className="login-box">
         <h1>Árbol</h1>
         <p>Tu carrera, como un árbol que crece con lo que estudiás.</p>
-        <button className="btn secundario ancho" disabled={!auth || enviando} onClick={() => auth && correr(() => signInWithPopup(auth, googleProvider))}>Entrar con Google</button>
-        <div className="separador">o con tu mail</div>
-        <form onSubmit={enviar}>
-          {modo === 'crear' && <label>Tu nombre<input value={nombre} onChange={e => setNombre(e.target.value)} autoComplete="name" /></label>}
-          <label>Mail<input type="email" required value={mail} onChange={e => setMail(e.target.value)} autoComplete="email" /></label>
-          <label>Contraseña<input type="password" required minLength={6} value={clave} onChange={e => setClave(e.target.value)} autoComplete={modo === 'entrar' ? 'current-password' : 'new-password'} /></label>
+        <button className="btn secondary full" disabled={!auth || sending} onClick={() => auth && run(() => signInWithPopup(auth, googleProvider))}>Entrar con Google</button>
+        <div className="divider">o con tu mail</div>
+        <form onSubmit={submit}>
+          {mode === 'signUp' && <label>Tu name<input value={name} onChange={e => setName(e.target.value)} autoComplete="name" /></label>}
+          <label>Mail<input type="email" required value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" /></label>
+          <label>Contraseña<input type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'} /></label>
           {error && <p className="error" role="alert">{error}</p>}
-          {aviso && <p className="aviso" role="status">{aviso}</p>}
-          <button className="btn ancho" disabled={!auth || enviando}>{modo === 'entrar' ? 'Entrar' : 'Crear cuenta'}</button>
-          {modo === 'entrar' && <button type="button" className="enlace" disabled={!auth || enviando} onClick={olvide}>Me olvidé la contraseña</button>}
+          {notice && <p className="notice" role="status">{notice}</p>}
+          <button className="btn full" disabled={!auth || sending}>{mode === 'signIn' ? 'Entrar' : 'Crear cuenta'}</button>
+          {mode === 'signIn' && <button type="button" className="link" disabled={!auth || sending} onClick={forgotPassword}>Me olvidé la contraseña</button>}
         </form>
-        <button className="enlace" onClick={() => { setModo(modo === 'entrar' ? 'crear' : 'entrar'); setError(null) }}>
-          {modo === 'entrar' ? '¿No tenés cuenta? Creala' : '¿Ya tenés cuenta? Entrá'}</button>
+        <button className="link" onClick={() => { setMode(mode === 'signIn' ? 'signUp' : 'signIn'); setError(null) }}>
+          {mode === 'signIn' ? '¿No tenés cuenta? Creala' : '¿Ya tenés cuenta? Entrá'}</button>
       </div>
     </div>
   )
