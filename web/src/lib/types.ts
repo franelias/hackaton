@@ -98,3 +98,32 @@ export interface ScheduleResult {
 export interface SchedulePreferences { shift?: 'morning' | 'afternoon' | 'evening'; free_days?: number[] }
 
 export interface ApiErrorBody { error: { code: string; message: string } }
+
+// Teacher view (§2.6)
+export interface Me { student_id: string | null; teacher_id: string | null }
+export interface HealthCount { lush: number; wilted: number; withered: number }
+export interface TaughtSubject { subject_id: number; career_id: number; name: string; year: number | null; term: number | null }
+export interface Teacher {
+  teacher_id: string
+  name: string
+  subjects: (TaughtSubject & { students: number; health: HealthCount; open_alerts: number })[]
+}
+export interface ClassStudent {
+  student_id: string
+  name: string
+  health: { state: HealthState; last_activity: string | null }
+  exercises: number
+  correct_rate: number | null
+  mastered_topics: number
+  best_mock_exam: number | null
+  flower: boolean
+  dry: boolean
+  next_exam: string | null
+  alerts: { type: Alert['type']; level: Alert['level']; message: string }[]
+}
+export interface ClassDetail extends TaughtSubject {
+  summary: { students: number; health: HealthCount; active_this_week: number; exercises_this_week: number; open_alerts: number }
+  students: ClassStudent[]
+  weeks: { week: string; exercises: number; active_students: number }[]
+  topics: { topic: string; attempts: number; correct: number; students: number }[]
+}

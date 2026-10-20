@@ -2,7 +2,7 @@
 import { API_URL, MOCK } from './config'
 import { firebaseAuth } from './firebase'
 import { mockApi } from '../mock/mockApi'
-import type { Activity, Alert, ApiErrorBody, ChatMessage, Faculty, Plan, ScheduleResult, SchedulePreferences, SubjectState, Tree } from './types'
+import type { Activity, Alert, ApiErrorBody, ChatMessage, ClassDetail, Faculty, Me, Plan, ScheduleResult, SchedulePreferences, SubjectState, Teacher, Tree } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -75,7 +75,7 @@ export type SubjectMark = { subject_id: number; state: Exclude<SubjectState, 'av
 const real = {
   faculties: () => request<Faculty[]>('/api/faculties'),
   plan: (careerId: number) => request<Plan>(`/api/careers/${careerId}/plan`),
-  me: () => request<{ student_id: string | null }>('/api/me'),
+  me: () => request<Me>('/api/me'),
   createStudent: (name: string, faculty_id: string, career_id: number) => request<{ student_id: string }>('/api/students', { method: 'POST', body: JSON.stringify({ name, faculty_id, career_id }) }),
   tree: (id: string) => request<Tree>(`/api/students/${id}/tree`),
   alerts: (id: string) => request<Alert[]>(`/api/students/${id}/alerts`),
@@ -85,6 +85,8 @@ const real = {
   activity: (id: string, a: Activity) => request<Tree>(`/api/students/${id}/activity`, { method: 'POST', body: JSON.stringify(a) }),
   conversation: (id: string, conversationId: string) => request<{ conversation_id: string; messages: ChatMessage[] }>(`/api/students/${id}/conversations/${conversationId}`),
   schedule: (student_id: string, subject_ids: number[], preferences?: SchedulePreferences) => request<ScheduleResult>('/api/schedule', { method: 'POST', body: JSON.stringify({ student_id, subject_ids, preferences }) }),
+  teacher: () => request<Teacher>('/api/teacher'),
+  teacherSubject: (subjectId: number) => request<ClassDetail>(`/api/teacher/subjects/${subjectId}`),
   chat,
 }
 

@@ -27,3 +27,9 @@ func inPeriod(d time.Time, kind string, periods []Period) bool {
 	}
 	return false
 }
+
+// CivilDay is t's civil date in Argentina at UTC midnight, the way dates are stored.
+func CivilDay(t time.Time) time.Time { return day(t) }
+
+// WeekStart is the Monday of d's week (d a civil date).
+func WeekStart(d time.Time) time.Time { return monday(d) }

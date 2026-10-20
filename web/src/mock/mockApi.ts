@@ -1,22 +1,33 @@
 // Demo mode: implements the backend contract in memory, with the real LCC plan.
-// Used when there is no VITE_API_URL or Firebase config. `?health=wilted|withered` changes the state.
+// Used when there is no VITE_API_URL or Firebase config. Health comes from the days since the last
+// activity, with the backend thresholds (internal/tree/health.go): 5 days wilted, 10 withered.
 import planJson from './plan.json'
-import type { Api, ChatHandlers } from '../lib/api'
+import { ApiError, type Api, type ChatHandlers } from '../lib/api'
+import { mockClass, mockTeacher } from './classes'
 import type { Activity, Alert, ChatMessage, Plan, ScheduleResult, StudentSubject, SubjectState, Tree } from '../lib/types'
 
 const plan = planJson as unknown as Plan
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
-const health = (new URLSearchParams(location.search).get('health') as Tree['health']['state']) || 'lush'
+const day = 864e5
+let lastActivity = Date.now() - day
+const inactiveDays = () => Math.floor((Date.now() - lastActivity) / day)
+const healthOf = (): Tree['health']['state'] => inactiveDays() >= 10 ? 'withered' : inactiveDays() >= 5 ? 'wilted' : 'lush'
 
 // Ana: passed almost all of 1st year and is taking 2nd-year subjects
 const states = new Map<number, Exclude<SubjectState, 'available' | 'locked'>>([[1, 'approved'], [2, 'approved'], [3, 'approved'], [4, 'approved'], [6, 'regular'], [5, 'enrolled'], [8, 'enrolled']])
 const leaves = new Map<number, number>([[5, 9], [8, 4], [1, 12], [2, 10], [3, 14], [4, 8], [6, 6]])
 let studentId: string | null = 's-001'
-let alerts: Alert[] = health === 'lush' ? [] : [
-  { id: 'al-1', level: health === 'withered' ? 'high' : 'medium', type: 'inactivity', subject_id: 5, message: health === 'withered' ? 'Hace 15 días que no pasás por acá. ¿Querés que te contactemos con un tutor o alguien de tu año?' : 'Se viene el parcial de Análisis Matemático II, ¿practicamos 1 ejercicio?', action: { type: health === 'withered' ? 'contact_tutor' : 'open_tutor', subject_id: 5 } },
-]
+const dismissed = new Set<string>()
+function alerts(): Alert[] {
+  const h = healthOf(), days = inactiveDays()
+  if (h === 'lush' || dismissed.has('al-1')) return []
+  return [{ id: 'al-1', level: h === 'withered' ? 'high' : 'medium', type: 'inactivity', subject_id: 5,
+    message: h === 'withered' ? `Hace ${days} días que no pasás por acá. ¿Querés que te contactemos con un tutor o alguien de tu año?` : 'Se viene el parcial de Análisis Matemático II, ¿practicamos 1 ejercicio?',
+    action: { type: h === 'withered' ? 'contact_tutor' : 'open_tutor', subject_id: 5 } }]
+}
 
 function buildTree(): Tree {
+  const health = healthOf()
   const subjects: StudentSubject[] = []
   for (const s of plan.subjects) {
     const st = states.get(s.subject_id)
@@ -25,7 +36,7 @@ function buildTree(): Tree {
     if (state === 'locked') continue
     subjects.push({ subject_id: s.subject_id, state, leaves: leaves.get(s.subject_id) ?? 0, flower: s.subject_id === 8, dry: health !== 'lush' && s.subject_id === 5 })
   }
-  return { student_id: studentId ?? 's-001', career_id: plan.career_id, health: { state: health, last_activity: new Date(Date.now() - (health === 'lush' ? 1 : health === 'wilted' ? 7 : 16) * 864e5).toISOString() }, streak: { weeks: health === 'lush' ? 6 : 0, best: 8, wildcards: 1 }, subjects }
+  return { student_id: studentId ?? 's-001', career_id: plan.career_id, health: { state: health, last_activity: new Date(lastActivity).toISOString() }, streak: { weeks: health === 'lush' ? 6 : 0, best: 8, wildcards: 1 }, subjects }
 }
 
 const conversations = new Map<string, ChatMessage[]>()
@@ -52,14 +63,14 @@ async function chat(body: { message: string; conversation_id?: string; image_bas
 export const mockApi: Api = {
   faculties: async () => [{ faculty_id: 'fceia', name: 'Facultad de Ciencias Exactas, Ingeniería y Agrimensura (UNR)', careers: [{ career_id: plan.career_id, name: plan.name }] }],
   plan: async () => { await wait(150); return plan },
-  me: async () => ({ student_id: studentId }),
+  me: async () => ({ student_id: studentId, teacher_id: 't-1' }),
   createStudent: async () => { studentId = 's-001'; return { student_id: studentId } },
   tree: async () => { await wait(150); return buildTree() },
-  alerts: async () => alerts,
-  dismissAlert: async (_id, alertId) => { alerts = alerts.filter(a => a.id !== alertId) },
+  alerts: async () => alerts(),
+  dismissAlert: async (_id, alertId) => { dismissed.add(alertId) },
   setSubject: async (_id, subjectId, state) => { states.set(subjectId, state); return buildTree() },
   setSubjects: async (_id, subjects) => { for (const s of subjects) states.set(s.subject_id, s.state); return buildTree() },
-  activity: async (_id, a: Activity) => { if (a.subject_id) leaves.set(a.subject_id, (leaves.get(a.subject_id) ?? 0) + 1); return buildTree() },
+  activity: async (_id, a: Activity) => { lastActivity = Date.now(); dismissed.clear(); if (a.subject_id) leaves.set(a.subject_id, (leaves.get(a.subject_id) ?? 0) + 1); return buildTree() },
   conversation: async (_id, conversation_id) => ({ conversation_id, messages: conversations.get(conversation_id) ?? [] }),
   schedule: async (_sid, subject_ids) => {
     await wait(500)
@@ -72,5 +83,7 @@ export const mockApi: Api = {
     }
     return r
   },
+  teacher: async () => { await wait(200); return mockTeacher(plan) },
+  teacherSubject: async (subjectId) => { await wait(200); const c = mockClass(plan, subjectId); if (!c) throw new ApiError(404, 'not_found', 'no dictás esa materia'); return c },
   chat,
 }

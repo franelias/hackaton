@@ -55,3 +55,8 @@ func Topics(acts []Activity) map[int][]TopicStat {
 	}
 	return out
 }
+
+// TopicKey is how topics are compared: lower case, without accents.
+func TopicKey(name string) string {
+	return foldAccents.Replace(strings.ToLower(strings.TrimSpace(name)))
+}

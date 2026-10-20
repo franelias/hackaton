@@ -229,3 +229,52 @@ legend { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
 .photo-placeholder { font-style: italic; opacity: .85; }
 .bubble.user:has(.message-photo) { padding: 6px; width: fit-content; }
 .bubble.user .message-photo + * , .bubble.user .message-photo ~ span { padding: 4px 8px 2px; display: inline-block; }
+
+/* Teacher view */
+.back { align-self: flex-start; font-weight: 700; text-decoration: none; }
+.classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.class-card { color: inherit; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+.class-card:hover { border-color: #cfd9c2; box-shadow: 0 6px 18px rgba(43,42,34,.08); }
+.alerts-count { color: var(--red); font-weight: 800; font-size: 14px; }
+.class-health { display: flex; flex-direction: column; gap: 8px; }
+.health-bar { display: flex; gap: 3px; height: 12px; border-radius: 999px; overflow: hidden; }
+.health-bar i { flex-basis: 0; min-width: 8px; }
+.health-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.health-legend span { display: flex; align-items: center; gap: 6px; }
+.health-legend i { width: 10px; height: 10px; border-radius: 50%; }
+.class-health .lush { background: #6f9866; } .class-health .wilted { background: #e0b04a; } .class-health .withered { background: #c4734f; } .class-health .none { flex: 1; background: var(--border); }
+.chip.lush { background: var(--green-light); } .chip.wilted { background: var(--amber); } .chip.withered { background: #fbe4dd; }
+.class-stats { display: grid; grid-template-columns: repeat(3, minmax(150px, 1fr)) minmax(260px, 1.6fr); gap: 12px; }
+.class-stats .card { gap: 6px; padding: 16px 18px; }
+.class-stats b { font-size: 28px; font-weight: 800; line-height: 1.1; } .class-stats b small { font-size: 15px; color: var(--muted); }
+.class-stats b.bad { color: var(--red); }
+.class-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.weeks { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; align-items: end; margin-top: 6px; }
+.week { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; }
+.week b { font-size: 13px; }
+.week i { width: 100%; max-width: 38px; border-radius: 8px 8px 3px 3px; background: #c9e0b0; }
+.week.current i { background: var(--green); }
+.week span { font-weight: 700; color: var(--muted); white-space: nowrap; } .week small { color: var(--muted); }
+.topics { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.topics li { display: grid; grid-template-columns: 1fr 110px 64px; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--border); }
+.topics li:last-child { border-bottom: 0; }
+.topics b { display: block; font-size: 14px; } .topics span { color: var(--muted); font-size: 12px; }
+.rate { height: 8px; border-radius: 999px; background: #f1efe7; overflow: hidden; }
+.rate i { display: block; height: 100%; background: #6f9866; } .rate.low i { background: #e0b04a; }
+.topics .rate-label { font-weight: 700; color: var(--text); text-align: right; }
+.table-scroll { overflow-x: auto; margin: 0 -20px; padding: 0 20px; }
+.students { width: 100%; border-collapse: collapse; font-size: 14px; }
+.students th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 800; padding: 6px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.students td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.students tr:last-child td { border-bottom: 0; }
+.students tr.at-risk td { background: #fdf6f3; }
+.students td small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.students td:first-child { white-space: nowrap; }
+.tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: 11px; font-weight: 800; vertical-align: 1px; }
+.tag.flower { background: #fdf0c9; color: #8a5a00; } .tag.dry { background: #f1e3d3; color: #7a5236; }
+.alerts-cell { min-width: 220px; } .alerts-cell p { font-size: 13px; font-weight: 700; } .alerts-cell p + p { margin-top: 4px; } .alerts-cell p.high { color: var(--red); }
+@media (max-width: 900px) {
+  .class-stats { grid-template-columns: 1fr 1fr; } .class-stats .card:last-child { grid-column: 1 / -1; }
+  .class-grid { grid-template-columns: 1fr; }
+  .weeks { gap: 4px; } .week span { font-size: 11px; }
+}

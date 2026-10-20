@@ -1,14 +1,17 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth'
 import { api, ApiError } from './api'
 import { MOCK } from './config'
 import { firebaseAuth } from './firebase'
-import type { Alert, Plan, Tree } from './types'
+import { keys, planQuery, queryClient } from './queries'
+import type { Alert, Me, Plan, Tree } from './types'
 
 interface Session {
   loading: boolean
   user: Pick<User, 'uid' | 'displayName' | 'email'> | null
   studentId: string | null
+  teacherId: string | null
   plan: Plan | null
   tree: Tree | null
   alerts: Alert[]
@@ -24,42 +27,39 @@ const Ctx = createContext<Session | null>(null)
 export const useSession = () => { const c = useContext(Ctx); if (!c) throw new Error('useSession outside <SessionProvider>'); return c }
 
 const demoUser = { uid: 'demo', displayName: 'Ana', email: 'ana@arbol.demo' }
+const noAlerts: Alert[] = []
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Session['user']>(MOCK ? demoUser : null)
   const [authReady, setAuthReady] = useState(MOCK)
-  const [studentId, setStudentId] = useState<string | null>(null)
-  const [plan, setPlan] = useState<Plan | null>(null)
-  const [tree, setTree] = useState<Tree | null>(null)
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { const a = firebaseAuth(); if (!a) return; return onAuthStateChanged(a, u => { setUser(u ? { uid: u.uid, displayName: u.displayName, email: u.email } : null); setAuthReady(true) }) }, [])
+  // nothing cached survives a change of user
+  const uid = user?.uid
+  useEffect(() => { if (authReady && !uid) queryClient.clear() }, [authReady, uid])
 
+  // signed in: does the user already have a student? is it a teacher?
+  const me = useQuery({ queryKey: keys.me(uid ?? ''), queryFn: api.me, enabled: authReady && !!uid })
+  const studentId = me.data?.student_id ?? null, teacherId = me.data?.teacher_id ?? null
+  const tree = useQuery({ queryKey: keys.tree(studentId ?? ''), queryFn: () => api.tree(studentId!), enabled: !!studentId })
+  const alerts = useQuery({ queryKey: keys.alerts(studentId ?? ''), queryFn: () => api.alerts(studentId!), enabled: !!studentId })
   // the plan is the one of the student's career; it is public and does not change
-  const careerId = tree?.career_id
-  useEffect(() => { if (careerId == null) return; api.plan(careerId).then(setPlan).catch(e => setError(`No pudimos cargar el plan: ${e.message}`)) }, [careerId])
+  const careerId = tree.data?.career_id
+  const plan = useQuery({ ...planQuery(careerId ?? 0), enabled: careerId != null })
 
-  // signed in: does the user already have a student?
-  useEffect(() => {
-    if (!authReady) return
-    if (!user) { setStudentId(null); setTree(null); setLoading(false); return }
-    setLoading(true)
-    api.me().then(r => setStudentId(r.student_id)).catch(e => setError(e.message)).finally(() => setLoading(false))
-  }, [authReady, user])
-
-  const refresh = useCallback(async () => {
-    if (!studentId) return
-    const [t, a] = await Promise.all([api.tree(studentId), api.alerts(studentId)])
-    setTree(t); setAlerts(a)
-  }, [studentId])
-  const logOut = useCallback(async () => { const a = firebaseAuth(); if (a) await signOut(a) }, [])
+  const setStudentId = useCallback((id: string) => { if (uid) queryClient.setQueryData<Me>(keys.me(uid), m => ({ teacher_id: null, ...m, student_id: id })) }, [uid])
+  const setTree = useCallback((t: Tree) => queryClient.setQueryData(keys.tree(t.student_id), t), [])
+  const refresh = useCallback(async () => { await Promise.all([queryClient.invalidateQueries({ queryKey: ['tree'] }), queryClient.invalidateQueries({ queryKey: ['alerts'] })]) }, [])
+  const logOut = useCallback(async () => { const a = firebaseAuth(); if (a) await signOut(a); queryClient.clear() }, [])
   const reloadUser = useCallback(() => { const u = firebaseAuth()?.currentUser; if (u) setUser({ uid: u.uid, displayName: u.displayName, email: u.email }) }, [])
-  // expired or invalid token: back to the login; any other error is shown
-  useEffect(() => { refresh().catch(e => { if (e instanceof ApiError && e.status === 401) logOut(); else setError(e.message) }) }, [refresh, logOut])
 
-  const v = useMemo<Session>(() => ({ loading: loading || !authReady, user, studentId, plan, tree, alerts, error, setStudentId, setTree, refresh, logOut, reloadUser }),
-    [loading, authReady, user, studentId, plan, tree, alerts, error, refresh, logOut, reloadUser])
+  // expired or invalid token: back to the login; any other error is shown
+  const failure = me.error ?? tree.error ?? alerts.error
+  useEffect(() => { if (failure instanceof ApiError && failure.status === 401) logOut() }, [failure, logOut])
+  const error = failure?.message ?? (plan.error ? `No pudimos cargar el plan: ${plan.error.message}` : null)
+
+  const loading = !authReady || (!!uid && me.isPending)
+  const v = useMemo<Session>(() => ({ loading, user, studentId, teacherId, plan: plan.data ?? null, tree: tree.data ?? null, alerts: alerts.data ?? noAlerts, error, setStudentId, setTree, refresh, logOut, reloadUser }),
+    [loading, user, studentId, teacherId, plan.data, tree.data, alerts.data, error, setStudentId, setTree, refresh, logOut, reloadUser])
   return <Ctx.Provider value={v}>{children}</Ctx.Provider>
 }

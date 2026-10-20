@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"firebase.google.com/go/v4/auth"
@@ -54,6 +55,8 @@ func (s *Server) Routes() http.Handler {
 	r.Group(func(r chi.Router) {
 		r.Use(s.authenticate)
 		r.Get("/api/me", s.getMe)
+		r.Get("/api/teacher", s.getTeacher)
+		r.Get("/api/teacher/subjects/{subject_id}", s.getTeacherSubject)
 		r.Post("/api/students", s.createStudent)
 		r.Post("/api/chat", s.chat)
 		r.Post("/api/schedule", s.schedule)
@@ -75,6 +78,7 @@ type ctxKey int
 
 const (
 	uidKey ctxKey = iota
+	emailKey
 	studentKey
 )
 
@@ -90,7 +94,9 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 			writeErr(w, http.StatusUnauthorized, "unauthorized", "token de Firebase inválido o vencido")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), uidKey, tok.UID)))
+		ctx := context.WithValue(r.Context(), uidKey, tok.UID)
+		ctx = context.WithValue(ctx, emailKey, verifiedEmail(tok))
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -125,11 +131,22 @@ func (s *Server) owned(w http.ResponseWriter, r *http.Request, raw string) (*db.
 	return &st, true
 }
 
+// verifiedEmail is the token's email in lower case, or "" if it is missing or
+// not verified: only a verified email can make a user a teacher.
+func verifiedEmail(tok *auth.Token) string {
+	email, _ := tok.Claims["email"].(string)
+	if verified, _ := tok.Claims["email_verified"].(bool); !verified {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
 func studentFrom(r *http.Request) *db.Student { return r.Context().Value(studentKey).(*db.Student) }
 
 func formatStudentID(id int) string    { return fmt.Sprintf("s-%03d", id) }
 func formatAlertID(id int) string      { return fmt.Sprintf("al-%d", id) }
 func formatConvID(id int) string       { return fmt.Sprintf("c-%d", id) }
+func formatTeacherID(id int) string    { return fmt.Sprintf("t-%d", id) }
 func parseConvID(s string) (int, bool) { return parseID(s, "c-") }
 
 func parseStudentID(s string) (int, bool) { return parseID(s, "s-") }
@@ -177,4 +194,16 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 		return false
 	}
 	return true
+}
+
+// parallel runs independent queries at once: with a remote database every
+// round trip counts.
+func parallel(queries ...func() error) error {
+	errs := make([]error, len(queries))
+	var wg sync.WaitGroup
+	for i, q := range queries {
+		wg.Go(func() { errs[i] = q() })
+	}
+	wg.Wait()
+	return errors.Join(errs...)
 }

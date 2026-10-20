@@ -45,7 +45,7 @@ const day = 24 * time.Hour
 func seedCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "seed",
-		Short: "(Re)create the demo students Ana and Beto (password DEMO_PASSWORD, default arbol-demo)",
+		Short: "(Re)create the demo students Ana and Beto, their classmates and the demo teacher (password DEMO_PASSWORD, default arbol-demo)",
 		Args:  cobra.NoArgs,
 		RunE:  func(cmd *cobra.Command, _ []string) error { return seed(cmd.Context()) },
 	}
@@ -60,6 +60,9 @@ func seedCmd() *cobra.Command {
 //   - Beto (beto@arbol.demo): second year with first year approved, enrolled
 //     in Lógica (a bottleneck). He stopped coming 12 days ago and missed the
 //     Lógica exam 3 days ago: withered tree, dry Lógica branch, alerts.
+//   - Laura Méndez (docente@arbol.demo): the teacher of Análisis I and Lógica,
+//     with 8 more classmates (no Firebase account) so the class view has
+//     students in every state. See classmates.go.
 //
 // Config: DATABASE_URL, FIREBASE_PROJECT_ID (FIREBASE_AUTH_EMULATOR_HOST for
 // the emulator), DEMO_PASSWORD (default "arbol-demo"). Other students are not
@@ -86,6 +89,9 @@ func seed(ctx context.Context) error {
 			return fmt.Errorf("%s: %w", d.email, err)
 		}
 		log.Printf("%s -> s-%03d (%s)", d.email, id, d.name)
+	}
+	if err := seedTeacher(ctx, g, fb, password, now); err != nil {
+		return err
 	}
 	log.Printf("password: %s", password)
 	return nil

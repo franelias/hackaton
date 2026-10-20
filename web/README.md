@@ -24,8 +24,9 @@ Chequeo de tipos: `pnpm exec tsc -b`. Build: `pnpm build`.
 | `VITE_MOCK=1` | Fuerza el modo demo |
 
 **Modo demo:** si falta `VITE_API_URL` o Firebase, la app no llama a nada. Usa `src/mock/mockApi.ts`,
-con el plan real copiado en `src/mock/plan.json`, la alumna Ana y un tutor de ejemplo. Con
-`?salud=wilted` o `?salud=withered` se ve el árbol mustio o seco.
+con el plan real copiado en `src/mock/plan.json`, la alumna Ana (que en el demo también es docente) y un tutor de ejemplo.
+La salud del árbol se calcula como en el backend, con los días desde la última actividad (5 mustio,
+10 seco); para ver un árbol seco hay que entrar como Beto contra el backend.
 
 Para el login real, en la consola de Firebase:
 - habilitar Google y Correo/contraseña en *Sign-in method*;
@@ -45,12 +46,15 @@ VITE_FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
 ```
 
 Entrar con `ana@arbol.demo` o `beto@arbol.demo` (contraseña `DEMO_PASSWORD`, por defecto `arbol-demo`).
+Para la vista docente, con `docente@arbol.demo` (Laura Méndez, dicta Análisis I y Lógica; mail ya verificado).
 El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y la app lo muestra.
 
 ## Estructura
 
 - `src/lib/`: `config.ts` (env), `firebase.ts`, `api.ts` (cliente con token y SSE del chat),
-  `types.ts` (contrato), `session.tsx` (usuario, alumno, plan, árbol y alertas; un `401` lleva al login).
+  `types.ts` (contrato), `queries.ts` (caché de TanStack Query: claves y cliente; lo ya visto se muestra
+  al instante y se refresca por detrás), `session.tsx` (usuario, alumno, plan, árbol y alertas, sobre
+  TanStack Query; un `401` lleva al login).
 - `src/components/TreeView.tsx`: el árbol. Es genérico, sirve para cualquier plan.
   - Forma: cada materia nace de su correlativa del año o cuatrimestre más cercano; el abanico es
     proporcional a lo que sostiene cada rama y el radio sale de año + cuatrimestre.
@@ -66,6 +70,9 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
   - `Tutor` (`/tutor`): chat SSE, lista de conversaciones y simulacro con cronómetro.
   - `Schedule` (`/schedule`): `POST /api/schedule` con una grilla semanal.
   - `Account` (`/account`): nombre, mail, verificación, contraseña y cerrar sesión.
+  - `TeacherHome` (`/teacher`) y `TeacherSubject` (`/teacher/subjects/:subjectId`): vista docente (contrato 2.6).
+    Se ve si `/api/me` trae `teacher_id`; un docente que no es alumno no ve Mi árbol, Tutor ni Horarios.
+    En modo demo Ana también es docente (`src/mock/classes.ts`).
 
 ## Estado (2026-10-19)
 
@@ -99,6 +106,10 @@ Notas:
    - listar conversaciones;
    - endpoint de fechas.
 7. Tests (Vitest), code splitting de Firebase y deploy.
+8. Idea para la ficha de la materia (MyTree): al tocar una materia del árbol se abre la ventanita de la
+   derecha con sus datos; abajo de esos datos, dibujar su "rama": el camino de correlativas que lleva a
+   ella (lo que hay que aprobar antes, de la raíz a la materia), con el estado de cada una. Hoy ese camino
+   solo se resalta en el árbol.
 
 ## Convenciones
 
