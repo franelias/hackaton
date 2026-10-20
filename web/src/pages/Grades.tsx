@@ -1,15 +1,17 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Trash2 } from 'lucide-react'
+import { Download, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useTreeChange, type TreeChange } from '../lib/mutations'
 import { useElectives } from '../lib/electives'
 import { formatGrade, summarize, validGrade } from '../lib/grades'
+import { printAsPdf } from '../lib/print'
 import { useSession } from '../lib/session'
 import type { SubjectState } from '../lib/types'
 import { Page, PageError, PageHeader, PageLoading } from '@/components/Page'
-import { SubjectBadge } from '@/components/StateBadge'
+import { SubjectStateSelect } from '@/components/StateBadge'
 import GradeInput from '@/components/GradeInput'
+import GradesReport from '@/components/GradesReport'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -30,7 +32,7 @@ function Stat({ label, value, children }: { label: string; value: ReactNode; chi
 }
 
 export default function Grades() {
-  const { plan, tree, studentId, error } = useSession()
+  const { plan, tree, studentId, user, error } = useSession()
   const treeChange = useTreeChange(studentId ?? '')
   const electives = useElectives(studentId ?? '', plan)
   const [failSubject, setFailSubject] = useState('')
@@ -46,6 +48,7 @@ export default function Grades() {
   const busy = treeChange.isPending
   const run = async (cs: TreeChange[], ok: string) => { try { for (const c of cs) await treeChange.mutateAsync(c); toast.success(ok) } catch (e) { toast.error((e as Error).message) } }
   const setGrade = (subjectId: number, grade: number) => run(electives.expand({ kind: 'mark', subjectId, state: 'approved', grade }), 'Guardamos la nota.')
+  const mark = (c: TreeChange) => run(electives.expand(c), c.kind === 'unmark' ? 'Listo, la desmarcamos.' : 'Guardado.')
   // an aplazo is only possible in a subject whose final you can take or already passed
   const failable = view.subjects.filter(s => stateOf(s.subject_id) === 'regular' || stateOf(s.subject_id) === 'approved')
   const addFail = () => {
@@ -55,8 +58,12 @@ export default function Grades() {
   }
 
   return (
-    <Page className="gap-5">
-      <PageHeader title="Notas" description="Tu libreta: la nota de cada final, tus promedios y cuánto te falta para recibirte." />
+    <>
+    <GradesReport summary={r} student={user?.displayName || user?.email || 'Mi libreta'} career={plan.name} states={states} />
+    <Page className="gap-5 print:hidden">
+      <PageHeader title="Notas" description="Tu libreta: la nota de cada final, tus promedios y cuánto te falta para recibirte.">
+        <Button variant="outline" onClick={() => printAsPdf('Mi libreta')}><Download data-icon="inline-start" />Descargar PDF</Button>
+      </PageHeader>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Promedio" value={formatGrade(r.average)}>Con aplazos: <b className="text-foreground tabular-nums">{formatGrade(r.withFails)}</b></Stat>
@@ -66,7 +73,8 @@ export default function Grades() {
         </Stat>
         <Stat label="Te faltan" value={r.remaining}>{r.remaining === 1 ? 'materia' : 'materias'} para recibirte</Stat>
         <Stat label="Promedio máximo" value={formatGrade(r.remaining ? r.ifAll(10) : r.average)}>
-          {r.remaining ? <>Sacando 10 en todas. Con 9: <b className="text-foreground tabular-nums">{formatGrade(r.ifAll(9))}</b></> : 'Ya no te quedan finales'}
+          Con aplazos: <b className="text-foreground tabular-nums">{formatGrade(r.remaining ? r.ifAll(10, true) : r.withFails)}</b>
+          <br />{r.remaining ? <>Sacando 10 en todas. Con 9: <b className="text-foreground tabular-nums">{formatGrade(r.ifAll(9))}</b></> : 'Ya no te quedan finales'}
         </Stat>
       </div>
       {r.ungraded > 0 && <p className="rounded-xl bg-warning px-4 py-2.5 text-sm font-bold text-warning-foreground">
@@ -87,7 +95,8 @@ export default function Grades() {
                       <Link to={`/subjects/${s.subject_id}`} className="min-w-0 flex-1 leading-snug font-bold underline-offset-2 hover:underline">{s.name}</Link>
                       {(states.get(s.subject_id)?.fails?.length ?? 0) > 0 && <span className="shrink-0 text-xs text-muted-foreground tabular-nums" title="Aplazos">
                         {states.get(s.subject_id)!.fails!.length} {states.get(s.subject_id)!.fails!.length === 1 ? 'aplazo' : 'aplazos'}</span>}
-                      <SubjectBadge state={st} className="shrink-0">{SHORT[st]}</SubjectBadge>
+                      <SubjectStateSelect state={st} className="shrink-0" disabled={busy} aria-label={`Estado de ${s.name}`}
+                        onMark={state => mark({ kind: 'mark', subjectId: s.subject_id, state })} onClear={() => mark({ kind: 'unmark', subjectId: s.subject_id })}>{SHORT[st]}</SubjectStateSelect>
                       {st === 'approved'
                         ? <GradeInput value={states.get(s.subject_id)?.grade ?? null} onSave={g => setGrade(s.subject_id, g)} disabled={busy} aria-label={`Nota de ${s.name}`} />
                         : <span className="w-16 shrink-0" aria-hidden="true" />}
@@ -130,5 +139,6 @@ export default function Grades() {
         </Card>
       </div>
     </Page>
+    </>
   )
 }

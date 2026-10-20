@@ -10,6 +10,11 @@
   @page { size: landscape; margin: 1cm; }
   [data-slot=sidebar-gap], [data-slot=sidebar-container] { display: none !important; }
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  /* the libreta is a portrait sheet */
+  @page libreta { size: A4 portrait; margin: 1.4cm 1.5cm; }
+  .grades-report { page: libreta; }
+  html:has(body > .grades-report), body:has(> .grades-report) { background: white !important; }
+  body:has(> .grades-report) > :not(.grades-report) { display: none !important; }
 }
 
 /* scrolls without showing the bar */

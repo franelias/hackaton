@@ -16,8 +16,9 @@ export function summarize(plan: Plan, tree: Tree) {
   const grades = approved.map(s => gradeOf(s.subject_id)).filter((g): g is number => g != null)
   const fails = tree.subjects.flatMap(s => (s.fails ?? []).map(f => ({ ...f, subject_id: s.subject_id })))
   const remaining = career.length - approved.length
-  // the average if every remaining final got this grade
-  const ifAll = (g: number) => mean([...grades, ...Array<number>(remaining).fill(g)])
+  // the average if every remaining final got this grade, optionally counting the aplazos
+  const ifAll = (g: number, withFails = false) =>
+    mean([...grades, ...(withFails ? fails.map(f => f.grade) : []), ...Array<number>(remaining).fill(g)])
 
   const years: YearRecord[] = [...career.reduce((m, s) => m.set(s.year ?? 0, [...(m.get(s.year ?? 0) ?? []), s]), new Map<number, PlanSubject[]>())]
     .sort(([a], [b]) => (a || 99) - (b || 99))
@@ -44,3 +45,5 @@ export function summarize(plan: Plan, tree: Tree) {
 export const validGrade = (g: number) => Number.isInteger(g) && g >= 1 && g <= 10
 
 export const formatGrade = (g: number | null) => g == null ? '—' : g.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+export type Summary = ReturnType<typeof summarize>

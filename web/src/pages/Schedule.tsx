@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { api } from '../lib/api'
+import { printAsPdf } from '../lib/print'
 import { useSession } from '../lib/session'
 import type { SchedulePreferences } from '../lib/types'
 import { CalendarDays, Download } from 'lucide-react'
@@ -57,13 +58,7 @@ export default function Schedule() {
   const nameOf = (id: number) => plan?.subjects.find(s => s.subject_id === id)?.name ?? `Materia ${id}`
 
   const build = () => { if (studentId) schedule.mutate() }
-  // the PDF is the browser's print (Save as PDF): the paper is white, so it prints with the light theme
-  const exportPdf = () => {
-    const root = document.documentElement, dark = root.classList.contains('dark'), title = document.title
-    root.classList.remove('dark'); document.title = 'Mi horario'
-    addEventListener('afterprint', () => { root.classList.toggle('dark', dark); document.title = title }, { once: true })
-    print()
-  }
+  const exportPdf = () => printAsPdf('Mi horario')
 
   const opt = result?.options[option]
   const classes = opt ? opt.commissions.flatMap((c, i) => c.classes.map(k => ({ ...k, name: c.name, color: COLORS[i % COLORS.length] }))) : []
