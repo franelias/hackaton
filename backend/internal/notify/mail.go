@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -82,12 +83,16 @@ func (s SMTP) Mail(ctx context.Context, to, name string, m Message) error {
 	return c.Quit()
 }
 
+// ErrNotSent is what LogMailer returns: the mail was only logged, so it does
+// not count as delivered.
+var ErrNotSent = errors.New("not sent: no SMTP_ADDR, only logged")
+
 // LogMailer prints the mail instead of sending it (no SMTP_ADDR).
 type LogMailer struct{}
 
 func (LogMailer) Mail(_ context.Context, to, _ string, m Message) error {
 	log.Printf("mail to %s: %s | %s | %s", to, m.Title, m.Body, m.URL)
-	return nil
+	return ErrNotSent
 }
 
 var page = template.Must(template.New("mail").Parse(`<!doctype html>

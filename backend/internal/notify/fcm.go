@@ -2,6 +2,8 @@ package notify
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"firebase.google.com/go/v4/messaging"
 )
@@ -21,10 +23,15 @@ func (f FCM) Push(ctx context.Context, tokens []string, m Message) (int, []strin
 		return 0, nil, err
 	}
 	var stale []string
+	var errs []error
 	for i, r := range resp.Responses {
-		if !r.Success && (messaging.IsUnregistered(r.Error) || messaging.IsInvalidArgument(r.Error)) {
+		switch {
+		case r.Success:
+		case messaging.IsUnregistered(r.Error) || messaging.IsInvalidArgument(r.Error):
 			stale = append(stale, tokens[i])
+		default:
+			errs = append(errs, fmt.Errorf("token %.12s…: %w", tokens[i], r.Error))
 		}
 	}
-	return resp.SuccessCount, stale, nil
+	return resp.SuccessCount, stale, errors.Join(errs...)
 }

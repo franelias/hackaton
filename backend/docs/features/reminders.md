@@ -51,7 +51,8 @@ Lo que es solo de backend:
 | Estado | Se cura solo | Quién lo recupera |
 |---|---|---|
 | SMTP caído y sin push | sí, el reclamo se libera y la próxima vuelta reintenta | nadie |
-| `SMTP_ADDR` vacío | no: los mails solo se loguean (`LogMailer`) | quien despliega |
+| `SMTP_ADDR` vacío | no: los mails solo se loguean (`LogMailer`) y no cuentan como entregados; sin push, el aviso se libera y se reintenta en cada vuelta | quien despliega |
+| FCM rechaza un token (proyecto distinto, credenciales) | no: se loguea `push: token <prefijo>…: <error>` y el token queda | quien despliega; si el token es de otro proyecto, el alumno vuelve a activar push |
 | `PUSH_PROVIDER` vacío | no: no hay push, el mail sigue | quien despliega |
 | `PUSH_PROVIDER` con un valor desconocido | no: `arbol serve` no arranca | quien despliega |
 
@@ -61,6 +62,6 @@ Los estados en los que backend y el navegador no coinciden están en [reminders]
 
 - `NOTIFY_INTERVAL=off` apaga el loop sin tocar nada más. `arbol notify --any-hour --student s-002` manda uno ya, para probar.
 - Desarrollo: Mailpit de `docker-compose.yml` (`SMTP_ADDR=localhost:1025`, bandeja en http://localhost:8025).
-- No hay dashboard: buscar `notify:` en los logs (`N students nudged`, errores por alumno).
+- No hay dashboard: buscar `notify` en los logs (`N students nudged`, errores por alumno con el canal y el token que falló). `N students nudged` cuenta solo push aceptados por FCM o mails enviados por SMTP; FCM aceptando no garantiza que el navegador lo muestre.
 - Los links (`Notifier.link` y el de "Mi cuenta" en el mail) usan las rutas de `web/src/App.tsx`: `/tutor?subject=<id>`, `/schedule`, `/account`. Si la app renombra una ruta, el link cae en `/` sin error; `TestLink` fija las actuales.
 - Rollback: `NOTIFY_INTERVAL=off` alcanza. La migración `00005_notifications` tiene `Down`, pero no hace falta rollback de imagen.

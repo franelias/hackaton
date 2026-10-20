@@ -52,9 +52,17 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
 ## Estructura
 
 - `src/lib/`: `config.ts` (env), `firebase.ts`, `api.ts` (cliente con token y SSE del chat),
-  `types.ts` (contrato), `queries.ts` (caché de TanStack Query: claves y cliente; lo ya visto se muestra
-  al instante y se refresca por detrás), `session.tsx` (usuario, alumno, plan, árbol y alertas, sobre
+  `types.ts` (contrato), `queries.ts` (caché de TanStack Query: claves, cliente y las queries de cada dato; lo ya
+  visto se muestra al instante y se refresca por detrás), `mutations.ts` (los cambios: el árbol, descartar alertas
+  con actualización optimista, recordatorios; cada uno deja la caché como la tiene el server; las devtools
+  aparecen solo en desarrollo), `session.tsx` (usuario, alumno, plan, árbol y alertas, sobre
   TanStack Query; un `401` lleva al login).
+- UI: Tailwind v4 + shadcn/ui (`components.json`, estilo radix-nova). Los componentes de shadcn están en
+  `src/components/ui/` y son nuestros: ya están ajustados (botones y toggles en píldora, inputs de 40 px).
+  Se agregan con `pnpm dlx shadcn@latest add <componente>`. Los tokens (verde de la marca, estados de las
+  materias, salud, modo oscuro) están en `src/index.css`; el tema claro, oscuro o automático en
+  `src/hooks/use-theme.ts`. Íconos: `lucide-react`. Fuente: Nunito, auto-hospedada con `@fontsource-variable`.
+  `src/components/Page.tsx` tiene el encabezado y los estados de carga y error que usan todas las pantallas.
 - `src/components/TreeView.tsx`: el árbol. Es genérico, sirve para cualquier plan.
   - Forma: cada materia nace de su correlativa del año o cuatrimestre más cercano; el abanico es
     proporcional a lo que sostiene cada rama y el radio sale de año + cuatrimestre.

@@ -165,25 +165,11 @@ func (n *Notifier) student(ctx context.Context, st *db.Student, now time.Time) (
 			continue // already sent
 		}
 		msg := Message{Title: nu.Title, Body: nu.Body, URL: n.link(nu.Action)}
-		var errs []error
-		delivered := false
-		if len(tokens) > 0 {
-			sent, stale, err := n.Push.Push(ctx, tokens, msg)
-			if err != nil {
-				errs = append(errs, fmt.Errorf("push: %w", err))
-			}
-			delivered = sent > 0
-			if len(stale) > 0 {
-				if err := n.DB.Delete(&db.PushToken{}, "token IN ?", stale).Error; err != nil {
-					errs = append(errs, err)
-				}
-			}
-		}
-		if email != "" {
-			if err := n.Mail.Mail(ctx, email, st.Name, msg); err != nil {
-				errs = append(errs, fmt.Errorf("mail: %w", err))
-			} else {
-				delivered = true
+		delivered, stale, err := n.deliver(ctx, tokens, email, st.Name, msg)
+		errs := []error{err}
+		if len(stale) > 0 {
+			if err := n.DB.Delete(&db.PushToken{}, "token IN ?", stale).Error; err != nil {
+				errs = append(errs, err)
 			}
 		}
 		if !delivered {
@@ -196,6 +182,34 @@ func (n *Notifier) student(ctx context.Context, st *db.Student, now time.Time) (
 		return true, errors.Join(errs...)
 	}
 	return false, nil
+}
+
+// deliver sends msg by push to the tokens and by mail to email (when not
+// empty). It is delivered when at least one push or one real mail went out; a
+// mail that LogMailer only logged does not count. It returns the stale tokens
+// to forget and every failure, per token and per channel.
+func (n *Notifier) deliver(ctx context.Context, tokens []string, email, name string, msg Message) (bool, []string, error) {
+	var errs []error
+	var stale []string
+	delivered := false
+	if len(tokens) > 0 {
+		sent, s, err := n.Push.Push(ctx, tokens, msg)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("push: %w", err))
+		}
+		if len(s) > 0 {
+			errs = append(errs, fmt.Errorf("push: %d stale tokens forgotten", len(s)))
+		}
+		delivered, stale = sent > 0, s
+	}
+	if email != "" {
+		if err := n.Mail.Mail(ctx, email, name, msg); err != nil {
+			errs = append(errs, fmt.Errorf("mail: %w", err))
+		} else {
+			delivered = true
+		}
+	}
+	return delivered, stale, errors.Join(errs...)
 }
 
 // link opens the app where the action of a nudge is.

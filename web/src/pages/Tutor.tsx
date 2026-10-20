@@ -1,11 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
-import { keys, queryClient } from '../lib/queries'
+import { conversationQuery, keys, queryClient } from '../lib/queries'
 import { PhotoError, preparePhoto } from '../lib/photo'
 import RichText, { TypedText } from '../components/RichText'
 import { useSession } from '../lib/session'
 import type { ChatMessage } from '../lib/types'
+import { Camera, MessageSquarePlus, Send, Timer, X } from 'lucide-react'
+import { Page, PageHeader } from '@/components/Page'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { cn } from '@/lib/utils'
 
 // The backend has no endpoint to list conversations: the browser keeps the ids the chat returns
 // (with a title and a date) and each one is reloaded with GET /conversations/{id}.
@@ -30,7 +41,6 @@ export default function Tutor() {
   const [sending, setSending] = useState(false)
   // the last reply is typed out only if it arrived now, not when it comes from the history
   const [animating, setAnimating] = useState(false)
-  const [loadingConversation, setLoadingConversation] = useState(false)
   const [exam, setExam] = useState<MockExam | null>(() => load(EXAM_KEY, null))
   const [settingUpExam, setSettingUpExam] = useState(false)
   const [now, setNow] = useState(Date.now())
@@ -48,15 +58,15 @@ export default function Tutor() {
   const scrollDown = useCallback(() => { end.current?.scrollIntoView({ block: 'end' }) }, [])
   useEffect(() => { scrollDown() }, [messages, status, scrollDown])
 
-  // open a saved conversation; if the user switches chats before it arrives, the old reply is dropped.
-  // The conversation just created by sending is already on screen (with the photo): it is not reloaded.
+  // open a saved conversation (a query: what was already seen shows at once, and a late reply for a chat
+  // the user already left is ignored). The conversation just created by sending is already on screen,
+  // with the photo: it is not reloaded until the user opens it again from the list.
   const justCreated = useRef<string | null>(null)
-  useEffect(() => { if (!studentId || !conversation || sending || conversation === justCreated.current) return
-    let current = true
-    setAnimating(false); setMessages([]); setLoadingConversation(true)
-    queryClient.fetchQuery({ queryKey: keys.conversation(studentId, conversation), queryFn: () => api.conversation(studentId, conversation) }).then(r => { if (current) setMessages(r.messages) }).catch(() => { if (current) setMessages([]) })
-      .finally(() => { if (current) setLoadingConversation(false) })
-    return () => { current = false; setLoadingConversation(false) } }, [studentId, conversation]) // eslint-disable-line react-hooks/exhaustive-deps
+  const opened = conversation && conversation !== justCreated.current ? conversation : null
+  const history = useQuery({ ...conversationQuery(studentId ?? '', opened ?? ''), enabled: !!studentId && !!opened && !sending })
+  useEffect(() => { if (!opened) return; setAnimating(false); setMessages(history.data?.messages ?? []) }, [opened, history.data])
+  const loadingConversation = !!opened && history.isPending
+  const open = (id: string) => { if (id === conversation) return; justCreated.current = null; setConversation(id) }
 
   const send = useCallback(async (msg: string, opts: { fresh?: boolean; mockExam?: boolean; image?: string | null } = {}) => {
     msg = msg.trim(); const image = opts.image ?? null; if ((!msg && !image) || !studentId || sending) return
@@ -97,84 +107,120 @@ export default function Tutor() {
     send(inTime ? 'Terminé el simulacro. Corregime las respuestas que te mandé y poneme una nota de 0 a 100.' : 'Se terminó el tiempo del simulacro. Corregime lo que te mandé y poneme una nota de 0 a 100.') }
 
   const suggestions = ['¿Qué temas se toman más en el parcial?', 'Dame un ejercicio de un parcial viejo', 'Armemos un plan hasta el parcial']
+  const bubble = 'max-w-[85%] rounded-2xl px-4 py-3 break-words bubble-in'
   const chat = (
     <>
-      <div className="chat" aria-busy={loadingConversation}>
-        {loadingConversation && <div className="skeletons" role="status" aria-label="Cargando la conversación">{['user', 'assistant', 'user', 'assistant'].map((r, i) => <div key={i} className={`bubble ${r} skeleton`} />)}</div>}
-        {messages.length === 0 && !exam && !loadingConversation && <div className="empty"><p>¿Por dónde arrancamos?</p><div className="suggestions">{suggestions.map(s => <button key={s} onClick={() => setText(s)}>{s}</button>)}</div></div>}
-        {messages.map((m, i) => m.text || m.role === 'user' ? <div key={i} className={`bubble ${m.role}`}>{m.role === 'user' ? <>{m.image && <img className="message-photo" src={m.image} alt="Foto del ejercicio" />}{m.text || (!m.image && <span className="photo-placeholder">Foto de un ejercicio</span>)}</>
-          : animating && i === messages.length - 1 ? <TypedText text={m.text} onGrow={scrollDown} onDone={() => setAnimating(false)} /> : <RichText text={m.text} />}</div> : null)}
-        {status && <div className="tutor-status" role="status"><i /><span key={status}>{status}</span></div>}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-1" aria-busy={loadingConversation}>
+        {loadingConversation && <div className="flex flex-col gap-3" role="status" aria-label="Cargando la conversación">
+          {['user', 'assistant', 'user', 'assistant'].map((r, i) => <Skeleton key={i} className={cn('rounded-2xl', r === 'user' ? 'h-11 w-2/5 self-end' : 'h-24 w-3/4')} />)}</div>}
+        {messages.length === 0 && !exam && !loadingConversation && <div className="m-auto flex max-w-lg flex-col items-center gap-4 px-2 text-center">
+          <p className="text-lg font-extrabold">¿Por dónde arrancamos?</p>
+          <p className="text-sm text-muted-foreground">Escribí tu duda o sacale una foto al ejercicio. También podés empezar por una de estas:</p>
+          <div className="flex flex-wrap justify-center gap-2">{suggestions.map(s => <Button key={s} variant="outline" size="sm" onClick={() => setText(s)}>{s}</Button>)}</div>
+        </div>}
+        {messages.map((m, i) => m.text || m.role === 'user' ? (m.role === 'user'
+          ? <div key={i} className={cn(bubble, 'self-end rounded-br-md bg-primary whitespace-pre-wrap text-primary-foreground', m.image && 'w-fit p-1.5')}>
+              {m.image && <img className="mb-1 block max-h-72 max-w-[min(320px,100%)] rounded-xl bg-card" src={m.image} alt="Foto del ejercicio" />}
+              {m.text ? <span className={cn(m.image && 'inline-block px-2 pt-1 pb-0.5')}>{m.text}</span> : !m.image && <span className="italic opacity-85">Foto de un ejercicio</span>}
+            </div>
+          : <div key={i} className={cn(bubble, 'rich self-start rounded-bl-md border bg-card')}>
+              {animating && i === messages.length - 1 ? <TypedText text={m.text} onGrow={scrollDown} onDone={() => setAnimating(false)} /> : <RichText text={m.text} />}
+            </div>) : null)}
+        {status && <div className="flex items-center gap-2 self-start text-sm font-bold text-muted-foreground" role="status"><i className="pulse-dot size-2.5 rounded-full bg-primary" /><span key={status} className="shimmer-text">{status}</span></div>}
         <div ref={end} />
       </div>
-      <form className={`composer${dragging ? ' dropping' : ''}`} onSubmit={submit}
+      <form className={cn('flex flex-col gap-2 rounded-2xl border bg-card p-2 outline-2 outline-offset-4 outline-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30', dragging && 'border-dashed border-primary bg-accent')} onSubmit={submit}
         onDragOver={e => { if ([...e.dataTransfer.items].some(i => i.kind === 'file')) { e.preventDefault(); setDragging(true) } }}
         onDragLeave={() => setDragging(false)}
         onDrop={e => { e.preventDefault(); setDragging(false); attach(e.dataTransfer.files[0]) }}>
-        {(photo || preparing || photoError) && <div className="attachment">
-          {preparing && <span className="hint">Preparando la foto…</span>}
-          {photo && <><img src={photo} alt="Foto que vas a mandar" /><button type="button" className="remove-photo" onClick={() => setPhoto(null)} aria-label="Sacar la foto">×</button></>}
-          {photoError && <span className="error" role="alert">{photoError}</span>}
+        {(photo || preparing || photoError) && <div className="flex items-center gap-3 px-1 pt-1">
+          {preparing && <Skeleton className="h-20 w-32 rounded-xl" aria-label="Preparando la foto" />}
+          {photo && <div className="relative"><img src={photo} alt="Foto que vas a mandar" className="h-20 max-w-40 rounded-xl border object-cover" />
+            <Button type="button" variant="outline" size="icon-xs" className="absolute -top-2 -right-2 bg-card" onClick={() => setPhoto(null)} aria-label="Sacar la foto"><X /></Button></div>}
+          {photoError && <span className="text-sm font-semibold text-destructive" role="alert">{photoError}</span>}
         </div>}
-        <div className="composer-row">
-          <button type="button" className="btn secondary attach" onClick={() => picker.current?.click()} disabled={sending || preparing} aria-label="Adjuntar una foto del ejercicio" title="Adjuntar una foto (también podés pegarla o arrastrarla)">
-            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h2l1.2-1.6h4.6L13.5 5h2A1.5 1.5 0 0 1 17 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><circle cx="10" cy="10.5" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
-          </button>
+        <Textarea value={text} onChange={e => setText(e.target.value)} placeholder={exam ? 'Escribí tus respuestas o sacale una foto a tu hoja…' : 'Escribí tu duda, pegá un ejercicio o una captura…'} rows={exam ? 4 : 2} maxLength={8000}
+          className="max-h-60 min-h-12 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+          onPaste={e => { const f = [...e.clipboardData.files].find(x => x.type.startsWith('image/')); if (f) { e.preventDefault(); attach(f) } }}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !exam) { e.preventDefault(); submit() } }} aria-label="Mensaje para el tutor" />
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" size="icon" onClick={() => picker.current?.click()} disabled={sending || preparing} aria-label="Adjuntar una foto del ejercicio" title="Adjuntar una foto (también podés pegarla o arrastrarla)"><Camera /></Button>
           <input ref={picker} type="file" accept="image/*" hidden onChange={e => { attach(e.target.files?.[0]); e.target.value = '' }} />
-          <textarea value={text} onChange={e => setText(e.target.value)} placeholder={exam ? 'Escribí tus respuestas o sacale una foto a tu hoja…' : 'Escribí tu duda, pegá un ejercicio o una captura…'} rows={exam ? 4 : 2} maxLength={8000}
-            onPaste={e => { const f = [...e.clipboardData.files].find(x => x.type.startsWith('image/')); if (f) { e.preventDefault(); attach(f) } }}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !exam) { e.preventDefault(); submit() } }} aria-label="Mensaje para el tutor" />
-          <button className="btn" disabled={(!text.trim() && !photo) || sending || preparing}>Enviar</button>
+          <Button disabled={(!text.trim() && !photo) || sending || preparing}>Enviar<Send data-icon="inline-end" /></Button>
         </div>
       </form>
     </>
   )
 
   if (exam) return (
-    <div className="mock-exam">
-      <header className="exam-bar">
-        <div><b>Simulacro · {exam.subject}</b><span>{exam.minutes} minutos</span></div>
-        <div className={`clock ${remaining <= 0 ? 'over' : remaining < 5 * 60000 ? 'low' : ''}`} role="timer" aria-live="off">{remaining > 0 ? clock(remaining) : 'Tiempo'}</div>
-        <div className="button-row"><button className="btn" onClick={handIn} disabled={sending}>Entregar</button>
-          <button className="link" onClick={() => setExam(null)}>Salir sin entregar</button></div>
-        <div className="progress"><i style={{ width: `${Math.min(100, 100 - (remaining / (exam.minutes * 600)))}%` }} /></div>
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <header className="relative grid grid-cols-[1fr_auto] items-center gap-3 border-b bg-card px-4 py-3 md:grid-cols-[1fr_auto_1fr] md:px-7">
+        <div className="min-w-0"><b className="block truncate text-base">Simulacro: {exam.subject}</b><span className="text-sm text-muted-foreground">{exam.minutes} minutos</span></div>
+        <div className={cn('text-3xl font-extrabold tabular-nums md:text-4xl', remaining <= 0 ? 'text-destructive' : remaining < 5 * 60000 && 'text-warning-foreground')} role="timer" aria-live="off">{remaining > 0 ? clock(remaining) : 'Tiempo'}</div>
+        <div className="col-span-2 flex items-center gap-2 md:col-span-1 md:justify-self-end">
+          <Button onClick={handIn} disabled={sending}>Entregar</Button>
+          <Button variant="ghost" onClick={() => setExam(null)}>Salir sin entregar</Button>
+        </div>
+        <div className="absolute inset-x-0 -bottom-px h-1 bg-border"><i className="block h-full bg-primary transition-[width] duration-1000 ease-linear" style={{ width: `${Math.min(100, 100 - (remaining / (exam.minutes * 600)))}%` }} /></div>
       </header>
-      {remaining <= 0 && <p className="notice">Se terminó el tiempo. Mandá lo que tengas y tocá Entregar para que el tutor lo corrija.</p>}
-      <div className="exam-body">{chat}</div>
+      {remaining <= 0 && <p role="status" className="mx-4 mt-3 rounded-xl bg-warning px-4 py-2.5 text-sm font-bold text-warning-foreground md:mx-7">Se terminó el tiempo. Mandá lo que tengas y tocá Entregar para que el tutor lo corrija.</p>}
+      <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-3 px-4 pt-4 pb-6">{chat}</div>
     </div>
   )
 
   return (
-    <div className="page tutor">
-      <header className="greeting"><div><h1>Tutor</h1><p>Practicá con ejercicios de parciales reales de la FCEIA. Te da pistas antes que la solución.</p></div>
-        <button className="btn secondary" onClick={() => setSettingUpExam(true)}>Hacer un simulacro</button></header>
-      {settingUpExam && <MockExamForm subjects={examSubjects.map(s => s.name)} initial={subject?.name} onStart={startExam} onCancel={() => setSettingUpExam(false)} />}
-      <div className="tutor-body">
-        <aside className="conversations" aria-label="Conversaciones">
-          <button className="btn full" onClick={newConversation}>Conversación nueva</button>
-          {list.length === 0 && <p className="hint">Tus conversaciones van a aparecer acá.</p>}
-          <ul>{list.map(c => (
-            <li key={c.id} className={c.id === conversation ? 'on' : ''}>
-              <button onClick={() => setConversation(c.id)}><b>{c.title}</b><span>{c.mockExam ? 'Simulacro · ' : ''}{when(c.date)}</span></button>
-              <button className="remove" aria-label={`Quitar "${c.title}" de la lista`} onClick={() => remove(c.id)}>×</button>
+    <Page className="h-[calc(100dvh-3.5rem)] gap-5 md:h-dvh">
+      <PageHeader title="Tutor" description="Practicá con ejercicios de parciales reales de la FCEIA. Te da pistas antes que la solución.">
+        <Button variant="outline" onClick={() => setSettingUpExam(true)}><Timer data-icon="inline-start" />Hacer un simulacro</Button>
+      </PageHeader>
+      <MockExamForm key={settingUpExam ? `open-${subject?.subject_id ?? ""}` : "closed"} open={settingUpExam} subjects={examSubjects.map(s => s.name)} initial={subject?.name} onStart={startExam} onCancel={() => setSettingUpExam(false)} />
+      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1 md:gap-6">
+        <aside className="flex max-h-40 min-h-0 flex-col gap-2 md:max-h-none" aria-label="Conversaciones">
+          <Button variant="secondary" className="w-full justify-start" onClick={newConversation}><MessageSquarePlus data-icon="inline-start" />Conversación nueva</Button>
+          {list.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">Tus conversaciones van a aparecer acá.</p>}
+          <ul className="flex min-h-0 flex-col gap-0.5 overflow-y-auto">{list.map(c => (
+            <li key={c.id} className={cn('group flex items-stretch rounded-xl hover:bg-muted', c.id === conversation && 'bg-accent hover:bg-accent')}>
+              <button className="min-w-0 flex-1 rounded-xl px-3 py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50" onClick={() => open(c.id)} aria-current={c.id === conversation || undefined}>
+                <b className="block truncate text-sm">{c.title}</b><span className="text-xs text-muted-foreground">{c.mockExam ? 'Simulacro, ' : ''}{when(c.date)}</span></button>
+              <Button variant="ghost" size="icon-sm" className="my-auto mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" aria-label={`Quitar "${c.title}" de la lista`} onClick={() => remove(c.id)}><X /></Button>
             </li>))}</ul>
         </aside>
-        <section className="conversation">{chat}</section>
+        <section className="flex min-h-0 flex-col gap-3">{chat}</section>
       </div>
-    </div>
+    </Page>
   )
 }
 
-function MockExamForm({ subjects, initial, onStart, onCancel }: { subjects: string[]; initial?: string; onStart: (subject: string, minutes: number) => void; onCancel: () => void }) {
+function MockExamForm({ open, subjects, initial, onStart, onCancel }: { open: boolean; subjects: string[]; initial?: string; onStart: (subject: string, minutes: number) => void; onCancel: () => void }) {
   const [subject, setSubject] = useState(initial && subjects.includes(initial) ? initial : subjects[0] ?? '')
   const [minutes, setMinutes] = useState(90)
   return (
-    <form className="card exam-form" onSubmit={e => { e.preventDefault(); if (subject) onStart(subject, minutes) }}>
-      <h2>Simulacro de parcial</h2>
-      <p className="hint">El tutor arma un parcial al estilo de la cátedra y corre el reloj. Al entregar, te lo corrige.</p>
-      <label>Materia<select value={subject} onChange={e => setSubject(e.target.value)}>{subjects.map(o => <option key={o}>{o}</option>)}</select></label>
-      <div><span className="label">Tiempo</span><div className="segmented">{[30, 60, 90, 120].map(m => <button type="button" key={m} className={minutes === m ? 'on' : ''} onClick={() => setMinutes(m)}>{m} min</button>)}</div></div>
-      <div className="button-row"><button className="btn" disabled={!subject}>Empezar</button><button type="button" className="link" onClick={onCancel}>Cancelar</button></div>
-    </form>
+    <Dialog open={open} onOpenChange={o => { if (!o) onCancel() }}>
+      <DialogContent className="rounded-2xl sm:max-w-md">
+        <form className="flex flex-col gap-5" onSubmit={e => { e.preventDefault(); if (subject) onStart(subject, minutes) }}>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold">Simulacro de parcial</DialogTitle>
+            <DialogDescription>El tutor arma un parcial al estilo de la cátedra y corre el reloj. Al entregar, te lo corrige.</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="exam-subject">Materia</Label>
+            {subjects.length ? <Select value={subject} onValueChange={setSubject}>
+              <SelectTrigger id="exam-subject" className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>{subjects.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+            </Select> : <p className="text-sm text-muted-foreground">Marcá en tu árbol qué materias estás cursando para poder hacer un simulacro.</p>}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>Tiempo</Label>
+            <ToggleGroup type="single" variant="outline" size="sm" spacing={1} aria-label="Tiempo" value={String(minutes)} onValueChange={v => { if (v) setMinutes(Number(v)) }}>
+              {[30, 60, 90, 120].map(m => <ToggleGroupItem key={m} value={String(m)}>{m} min</ToggleGroupItem>)}
+            </ToggleGroup>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
+            <Button disabled={!subject}>Empezar</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

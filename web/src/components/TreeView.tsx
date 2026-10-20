@@ -27,7 +27,7 @@ export const shortName = (n: string) => {
     .replace('Ingeniería de Software', 'Ing. de Software').replace('Introducción a la', 'Intro. a la').replace('Sistemas Operativos', 'Sist. Operativos')
   return s.length > 24 ? s.slice(0, 22).trimEnd() + '…' : s
 }
-const measure = (() => { const c = document.createElement('canvas').getContext('2d')!; return (t: string, size = 11) => { c.font = `700 ${size}px Nunito`; return c.measureText(t).width } })()
+const measure = (() => { const c = document.createElement('canvas').getContext('2d')!; return (t: string, size = 11) => { c.font = `700 ${size}px 'Nunito Variable'`; return c.measureText(t).width } })()
 const leafPath = (x: number, y: number, rot: number, k: number, col: string, op = 1) => `<path d="M0 -8C5.5 -4.5 5.5 4.5 0 9C-5.5 4.5 -5.5 -4.5 0 -8Z" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot.toFixed(0)}) scale(${k.toFixed(2)})" fill="${col}" opacity="${op}"/>`
 const PILL: Record<SubjectState, [string, string, string]> = { approved: ['#e8f0df', '#bfd3ac', '#2b2a22'], regular: ['#fbecc9', '#efcf86', '#2b2a22'], enrolled: ['#e4edf6', '#b9cde2', '#2b2a22'], available: ['#ffffff', '#cfd8c4', '#3d4a37'], locked: ['#f6f5f0', '#dcdcd4', '#8a867a'] }
 
@@ -149,7 +149,7 @@ export default function TreeView({ plan, tree, selected, onSelect }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, KX])
 
-  return <svg ref={svgRef} className="tree-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Árbol del plan de estudios"
+  return <svg ref={svgRef} className="tree-svg block h-auto w-full" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Árbol del plan de estudios"
     onClick={ev => { const g = (ev.target as Element).closest('.node') as SVGGElement | null; const id = g ? Number(g.dataset.id) : null; onSelect(id === selected ? null : id) }}
     onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { const g = (ev.target as Element).closest('.node') as SVGGElement | null; if (g) { ev.preventDefault(); onSelect(Number(g.dataset.id)) } } }} />
 }
