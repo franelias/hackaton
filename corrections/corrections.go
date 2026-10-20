@@ -36,13 +36,10 @@ type Overrides struct {
 
 type Subject struct {
 	Year *int `json:"year"`
-	Term *int `json:"term"`
+	Term *int `json:"term"` // absolute cuatrimestre in the career, 1..10
 	// Elective turns a subject into an optional one (its hours are elective).
-	Elective *bool `json:"elective"`
-	// FinalGoal marks the subject the whole career leads to (the Tesina): it
-	// stays out of the correlativa graph.
-	FinalGoal bool   `json:"final_goal"`
-	Note      string `json:"note"`
+	Elective *bool  `json:"elective"`
+	Note     string `json:"note"`
 }
 
 type Edit struct {
@@ -143,6 +140,75 @@ func (o Overrides) Unlocks(subjectID int, api []int) []int {
 	}
 	sort.Ints(out)
 	return out
+}
+
+// Graph applies the corrections to every subject's correlativas (api, keyed
+// by subject_id) and keeps only the direct ones: a correlativa already implied
+// by another one is dropped, since passing the other one requires it anyway.
+func (o Overrides) Graph(api map[int][]Requirement) map[int][]Requirement {
+	g := map[int][]Requirement{}
+	for id, reqs := range api {
+		g[id] = o.Prerequisites(id, reqs)
+	}
+	for _, e := range o.AddPrerequisites {
+		if _, ok := g[e.SubjectID]; !ok {
+			g[e.SubjectID] = o.Prerequisites(e.SubjectID, nil)
+		}
+	}
+	return Reduce(g)
+}
+
+// Reduce drops the correlativas implied by others. C's correlativa A is
+// implied when another correlativa B of C, which C needs approved, guarantees
+// A at least as strongly: approving B already required A. Only approved links
+// are followed further back, since a regular subject guarantees nothing about
+// its own correlativas.
+func Reduce(g map[int][]Requirement) map[int][]Requirement {
+	out := map[int][]Requirement{}
+	for id, reqs := range g {
+		implied := map[int]string{} // subject -> strongest guaranteed condition
+		for _, b := range reqs {
+			if b.Condition == Approved {
+				guaranteed(g, b.SubjectID, implied, map[int]bool{})
+			}
+		}
+		kept := []Requirement{}
+		for _, r := range reqs {
+			if c, ok := implied[r.SubjectID]; ok && (c == Approved || r.Condition == Regular) {
+				continue
+			}
+			kept = append(kept, r)
+		}
+		out[id] = kept
+	}
+	return out
+}
+
+// guaranteed records what an approved subject guarantees about the subjects
+// before it.
+func guaranteed(g map[int][]Requirement, approved int, implied map[int]string, seen map[int]bool) {
+	if seen[approved] {
+		return
+	}
+	seen[approved] = true
+	for _, r := range g[approved] {
+		if implied[r.SubjectID] != Approved {
+			implied[r.SubjectID] = r.Condition
+		}
+		if r.Condition == Approved {
+			guaranteed(g, r.SubjectID, implied, seen)
+		}
+	}
+}
+
+// TermOfYear turns the API's absolute cuatrimestre (1..10) into 1 or 2
+// within the year.
+func TermOfYear(term *int) *int {
+	if term == nil || *term <= 0 {
+		return nil
+	}
+	t := (*term-1)%2 + 1
+	return &t
 }
 
 // Validate checks the review against what the API returned: every subject

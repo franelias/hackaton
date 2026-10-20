@@ -49,22 +49,6 @@
       "year": 5,
       "term": 9,
       "note": "Plan de Estudios LCC (Res. CD 850/2023), sección 6: R-512 Práctica Profesional está en 5.º año, 1.º cuatrimestre: es una actividad de 200 h más un seminario de 50 h, sin orden fijo ni correlativas"
-    },
-    "197": {
-      "elective": true,
-      "note": "Optativa I no es una materia del plan: el plan oficial solo prevé 225 horas electivas (75 h en 5.º año 1.º cuatrimestre y 150 h en el 2.º)"
-    },
-    "198": {
-      "elective": true,
-      "note": "Optativa II no es una materia del plan: el plan oficial solo prevé 225 horas electivas (75 h en 5.º año 1.º cuatrimestre y 150 h en el 2.º)"
-    },
-    "199": {
-      "elective": true,
-      "note": "Optativa III no es una materia del plan: el plan oficial solo prevé 225 horas electivas (75 h en 5.º año 1.º cuatrimestre y 150 h en el 2.º)"
-    },
-    "31": {
-      "final_goal": true,
-      "note": "R-521 Tesina es el objetivo final: para presentarla hay que tener aprobadas todas las otras asignaturas (Reglamento de la Tesina). Queda fuera del grafo de correlativas"
     }
   },
   "add_prerequisites": [
@@ -73,6 +57,480 @@
       "requires": 15,
       "condition": "approved",
       "note": "Programa 2024 de la materia, Espacios Curriculares Relacionados: Previos Aprobados de R-322 Análisis de Lenguajes = R-223 Lógica, R-312 EDA II"
+    },
+    {
+      "subject_id": 28,
+      "requires": 1,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 2,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 3,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 4,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 5,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 6,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 7,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 8,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 9,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 10,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 12,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 13,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 15,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 16,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 17,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 18,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 19,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 20,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 21,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 22,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 23,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 24,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 28,
+      "requires": 25,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-513 Práctica Profesional"
+    },
+    {
+      "subject_id": 29,
+      "requires": 1,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 2,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 3,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 4,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 5,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 6,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 7,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 8,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 9,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 10,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 12,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 13,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 15,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 16,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 17,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 18,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 19,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 20,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 21,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 22,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 23,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 24,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 29,
+      "requires": 25,
+      "condition": "approved",
+      "note": "SIU Guaraní: correlativas de R-514 Taller de Tesina"
+    },
+    {
+      "subject_id": 31,
+      "requires": 1,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 2,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 3,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 4,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 5,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 6,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 7,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 8,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 9,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 10,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 11,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 12,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 13,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 14,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 15,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 16,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 17,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 18,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 19,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 20,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 21,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 22,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 23,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 24,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 25,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 26,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 27,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 28,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 29,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 30,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 197,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 198,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
+    },
+    {
+      "subject_id": 31,
+      "requires": 199,
+      "condition": "approved",
+      "note": "SIU Guaraní: R-523 Tesina requiere todas las asignaturas obligatorias y las tres optativas aprobadas"
     }
   ],
   "remove_prerequisites": [

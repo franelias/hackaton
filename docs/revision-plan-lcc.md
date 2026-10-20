@@ -37,11 +37,27 @@ Issue #5. Las correcciones viven en `corrections/data/career_1.json` (módulo `c
 
 Sistemas Operativos II y Análisis de Lenguajes figuran en los programas solo como "simultáneos recomendados", no como correlativas.
 
+## Correlativas del SIU Guaraní (issue #33)
+
+Los programas 2024 no tienen correlativas para Práctica Profesional, Taller de Tesina ni Tesina. Se cargaron las del SIU Guaraní:
+
+| Materia | Correlativas cargadas | Directas, después de reducir |
+|---|---|---|
+| Práctica Profesional (R-513) | 23: Álgebra I y II, Álgebra Lineal, Análisis I y II, Análisis de Lenguajes, Complementos I, Comunicaciones, EDA I y II, Inglés, Ingeniería de Software I y II, Inteligencia Artificial, Lenguajes Formales, Lógica, Métodos Numéricos, Modelos Físicos, Programación I y II, Sistemas Operativos I y II, Teoría de Base de Datos | Lenguajes Formales, Métodos Numéricos, Análisis de Lenguajes, Modelos Físicos, Comunicaciones, Sistemas Operativos II, Inteligencia Artificial, Ingeniería de Software II |
+| Taller de Tesina (R-514) | Las mismas 23 | Las mismas 8 |
+| Tesina (R-523) | Las 30 obligatorias restantes y Optativa I, II y III | Compiladores, Complementos II, Práctica Profesional, Taller de Tesina, Seguridad Informática, Optativa I, II y III |
+
+## Solo correlativas directas
+
+Si C depende de A y de B, y B depende de A, no se guarda que C depende de A: es implícito, porque para aprobar B hay que tener A. La reducción la hace `corrections.Graph` después de aplicar las correcciones, y la usan el plan y las tools del MCP (`prerequisites`, `build_schedule`), así los dos muestran las mismas correlativas. Una correlativa se considera implícita solo si otra materia que se pide **aprobada** la garantiza; una que se pide regular no garantiza las de más atrás.
+
+En los datos de la API sobraban 4: EDA II ← EDA I (implícita por Complementos I), Inteligencia Artificial ← Lógica y ← EDA II (implícitas por Teoría de Base de Datos) y Compiladores ← EDA II (implícita por Análisis de Lenguajes). Con las del SIU Guaraní, se reducen también las de Práctica Profesional, Taller de Tesina y Tesina.
+
 ## Otras decisiones
 
-- **Optativa I, II y III** no son materias: el plan solo prevé 225 h electivas (75 h en 5.º año 1.er cuat. y 150 h en el 2.º). Pasan a electivas (`optional`).
-- **Práctica Profesional** es una actividad de 200 h más un seminario de 50 h, sin orden fijo ni correlativas: queda en 5.º año 1.er cuatrimestre.
-- **Tesina** es el objetivo final: para presentarla hay que tener aprobadas todas las otras asignaturas. Queda **fuera del grafo** (`final_goal` en el plan, con `requires_all: true`): si dependiera de las 29 materias, todas sumarían +1 en `unlocks_total`. No cuenta en `min_terms`.
+- **Optativa I, II y III** son los tres espacios de horas electivas del plan (225 h: 75 h en 5.º año 1.er cuat. y 150 h en el 2.º). Son **obligatorias, sin correlativas**: la Tesina depende de ellas (issue #33). Antes se marcaban como electivas.
+- **Práctica Profesional** es una actividad de 200 h más un seminario de 50 h: queda en 5.º año 1.er cuatrimestre. Sus correlativas salen del SIU Guaraní (abajo).
+- **Tesina** es la última materia: depende de todas las obligatorias y de las tres optativas (SIU Guaraní). Está **dentro del grafo** como una materia más, así que suma en `unlocks_total` y cierra el camino crítico. Antes quedaba aparte, en `final_goal`.
 - **Códigos**: la API tiene Sistemas Operativos I como `r322` y Análisis de Lenguajes como `r313`; el plan y los programas 2024 dicen lo contrario (R-313 SO I, R-322 Análisis de Lenguajes). El PDF de mesas de la facultad usa los de la API, así que la inconsistencia es de la facultad y no de la API. No se tocan: el código es la identidad de la materia en la API.
 - **Electivas**: de las 7, cinco tienen programa. Construcción Formal de Programas en Teoría de Tipos pide Lógica y Análisis de Lenguajes (la API no tiene esa correlativa); las otras no tienen previos, y Bases de Datos Avanzadas y Simulación de Sistemas Continuos no tienen programa. No se corrigen: son opcionales y quedan fuera del grafo base.
 

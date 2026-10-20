@@ -137,6 +137,39 @@ func TestSearchSubjectFindsLogicaWithoutAccents(t *testing.T) {
 	}
 }
 
+func TestSearchSubjectReturnsTheReviewedYearAndTermWithinTheYear(t *testing.T) {
+	t.Parallel()
+	api := stubAPI(t, map[string]string{
+		"/subjects?career_id=1&limit=100&offset=0&q=software": "subjects_software.json",
+		"/subjects?career_id=1&limit=100&offset=0&q=logica":   "subjects_logica.json",
+	})
+	cs := connect(t, api.URL, nil)
+	type found struct {
+		Subjects []struct {
+			SubjectID int  `json:"subject_id"`
+			Year      *int `json:"year"`
+			Term      *int `json:"term"`
+		} `json:"subjects"`
+	}
+	slot := func(name string) map[int][2]int {
+		out := map[int][2]int{}
+		for _, s := range ok[found](t, cs, "search_subject", map[string]any{"name": name, "career_id": 1}).Subjects {
+			out[s.SubjectID] = [2]int{*s.Year, *s.Term}
+		}
+		return out
+	}
+
+	// The API says Ingeniería de Software I is 1st year, absolute term 2; the plan says 4th year, 1st term.
+	// Ingeniería de Software II is not corrected: absolute term 8 is the 2nd term of the 4th year.
+	if got := slot("software"); got[22] != [2]int{4, 1} || got[25] != [2]int{4, 2} {
+		t.Fatalf("software: %v", got)
+	}
+	// Lógica: absolute term 4 is the 2nd term of the 2nd year.
+	if got := slot("logica"); got[12] != [2]int{2, 2} {
+		t.Fatalf("logica: %v", got)
+	}
+}
+
 func TestSearchSubjectRejectsEmptyName(t *testing.T) {
 	t.Parallel()
 	cs := connect(t, stubAPI(t, nil).URL, nil)
@@ -372,6 +405,15 @@ func TestPrerequisitesTreatNullRequirementAsApproved(t *testing.T) {
 	api := stubAPI(t, map[string]string{
 		"/subjects/55":           "subject55.json",
 		"/subjects/55/relations": "relations_s55.json",
+		// Reducing to direct correlativas reads what comes before and after Cálculo II.
+		"/subjects/50/relations": "relations_s50.json",
+		"/subjects/51/relations": "relations_s51.json",
+		"/subjects/52/relations": "relations_s52.json",
+		"/subjects/56/relations": "relations_s56.json",
+		"/subjects/59/relations": "relations_s59.json",
+		"/subjects/61/relations": "relations_s61.json",
+		"/subjects/62/relations": "relations_s62.json",
+		"/subjects/66/relations": "relations_s66.json",
 	})
 	cs := connect(t, api.URL, nil)
 

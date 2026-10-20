@@ -26,7 +26,7 @@ Rechazado:
 
 ## Contract
 
-**In:** JSON con `subjects` (`year`, `term`, `elective`, `final_goal`, `note`), `add_prerequisites` y `remove_prerequisites` (`subject_id`, `requires`, `condition`, `note`). Campos desconocidos son error.
+**In:** JSON con `subjects` (`year`, `term`, `elective`, `note`), `add_prerequisites` y `remove_prerequisites` (`subject_id`, `requires`, `condition`, `note`). Campos desconocidos son error.
 
 **Quién depende:** `backend` (`plan.Generate`, vía `arbol plan`) y `fceia` (`tools/relations.go`). Los dos lo importan con `replace … => ../corrections`, así que cualquier build necesita la raíz del repo como contexto.
 
@@ -39,7 +39,8 @@ Lo que garantiza este módulo:
 - Aplicar los overrides es idempotente (`Prerequisites`, `Unlocks`): quitar una correlativa que no está o agregar una que ya está no cambia nada. Por eso `fceia` los aplica sin validar.
 - `Validate` corre en `arbol plan` y falla si una materia del override no está en la carrera, si se borra una correlativa que la API no tiene, o si `condition` no es `approved` ni `regular`.
 - `condition` vacía es `approved`.
-- La Tesina (`final_goal`) sale del grafo de correlativas: no cuenta en `min_terms` ni en `unlocks_total`.
+- `Graph` aplica los overrides a toda la carrera y deja solo las correlativas directas (`Reduce`): si C pide A y B, y B pide A, C se queda con B. Solo cuenta como implícita una correlativa garantizada por otra que se pide aprobada. El plan y las tools del MCP usan la misma reducción.
+- La Tesina es una materia más del grafo: depende de todas las obligatorias y las optativas.
 
 Evidencia y cómo repetir la revisión: [revision-plan-lcc](../../../docs/revision-plan-lcc.md).
 

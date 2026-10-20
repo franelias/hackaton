@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/pressly/goose/v3"
-
-	"github.com/franelias/hackaton/backend/internal/plan"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -61,8 +59,7 @@ type Career struct {
 	ID           int    `gorm:"primaryKey;autoIncrement:false"`
 	Name         string
 	MinTerms     int
-	CriticalPath []int           `gorm:"serializer:json"`
-	FinalGoal    *plan.FinalGoal `gorm:"serializer:json"`
+	CriticalPath []int `gorm:"serializer:json"`
 }
 
 type Subject struct {
