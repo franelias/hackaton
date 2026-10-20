@@ -76,6 +76,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   text: string
   created_at?: string
+  // solo en la app: la foto que mandó el alumno en esta sesión (el historial del backend no la devuelve)
+  imagen?: string
 }
 
 export interface ScheduleClass { day: number; from: string; to: string; campus?: string; room?: string; end_estimated?: boolean }

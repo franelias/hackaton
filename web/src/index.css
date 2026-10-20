@@ -215,3 +215,17 @@ legend { font-weight: 800; font-size: 18px; margin-bottom: 6px; }
 }
 .tarjeta > .btn { align-self: flex-start; }
 .burbuja.assistant { white-space: normal; } .burbuja p + p, .burbuja ul, .burbuja ol { margin-top: 8px; } .burbuja ul, .burbuja ol { padding-left: 20px; margin-bottom: 0; } .burbuja code { background: #f3f2ec; border-radius: 6px; padding: 1px 5px; font-size: .92em; }
+
+/* tutor: adjuntar foto */
+.escribir { flex-direction: column; align-items: stretch; gap: 8px; border-radius: 18px; transition: background .15s, outline-color .15s; outline: 2px dashed transparent; outline-offset: 4px; }
+.escribir.soltar { outline-color: var(--verde); background: var(--verde-claro); }
+.fila-escribir { display: flex; gap: 10px; align-items: flex-end; }
+.fila-escribir textarea { flex: 1; resize: none; }
+.btn.clip { width: 44px; padding: 0; height: 44px; flex: none; }
+.adjunto { display: flex; align-items: center; gap: 10px; position: relative; }
+.adjunto img { height: 84px; max-width: 160px; object-fit: cover; border-radius: 12px; border: 1px solid var(--borde); }
+.quitar-foto { position: absolute; left: 146px; top: -8px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--borde); background: #fff; font-size: 16px; line-height: 1; cursor: pointer; }
+.foto-msg { display: block; max-width: min(320px, 100%); max-height: 280px; border-radius: 12px; margin-bottom: 6px; background: #fff; }
+.sin-foto { font-style: italic; opacity: .85; }
+.burbuja.user:has(.foto-msg) { padding: 6px; width: fit-content; }
+.burbuja.user .foto-msg + * , .burbuja.user .foto-msg ~ span { padding: 4px 8px 2px; display: inline-block; }

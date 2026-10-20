@@ -90,7 +90,7 @@ Notas:
 ## Pendientes
 
 1. Probar el tutor con `OPENROUTER_API_KEY` y el login con el proyecto real de Firebase.
-2. Tutor: subir foto (`image_base64`, máx. 5 MB). Markdown básico y LaTeX con KaTeX ya están (`src/components/Texto.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TextoQueAparece` la muestra de a poco con un fundido por palabra.
+2. Tutor: la foto ya está (`src/lib/imagen.ts`: botón con cámara en el celular, pegar con Ctrl+V o arrastrar; se achica a 1600 px en JPEG antes de mandarla; el historial del backend no la guarda, así que al reabrir la conversación se ve "Foto de un ejercicio"). Markdown básico y LaTeX con KaTeX ya están (`src/components/Texto.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TextoQueAparece` la muestra de a poco con un fundido por palabra.
 3. Pantalla Fechas: el backend no la expone; hace falta un endpoint, o mostrar los `exam` cargados.
 4. Optativas: dejar elegirlas (`optional: true`) para que entren al árbol.
 5. Celular: barra inferior y zoom o lista para el árbol; lista accesible del árbol.

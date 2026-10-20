@@ -31,14 +31,16 @@ function arbol(): Tree {
 const conversaciones = new Map<string, ChatMessage[]>()
 let siguienteConv = 1
 
-async function chat(body: { message: string; conversation_id?: string }, h: ChatHandlers) {
+async function chat(body: { message: string; conversation_id?: string; image_base64?: string }, h: ChatHandlers) {
   const id = body.conversation_id ?? `c-${siguienteConv++}`, hist = conversaciones.get(id) ?? []
   const simulacro = /simulacro/i.test(body.message) && !/termin/i.test(body.message), corregir = /termin|corregime/i.test(body.message)
   await espera(300)
   if (simulacro) { h.onStatus?.({ tool: 'exercises', message: 'Buscando parciales de la cátedra…' }); await espera(800); h.onStatus?.({ tool: 'start_mock_exam', message: 'Arrancando el simulacro…' }) }
   else { h.onStatus?.({ tool: 'frequent_topics', message: 'Buscando los temas más tomados…' }); await espera(800); h.onStatus?.({ tool: 'exercises', message: 'Buscando parciales de años anteriores…' }) }
   await espera(800)
-  const resp = simulacro
+  const resp = body.image_base64 && !simulacro && !corregir
+    ? "Modo demo: recibí tu foto. Con el backend real, el tutor la lee y te ayuda con ese ejercicio. Por ejemplo: veo una integral doble; antes de resolverla, ¿cómo describirías la región de integración?"
+    : simulacro
     ? 'Modo demo: este es un simulacro de ejemplo.\n\nEjercicio 1 (30 puntos). Calculá la integral doble de x·y sobre el triángulo de vértices (0,0), (1,0) y (0,1).\n\nEjercicio 2 (35 puntos). Usando coordenadas polares, calculá el área encerrada por r = 1 + cos θ.\n\nEjercicio 3 (35 puntos). Encontrá los extremos de f(x, y) = x² + y² − xy sobre el círculo x² + y² ≤ 1.\n\nCuando termines, mandame tus respuestas y tocá Entregar. Hasta entonces no te doy pistas.'
     : corregir ? 'Modo demo: tu nota sería 72/100. El ejercicio 1 está bien; en el 2 te faltó el factor r del jacobiano; en el 3 revisá el borde del círculo. ¿Repasamos el cambio a polares?'
     : `Estás en modo demo (sin backend), así que te respondo con un ejemplo.\n\nSobre "${body.message.slice(0, 80)}": en los parciales de Análisis Matemático II lo que más se toma es integrales dobles y cambio de variables. Arranquemos con un ejercicio del primer parcial 2023: calculá la integral de x·y sobre el triángulo de vértices (0,0), (1,0) y (0,1). ¿Querés una pista antes de empezar?`

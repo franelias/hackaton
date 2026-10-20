@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { ErrorFoto, prepararFoto } from '../lib/imagen'
 import Texto, { TextoQueAparece } from '../components/Texto'
 import { useSesion } from '../lib/session'
 import type { ChatMessage } from '../lib/types'
@@ -33,6 +34,12 @@ export default function Tutor() {
   const [armandoSim, setArmandoSim] = useState(false)
   const [ahora, setAhora] = useState(Date.now())
   const fin = useRef<HTMLDivElement>(null)
+  // foto para el próximo mensaje (data URL ya achicada) y su error
+  const [foto, setFoto] = useState<string | null>(null), [errorFoto, setErrorFoto] = useState<string | null>(null), [preparando, setPreparando] = useState(false)
+  const [arrastrando, setArrastrando] = useState(false)
+  const elegir = useRef<HTMLInputElement>(null)
+  const adjuntar = async (archivo: Blob | null | undefined) => { if (!archivo) return; setErrorFoto(null); setPreparando(true)
+    try { setFoto(await prepararFoto(archivo)) } catch (e) { setErrorFoto(e instanceof ErrorFoto ? e.message : 'No pudimos usar esa imagen.') } finally { setPreparando(false) } }
 
   useEffect(() => guardar(CLAVE_LISTA, lista), [lista, CLAVE_LISTA])
   useEffect(() => guardar(CLAVE_SIM, sim), [sim, CLAVE_SIM])
@@ -41,27 +48,30 @@ export default function Tutor() {
   useEffect(() => { bajar() }, [mensajes, estado, bajar])
 
   // abrir una conversación guardada; si se cambia de chat antes de que llegue, la respuesta vieja se descarta
-  useEffect(() => { if (!studentId || !conv || enviando) return
+  // la conversación que se acaba de crear al mandar ya está en pantalla (con la foto): no se recarga
+  const recienCreada = useRef<string | null>(null)
+  useEffect(() => { if (!studentId || !conv || enviando || conv === recienCreada.current) return
     let vigente = true
     setAnimando(false); setMensajes([]); setCargandoConv(true)
     api.conversation(studentId, conv).then(r => { if (vigente) setMensajes(r.messages) }).catch(() => { if (vigente) setMensajes([]) })
       .finally(() => { if (vigente) setCargandoConv(false) })
     return () => { vigente = false; setCargandoConv(false) } }, [studentId, conv]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const enviar = useCallback(async (msg: string, opciones: { nueva?: boolean; simulacro?: boolean } = {}) => {
-    msg = msg.trim(); if (!msg || !studentId || enviando) return
+  const enviar = useCallback(async (msg: string, opciones: { nueva?: boolean; simulacro?: boolean; imagen?: string | null } = {}) => {
+    msg = msg.trim(); const imagen = opciones.imagen ?? null; if ((!msg && !imagen) || !studentId || enviando) return
+    if (imagen) setFoto(null)
     const usar = opciones.nueva ? null : conv
     if (opciones.nueva) setConv(null)
     setTexto(''); setEnviando(true); setEstado('Pensando…')
-    setMensajes(m => [...(opciones.nueva ? [] : m), { role: 'user', text: msg }, { role: 'assistant', text: '' }])
+    setMensajes(m => [...(opciones.nueva ? [] : m), { role: 'user', text: msg, ...(imagen ? { imagen } : {}) }, { role: 'assistant', text: '' }])
     const agregar = (d: string) => setMensajes(m => { const c = [...m]; c[c.length - 1] = { ...c[c.length - 1], text: c[c.length - 1].text + d }; return c })
-    await api.chat({ student_id: studentId, message: msg, ...(usar ? { conversation_id: usar } : {}) }, {
+    await api.chat({ student_id: studentId, message: msg, ...(usar ? { conversation_id: usar } : {}), ...(imagen ? { image_base64: imagen } : {}) }, {
       onStatus: s => { setEstado(s.message); if (s.tool === 'start_mock_exam') setSim(x => x ? { ...x, inicio: Date.now() } : x) },
       onText: d => { setEstado(null); setAnimando(true); agregar(d) },
       onDone: d => {
-        setConv(d.conversation_id)
+        recienCreada.current = d.conversation_id; setConv(d.conversation_id)
         setLista(l => l.some(c => c.id === d.conversation_id) ? l.map(c => c.id === d.conversation_id ? { ...c, fecha: new Date().toISOString() } : c)
-          : [{ id: d.conversation_id, titulo: msg.slice(0, 60), fecha: new Date().toISOString(), simulacro: opciones.simulacro }, ...l])
+          : [{ id: d.conversation_id, titulo: msg ? msg.slice(0, 60) : 'Foto de un ejercicio', fecha: new Date().toISOString(), simulacro: opciones.simulacro }, ...l])
         setSim(x => x && !x.conv && opciones.simulacro ? { ...x, conv: d.conversation_id } : x)
         if (d.tree_changed) refrescar()
       },
@@ -72,7 +82,7 @@ export default function Tutor() {
 
   const nueva = () => { setConv(null); setMensajes([]); setAnimando(false) }
   const quitar = (id: string) => { setLista(l => l.filter(c => c.id !== id)); if (id === conv) nueva() }
-  const enviarForm = (ev?: FormEvent) => { ev?.preventDefault(); enviar(texto) }
+  const enviarForm = (ev?: FormEvent) => { ev?.preventDefault(); enviar(texto, { imagen: foto }) }
 
   // simulacro
   const opcionesSim = useMemo(() => { const est = new Map((tree?.subjects ?? []).map(s => [s.subject_id, s.state]))
@@ -89,15 +99,30 @@ export default function Tutor() {
       <div className="chat" aria-busy={cargandoConv}>
         {cargandoConv && <div className="esqueletos" role="status" aria-label="Cargando la conversación">{['user', 'assistant', 'user', 'assistant'].map((r, i) => <div key={i} className={`burbuja ${r} esqueleto`} />)}</div>}
         {mensajes.length === 0 && !sim && !cargandoConv && <div className="vacio"><p>¿Por dónde arrancamos?</p><div className="sugerencias">{sugerencias.map(s => <button key={s} onClick={() => setTexto(s)}>{s}</button>)}</div></div>}
-        {mensajes.map((m, i) => m.text || m.role === 'user' ? <div key={i} className={`burbuja ${m.role}`}>{m.role === 'user' ? m.text
+        {mensajes.map((m, i) => m.text || m.role === 'user' ? <div key={i} className={`burbuja ${m.role}`}>{m.role === 'user' ? <>{m.imagen && <img className="foto-msg" src={m.imagen} alt="Foto del ejercicio" />}{m.text || (!m.imagen && <span className="sin-foto">Foto de un ejercicio</span>)}</>
           : animando && i === mensajes.length - 1 ? <TextoQueAparece texto={m.text} alCrecer={bajar} alTerminar={() => setAnimando(false)} /> : <Texto texto={m.text} />}</div> : null)}
         {estado && <div className="estado-tutor" role="status"><i /><span key={estado}>{estado}</span></div>}
         <div ref={fin} />
       </div>
-      <form className="escribir" onSubmit={enviarForm}>
-        <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={sim ? 'Escribí tus respuestas…' : 'Escribí tu duda o pegá un ejercicio…'} rows={sim ? 4 : 2} maxLength={8000}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !sim) { e.preventDefault(); enviarForm() } }} aria-label="Mensaje para el tutor" />
-        <button className="btn" disabled={!texto.trim() || enviando}>Enviar</button>
+      <form className={`escribir${arrastrando ? ' soltar' : ''}`} onSubmit={enviarForm}
+        onDragOver={e => { if ([...e.dataTransfer.items].some(i => i.kind === 'file')) { e.preventDefault(); setArrastrando(true) } }}
+        onDragLeave={() => setArrastrando(false)}
+        onDrop={e => { e.preventDefault(); setArrastrando(false); adjuntar(e.dataTransfer.files[0]) }}>
+        {(foto || preparando || errorFoto) && <div className="adjunto">
+          {preparando && <span className="pista">Preparando la foto…</span>}
+          {foto && <><img src={foto} alt="Foto que vas a mandar" /><button type="button" className="quitar-foto" onClick={() => setFoto(null)} aria-label="Sacar la foto">×</button></>}
+          {errorFoto && <span className="error" role="alert">{errorFoto}</span>}
+        </div>}
+        <div className="fila-escribir">
+          <button type="button" className="btn secundario clip" onClick={() => elegir.current?.click()} disabled={enviando || preparando} aria-label="Adjuntar una foto del ejercicio" title="Adjuntar una foto (también podés pegarla o arrastrarla)">
+            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5h2l1.2-1.6h4.6L13.5 5h2A1.5 1.5 0 0 1 17 6.5v8a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 3 14.5z" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" /><circle cx="10" cy="10.5" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" /></svg>
+          </button>
+          <input ref={elegir} type="file" accept="image/*" hidden onChange={e => { adjuntar(e.target.files?.[0]); e.target.value = '' }} />
+          <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder={sim ? 'Escribí tus respuestas o sacale una foto a tu hoja…' : 'Escribí tu duda, pegá un ejercicio o una captura…'} rows={sim ? 4 : 2} maxLength={8000}
+            onPaste={e => { const f = [...e.clipboardData.files].find(x => x.type.startsWith('image/')); if (f) { e.preventDefault(); adjuntar(f) } }}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey && !sim) { e.preventDefault(); enviarForm() } }} aria-label="Mensaje para el tutor" />
+          <button className="btn" disabled={(!texto.trim() && !foto) || enviando || preparando}>Enviar</button>
+        </div>
       </form>
     </>
   )
