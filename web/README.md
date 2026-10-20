@@ -59,13 +59,13 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
   - Nombres: los de las materias bloqueadas se ven al pasar el mouse.
   - Al tocar una materia se marca su camino de correlativas.
 - `src/pages/`:
-  - `Login`: Google, mail y "Me olvidé la contraseña".
-  - `Onboarding`: crear el alumno y marcar las materias.
-  - `MiArbol`: árbol, alertas, "Estudié hoy" y la ficha de la materia (estado, fecha de parcial,
+  - `Login` (`/login`): Google, mail y "Me olvidé la contraseña".
+  - `Onboarding` (`/start`): crear el alumno y marcar las materias.
+  - `MyTree` (`/`): árbol, alertas, "Estudié hoy" y la ficha de la materia (estado, fecha de parcial,
     practicar).
-  - `Tutor`: chat SSE, lista de conversaciones y simulacro con cronómetro.
-  - `Horarios`: `POST /api/schedule` con una grilla semanal.
-  - `Cuenta`: nombre, mail, verificación, contraseña y cerrar sesión.
+  - `Tutor` (`/tutor`): chat SSE, lista de conversaciones y simulacro con cronómetro.
+  - `Schedule` (`/schedule`): `POST /api/schedule` con una grilla semanal.
+  - `Account` (`/account`): nombre, mail, verificación, contraseña y cerrar sesión.
 
 ## Estado (2026-10-19)
 
@@ -90,7 +90,7 @@ Notas:
 ## Pendientes
 
 1. Probar el tutor con `OPENROUTER_API_KEY` y el login con el proyecto real de Firebase.
-2. Tutor: la foto ya está (`src/lib/imagen.ts`: botón con cámara en el celular, pegar con Ctrl+V o arrastrar; se achica a 1600 px en JPEG antes de mandarla; el historial del backend no la guarda, así que al reabrir la conversación se ve "Foto de un ejercicio"). Markdown básico y LaTeX con KaTeX ya están (`src/components/Texto.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TextoQueAparece` la muestra de a poco con un fundido por palabra.
+2. Tutor: la foto ya está (`src/lib/photo.ts`: botón con cámara en el celular, pegar con Ctrl+V o arrastrar; se achica a 1600 px en JPEG antes de mandarla; el historial del backend no la guarda, así que al reabrir la conversación se ve "Foto de un ejercicio"). Markdown básico y LaTeX con KaTeX ya están (`src/components/RichText.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TypedText` la muestra de a poco con un fundido por palabra.
 3. Pantalla Fechas: el backend no la expone; hace falta un endpoint, o mostrar los `exam` cargados.
 4. Optativas: dejar elegirlas (`optional: true`) para que entren al árbol.
 5. Celular: barra inferior y zoom o lista para el árbol; lista accesible del árbol.
@@ -99,3 +99,11 @@ Notas:
    - listar conversaciones;
    - endpoint de fechas.
 7. Tests (Vitest), code splitting de Firebase y deploy.
+
+## Convenciones
+
+- El código va en inglés: archivos, componentes, funciones, variables, tipos, clases CSS, rutas y
+  comentarios. En español van los textos que ve el alumno y la prosa de los docs, igual que en
+  `backend/` (ver `backend/AGENTS.md`).
+- Rutas: `/` (MyTree), `/tutor` (`?subject=<id>` para arrancar con una materia), `/schedule`,
+  `/account`, `/login`, `/start` (onboarding).

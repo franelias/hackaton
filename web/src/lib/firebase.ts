@@ -5,7 +5,7 @@ import { FIREBASE, MOCK } from './config'
 let app: FirebaseApp | null = null
 let auth: Auth | null = null
 
-// Firebase solo se inicializa fuera del modo demo.
+// Firebase is only initialized outside demo mode.
 export function firebaseAuth(): Auth | null {
   if (MOCK) return null
   if (!auth) {

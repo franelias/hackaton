@@ -1,4 +1,4 @@
-// Tipos del contrato backend → app (docs/contratos.md §2). Todo lo que viaja va en inglés.
+// Types of the backend → app contract (docs/contratos.md §2).
 
 export type Condition = 'approved' | 'regular'
 
@@ -76,8 +76,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant'
   text: string
   created_at?: string
-  // solo en la app: la foto que mandó el alumno en esta sesión (el historial del backend no la devuelve)
-  imagen?: string
+  // app only: the photo the student sent in this session (the backend history does not return it)
+  image?: string
 }
 
 export interface ScheduleClass { day: number; from: string; to: string; campus?: string; room?: string; end_estimated?: boolean }
