@@ -25,7 +25,7 @@ Rechazado:
 
 **Out:** Streamable HTTP en `/mcp` y `/health` (devuelve `ok`), o stdio con `--stdio`. Servidor `fceia-mcp`. Las tools devuelven `structuredContent` con su JSON y, si fallan, `isError: true` con `{"error":{"code","message"}}` (no un error de protocolo).
 
-**Sin auth y solo lectura**: expone lo mismo que la API pública de la FCEIA.
+**Sin auth y solo lectura**: expone lo mismo que la API pública de la FCEIA. Para que el cliente del alumno vea también su árbol hay otro endpoint, con token personal: [MCP personal](../../../backend/docs/features/personal-mcp.md).
 
 ## Flow
 

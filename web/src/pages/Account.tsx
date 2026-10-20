@@ -1,13 +1,15 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification, sendPasswordResetEmail, updatePassword, updateProfile } from 'firebase/auth'
+import { api } from '../lib/api'
+import { API_URL } from '../lib/config'
 import { firebaseAuth } from '../lib/firebase'
 import { useSetNotifications } from '../lib/mutations'
 import { disablePush, enablePush, type PushState } from '../lib/push'
 import { keys, notificationsQuery, pushQuery, queryClient } from '../lib/queries'
 import { useSession } from '../lib/session'
 import { useTheme, type Theme } from '@/hooks/use-theme'
-import { BadgeCheck } from 'lucide-react'
+import { BadgeCheck, Copy } from 'lucide-react'
 import { toast } from 'sonner'
 import { Page, PageHeader } from '@/components/Page'
 import { Badge } from '@/components/ui/badge'
@@ -42,6 +44,11 @@ export default function Account() {
   const setPush = (st: PushState) => { if (studentId) queryClient.setQueryData(keys.push(studentId), st) }
   const setNotifications = useSetNotifications(studentId ?? '')
 
+  // the MCP token is shown once, right after generating it; it is never read back from the server
+  const [mcpToken, setMcpToken] = useState<string | null>(null)
+  const mcpCommand = `claude mcp add --transport http arbol ${API_URL || 'https://<host>'}/mcp --header "Authorization: Bearer ${mcpToken}"`
+  const copy = (text: string, ok: string) => navigator.clipboard.writeText(text).then(() => toast.success(ok), () => toast.error('No pudimos copiarlo. Seleccionalo y copialo a mano.'))
+
   const { theme, setTheme } = useTheme()
   const run = async (f: () => Promise<unknown>, ok: string) => { setBusy(true)
     try { await f(); toast.success(ok) } catch (e) { toast.error(errorText(e)) } finally { setBusy(false) } }
@@ -51,6 +58,10 @@ export default function Account() {
   const togglePush = () => { if (!studentId) return
     if (push === 'on') run(async () => { await disablePush(studentId); setPush('off') }, 'Este dispositivo ya no recibe notificaciones.')
     else run(async () => { const st = await enablePush(studentId); setPush(st); if (st !== 'on') throw Object.assign(new Error('permission'), { code: 'push/denied' }) }, 'Listo, te avisamos en este dispositivo.') }
+  const generateMcpToken = () => { if (!studentId) return
+    run(async () => { setMcpToken((await api.createMcpToken(studentId)).token) }, 'Listo, copiá el token ahora: no lo vas a poder ver de nuevo.') }
+  const revokeMcpToken = () => { if (!studentId) return
+    run(async () => { await api.revokeMcpToken(studentId); setMcpToken(null) }, 'Revocamos el token. Ya no funciona en ningún cliente.') }
   const changePassword = (e: FormEvent) => { e.preventDefault(); if (!u?.email) return
     run(async () => { await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email!, current)); await updatePassword(u, next); setCurrent(''); setNext('') }, 'Cambiamos tu contraseña.') }
 
@@ -114,6 +125,33 @@ export default function Account() {
           </dl>
         </CardContent>
       </Card>
+
+      {studentId && <Card className={card}>
+        <CardHeader className="px-6"><CardTitle className="text-lg font-extrabold">Conectar con Claude</CardTitle>
+          <CardDescription className="max-w-[65ch]">Usá tu árbol desde tu propio Claude (Claude Desktop o Claude Code) y hacele las mismas preguntas que al tutor. Claude solo lee tu progreso: para que algo cuente en tu árbol, registralo acá. Generar un token nuevo invalida el anterior.</CardDescription></CardHeader>
+        <CardContent className="flex flex-col gap-4 px-6">
+          {mcpToken && <div className="flex flex-col gap-4">
+            <p role="status" className="rounded-xl bg-accent px-4 py-3 text-sm font-bold text-accent-foreground">Este token se muestra una sola vez. Copiá el comando ahora; si lo perdés, generá otro.</p>
+            <ol className="flex flex-col gap-4 text-sm [counter-reset:step] [&>li]:relative [&>li]:pl-8 [&>li]:[counter-increment:step] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:top-0 [&>li]:before:flex [&>li]:before:size-6 [&>li]:before:items-center [&>li]:before:justify-center [&>li]:before:rounded-full [&>li]:before:bg-muted [&>li]:before:text-xs [&>li]:before:font-extrabold [&>li]:before:content-[counter(step)]">
+              <li className="flex flex-col gap-2">
+                <span className="font-bold">Copiá el comando</span>
+                <div className="flex items-start gap-2">
+                  <Input id="mcp-command" aria-label="Comando para conectar Claude" readOnly value={mcpCommand} className="font-mono text-xs" onFocus={e => e.currentTarget.select()} />
+                  <Button type="button" variant="outline" size="icon" aria-label="Copiar comando" onClick={() => copy(mcpCommand, 'Copiamos el comando.')}><Copy /></Button>
+                </div>
+              </li>
+              <li><span className="font-bold">Pegalo en tu terminal</span> y apretá Enter. Necesitás <a className="underline" href="https://claude.com/product/claude-code" target="_blank" rel="noreferrer">Claude Code</a> instalado; con eso Claude queda conectado a Árbol.</li>
+              <li><span className="font-bold">Abrí Claude Code</span> y escribí <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/mcp</code> para verificar que <b>arbol</b> aparece como conectado.</li>
+              <li><span className="font-bold">Activá al tutor</span> escribiendo <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">/mcp__arbol__tutor</code>, o preguntá directo: &ldquo;¿cómo voy en Análisis?&rdquo; o &ldquo;dame un ejercicio de un parcial de Programación I&rdquo;.</li>
+            </ol>
+            <p className="text-xs text-muted-foreground">Claude solo lee tu progreso. Si resolvés ejercicios con él, registralos acá para que cuenten en tu árbol.</p>
+          </div>}
+          <div className="flex flex-wrap gap-3">
+            <Button variant={mcpToken ? 'outline' : 'default'} disabled={!u || busy} onClick={generateMcpToken}>{mcpToken ? 'Generar otro token' : 'Generar token'}</Button>
+            <Button variant="outline" disabled={!u || busy} onClick={revokeMcpToken}>Revocar</Button>
+          </div>
+        </CardContent>
+      </Card>}
 
       <Card className={card}>
         <CardHeader className="px-6"><CardTitle className="text-lg font-extrabold">Apariencia</CardTitle>

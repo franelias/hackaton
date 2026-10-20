@@ -103,6 +103,8 @@ export const mockApi: Api = {
   setNotifications: async (_id, prefs) => { notificationPrefs = { ...notificationPrefs, ...prefs }; return notificationPrefs },
   addPushToken: async () => {},
   removePushToken: async () => {},
+  createMcpToken: async () => ({ token: 'arb_demo-token-no-funciona' }),
+  revokeMcpToken: async () => {},
   schedule: async (_sid, subject_ids) => {
     await wait(500)
     const subjectName = (id: number) => plan.subjects.find(s => s.subject_id === id)?.name ?? `Materia ${id}`

@@ -182,6 +182,8 @@ Reglas de envío: cada condición se manda una sola vez (se vuelve a mandar si c
 | `PUT /api/students/{student_id}/notifications` | `{"push"?: bool, "email"?: bool}` (lo que falta queda igual) | `200` con las preferencias |
 | `POST /api/students/{student_id}/push-tokens` | `{"token": "<FCM registration token>"}` | `204`. Si el token era de otro alumno (mismo navegador, otra cuenta), pasa a este |
 | `DELETE /api/students/{student_id}/push-tokens/{token}` | — (token con `encodeURIComponent`) | `204` |
+| `POST /api/students/{student_id}/mcp-token` | — | `201 {"token": "arb_…"}`, visible una sola vez; reemplaza al anterior. Sirve de `Authorization: Bearer` en `/mcp` (ver `backend/docs/features/personal-mcp.md`) |
+| `DELETE /api/students/{student_id}/mcp-token` | — | `204` (revoca) |
 
 El push es solo de datos (`{title, body, url}`); lo muestra `web/public/firebase-messaging-sw.js` con `onBackgroundMessage` (app en segundo plano) y la app con `onMessage` (primer plano). Los tokens que FCM rechaza se borran solos.
 

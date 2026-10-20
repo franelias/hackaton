@@ -203,3 +203,10 @@ type Notification struct {
 	Body      string
 	SentAt    time.Time `gorm:"default:now()"`
 }
+
+type MCPToken struct {
+	StudentID  int `gorm:"primaryKey;autoIncrement:false"`
+	TokenHash  string
+	CreatedAt  time.Time `gorm:"default:now()"`
+	LastUsedAt *time.Time
+}

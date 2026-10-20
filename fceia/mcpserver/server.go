@@ -14,10 +14,20 @@ import (
 // NewServer registers the nine read-only tools. A nil now uses time.Now.
 func NewServer(api *fceia.Client, now func() time.Time) *mcp.Server {
 	s := mcp.NewServer(&mcp.Implementation{Name: "fceia-mcp", Version: "0.1.0"}, nil)
-	for _, t := range tools.New(api, now).List() {
-		s.AddTool(&mcp.Tool{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema, OutputSchema: t.OutputSchema}, handle(t))
-	}
+	AddTools(s, tools.New(api, now).List())
 	return s
+}
+
+// AddTools registers tools on s, for servers that add their own next to the
+// FCEIA ones.
+func AddTools(s *mcp.Server, ts []tools.Tool) {
+	for _, t := range ts {
+		mt := &mcp.Tool{Name: t.Name, Description: t.Description, InputSchema: t.InputSchema}
+		if t.OutputSchema != nil { // a nil *Schema in the interface field is not nil
+			mt.OutputSchema = t.OutputSchema
+		}
+		s.AddTool(mt, handle(t))
+	}
 }
 
 // handle runs a tool, reporting failures as {"error":{"code","message"}} tool

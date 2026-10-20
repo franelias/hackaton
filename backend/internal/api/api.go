@@ -52,6 +52,7 @@ func (s *Server) Routes() http.Handler {
 
 	r.Get("/api/faculties", s.getFaculties)
 	r.Get("/api/careers/{career_id}/plan", s.getPlan)
+	r.Handle("/mcp", s.MCPHandler())
 	r.Group(func(r chi.Router) {
 		r.Use(s.authenticate)
 		r.Get("/api/me", s.getMe)
@@ -76,6 +77,8 @@ func (s *Server) Routes() http.Handler {
 			r.Get("/conversations/{conversation_id}", s.getConversation)
 			r.Get("/notifications", s.getNotifications)
 			r.Put("/notifications", s.putNotifications)
+			r.Post("/mcp-token", s.postMCPToken)
+			r.Delete("/mcp-token", s.deleteMCPToken)
 			r.Post("/push-tokens", s.postPushToken)
 			r.Delete("/push-tokens/{token}", s.deletePushToken)
 		})
