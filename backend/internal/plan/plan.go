@@ -12,6 +12,8 @@ package plan
 import (
 	"fmt"
 	"sort"
+
+	"github.com/franelias/hackaton/corrections"
 )
 
 const (
@@ -48,24 +50,12 @@ type PlanSubject struct {
 	PostponeYearDelay int `json:"postpone_year_delay"`
 }
 
-// FinalGoal is the subject the career leads to (the Tesina). It is not a node
-// of the correlativa graph: it needs every other subject approved.
-type FinalGoal struct {
-	SubjectID   int    `json:"subject_id"`
-	Code        string `json:"code"`
-	Name        string `json:"name"`
-	Year        *int   `json:"year"`
-	Term        *int   `json:"term"`
-	RequiresAll bool   `json:"requires_all"`
-}
-
 type Plan struct {
 	CareerID     int           `json:"career_id"`
 	Name         string        `json:"name"`
 	MinTerms     int           `json:"min_terms"`
 	CriticalPath []int         `json:"critical_path"`
 	Subjects     []PlanSubject `json:"subjects"`
-	FinalGoal    *FinalGoal    `json:"final_goal"`
 }
 
 // Analysis is the critical path of the obligatory subjects plus the electives
@@ -85,10 +75,6 @@ type Result struct {
 // the obligatory subjects. Electives appear as optional subjects with no
 // time metrics: use Analyze to see them in the critical path.
 func Build(in Input) (*Result, error) {
-	in, goal, err := splitFinalGoal(in)
-	if err != nil {
-		return nil, err
-	}
 	g, err := newGraph(in)
 	if err != nil {
 		return nil, err
@@ -112,7 +98,7 @@ func Build(in Input) (*Result, error) {
 		s := g.subjects[id]
 		m := PlanSubject{
 			SubjectID: id, Code: s.Code, Name: s.Name, Year: s.Year,
-			Term: termOfYear(s.Term), Optional: s.Elective,
+			Term: corrections.TermOfYear(s.Term), Optional: s.Elective,
 			Requires: []Requirement{}, Unlocks: g.unlocks[id],
 			UnlocksTotal: g.descendants(id),
 		}
@@ -129,7 +115,6 @@ func Build(in Input) (*Result, error) {
 		}
 		p.Subjects = append(p.Subjects, m)
 	}
-	p.FinalGoal = goal
 	sort.SliceStable(p.Subjects, func(i, j int) bool {
 		a, b := p.Subjects[i], p.Subjects[j]
 		if a.Optional != b.Optional {
@@ -181,15 +166,6 @@ func (r *Result) Analyze(chosenElectives []int) (Analysis, error) {
 	return Analysis{MinTerms: sched.terms, CriticalPath: r.g.criticalPath(sched)}, nil
 }
 
-// termOfYear turns the API's absolute term (1..10) into 1 or 2 within the year.
-func termOfYear(term *int) *int {
-	if term == nil || *term <= 0 {
-		return nil
-	}
-	t := (*term-1)%2 + 1
-	return &t
-}
-
 func yearKey(y *int) int {
 	if y == nil {
 		return 99
@@ -202,40 +178,4 @@ func termKey(t *int) int {
 		return 99
 	}
 	return *t
-}
-
-// splitFinalGoal takes the final-goal subject out of the graph.
-func splitFinalGoal(in Input) (Input, *FinalGoal, error) {
-	var goal *FinalGoal
-	rest := in
-	rest.Subjects = nil
-	rest.Prerequisites = map[int][]Prerequisite{}
-	finals := map[int]bool{}
-	for _, s := range in.Subjects {
-		if !s.FinalGoal {
-			continue
-		}
-		if goal != nil {
-			return Input{}, nil, fmt.Errorf("more than one final goal: %d and %d", goal.SubjectID, s.ID)
-		}
-		goal = &FinalGoal{SubjectID: s.ID, Code: s.Code, Name: s.Name, Year: s.Year, Term: termOfYear(s.Term), RequiresAll: true}
-		finals[s.ID] = true
-	}
-	for _, s := range in.Subjects {
-		if !finals[s.ID] {
-			rest.Subjects = append(rest.Subjects, s)
-		}
-	}
-	for id, list := range in.Prerequisites {
-		if finals[id] {
-			continue
-		}
-		for _, p := range list {
-			if finals[p.SubjectID] {
-				return Input{}, nil, fmt.Errorf("subject %d requires the final goal %d", id, p.SubjectID)
-			}
-		}
-		rest.Prerequisites[id] = list
-	}
-	return rest, goal, nil
 }

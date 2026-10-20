@@ -6,10 +6,16 @@ let app: FirebaseApp | null = null
 let auth: Auth | null = null
 
 // Firebase is only initialized outside demo mode.
-export function firebaseAuth(): Auth | null {
+export function firebaseApp(): FirebaseApp | null {
   if (MOCK) return null
+  app ??= initializeApp({ apiKey: FIREBASE.apiKey, authDomain: FIREBASE.authDomain, projectId: FIREBASE.projectId, appId: FIREBASE.appId, messagingSenderId: FIREBASE.messagingSenderId })
+  return app
+}
+
+export function firebaseAuth(): Auth | null {
+  const app = firebaseApp()
+  if (!app) return null
   if (!auth) {
-    app = initializeApp({ apiKey: FIREBASE.apiKey, authDomain: FIREBASE.authDomain, projectId: FIREBASE.projectId, appId: FIREBASE.appId })
     auth = getAuth(app)
     auth.languageCode = 'es'
     if (FIREBASE.emulatorHost) connectAuthEmulator(auth, `http://${FIREBASE.emulatorHost}`, { disableWarnings: true })

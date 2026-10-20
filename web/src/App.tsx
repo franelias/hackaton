@@ -1,56 +1,108 @@
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BookOpen, Bot, GraduationCap, MessagesSquare, CalendarDays, NotebookPen, Sprout } from 'lucide-react'
 import { MOCK } from './lib/config'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from './lib/queries'
 import { SessionProvider, useSession } from './lib/session'
+import Logo from '@/components/Logo'
+import { PageError, PageLoading } from '@/components/Page'
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import MyTree from './pages/MyTree'
 import Tutor from './pages/Tutor'
 import Schedule from './pages/Schedule'
+import Subjects from './pages/Subjects'
+import Grades from './pages/Grades'
 import Account from './pages/Account'
 import TeacherHome from './pages/TeacherHome'
 import TeacherSubject from './pages/TeacherSubject'
 import TeacherAssistant from './pages/TeacherAssistant'
 
-function Logo() {
-  return <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M13.5 28C14 22 13 19 14 16h2c1 3 0 6 .5 12z" fill="#7a5236" /><circle cx="15" cy="12" r="10" fill="#456d42" /><circle cx="15" cy="10.5" r="9.5" fill="#55804f" /><circle cx="11.5" cy="7.5" r="3.5" fill="#6f9866" /></svg>
+function Avatar() {
+  const { user } = useSession()
+  return <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#edd3b8] font-extrabold text-[#5a3b22]" aria-hidden="true">
+    {(user?.displayName ?? user?.email ?? '?').slice(0, 1).toUpperCase()}</span>
+}
+
+function AppSidebar() {
+  const { user, plan, studentId, teacherId } = useSession()
+  const { pathname } = useLocation()
+  const { setOpenMobile } = useSidebar()
+  // on the phone the menu is a sheet: close it after navigating
+  useEffect(() => { setOpenMobile(false) }, [pathname, setOpenMobile])
+  const items = [
+    ...(studentId ? [{ to: '/', label: 'Mi árbol', icon: Sprout, end: true }, { to: '/subjects', label: 'Materias', icon: BookOpen }, { to: '/grades', label: 'Notas', icon: NotebookPen }, { to: '/tutor', label: 'Tutor', icon: MessagesSquare }, { to: '/schedule', label: 'Horarios', icon: CalendarDays }] : []),
+    ...(teacherId ? [{ to: '/teacher', label: 'Mis cursos', icon: GraduationCap }, { to: '/assistant', label: 'Asistente', icon: Bot }] : []),
+  ]
+  const active = (to: string, end?: boolean) => end ? pathname === to : pathname === to || pathname.startsWith(`${to}/`)
+  return (
+    <Sidebar collapsible="offcanvas">
+      <SidebarHeader className="gap-4 px-4 pt-6">
+        <div className="flex items-center gap-2.5 text-2xl font-extrabold"><Logo />Árbol</div>
+        {plan && <div className="rounded-xl bg-muted px-3 py-2.5 text-[0.8rem] leading-snug font-bold">
+          {plan.name}<span className="mt-0.5 block font-semibold text-muted-foreground">FCEIA, UNR</span></div>}
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup className="px-3">
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1">
+              {items.map(({ to, label, icon: Icon, end }) => (
+                <SidebarMenuItem key={to}>
+                  <SidebarMenuButton asChild isActive={active(to, end)}>
+                    <NavLink to={to} end={end}><Icon />{label}</NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter className="border-t p-3">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild size="lg" isActive={active('/account')} className="px-2">
+              <NavLink to="/account" aria-label="Mi cuenta">
+                <Avatar />
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="truncate font-bold">{user?.displayName ?? user?.email}</span>
+                  <span className="truncate text-xs font-semibold text-muted-foreground">{MOCK ? 'Modo demo' : 'Mi cuenta'}</span>
+                </span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  )
 }
 
 function Shell() {
-  const { user, plan, studentId, teacherId } = useSession()
-  const icon = (d: string) => <svg viewBox="0 0 16 16" aria-hidden="true"><path d={d} /></svg>
   return (
-    <div className="shell">
-      <aside className="sidebar">
-        <div className="brand"><Logo />Árbol</div>
-        {plan && <div className="career">{plan.name}<small>FCEIA · UNR</small></div>}
-        <nav>
-          {studentId && <>
-            <NavLink to="/" end>{icon('M8 15V7M8 10 4 6M8 9l4-4')}Mi árbol</NavLink>
-            <NavLink to="/tutor">{icon('M2 3h12v8H6l-4 3z')}Tutor</NavLink>
-            <NavLink to="/schedule">{icon('M2 4h12v10H2zM2 7h12M6 4v10')}Horarios</NavLink>
-          </>}
-          {teacherId && <>
-            <NavLink to="/teacher">{icon('M1.5 6 8 3l6.5 3L8 9zM4 7.5V11c1.5 1.5 6.5 1.5 8 0V7.5M14.5 6v4')}Mis cursos</NavLink>
-            <NavLink to="/assistant">{icon('M2 3h12v8H6l-4 3zM5.5 7h5M5.5 5h3')}Asistente</NavLink>
-          </>}
-        </nav>
-        <NavLink to="/account" className="user">
-          <span className="avatar">{(user?.displayName ?? user?.email ?? '?').slice(0, 1).toUpperCase()}</span>
-          <div><b>{user?.displayName ?? user?.email}</b><small>{MOCK ? 'Modo demo' : 'Mi cuenta'}</small></div>
-        </NavLink>
-      </aside>
-      <main className="content"><Outlet /></main>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset className="min-w-0">
+        {/* phone: a top bar with the menu, the brand and the account */}
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur md:hidden print:hidden">
+          <SidebarTrigger className="size-9" />
+          <span className="mr-auto flex items-center gap-2 text-lg font-extrabold"><Logo size={22} />Árbol</span>
+          <NavLink to="/account" aria-label="Mi cuenta" className="rounded-full"><Avatar /></NavLink>
+        </header>
+        <Outlet />
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 
 function Guard() {
   const { loading, user, studentId, teacherId, error } = useSession()
-  if (loading) return <div className="centered">Cargando tu árbol…</div>
+  if (loading) return <PageLoading label="Cargando tu árbol" />
   if (!user) return <Navigate to="/login" replace />
-  if (!studentId && !teacherId) return error ? <div className="centered error">{error}</div> : <Navigate to="/start" replace />
+  if (!studentId && !teacherId) return error ? <PageError message={error} /> : <Navigate to="/start" replace />
   return <Shell />
 }
 
@@ -62,27 +114,34 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/start" element={<Onboarding />} />
-            <Route element={<Guard />}>
-              <Route element={<StudentOnly />}>
-                <Route index element={<MyTree />} />
-                <Route path="tutor" element={<Tutor />} />
-                <Route path="schedule" element={<Schedule />} />
+        <TooltipProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/start" element={<Onboarding />} />
+              <Route element={<Guard />}>
+                <Route element={<StudentOnly />}>
+                  <Route index element={<MyTree />} />
+                  <Route path="subjects/:subjectId?" element={<Subjects />} />
+                  <Route path="grades" element={<Grades />} />
+                  <Route path="tutor" element={<Tutor />} />
+                  <Route path="schedule" element={<Schedule />} />
+                </Route>
+                <Route element={<TeacherOnly />}>
+                  <Route path="teacher" element={<TeacherHome />} />
+                  <Route path="teacher/subjects/:subjectId" element={<TeacherSubject />} />
+                  <Route path="assistant" element={<TeacherAssistant />} />
+                </Route>
+                <Route path="account" element={<Account />} />
               </Route>
-              <Route element={<TeacherOnly />}>
-                <Route path="teacher" element={<TeacherHome />} />
-                <Route path="teacher/subjects/:subjectId" element={<TeacherSubject />} />
-                <Route path="assistant" element={<TeacherAssistant />} />
-              </Route>
-              <Route path="account" element={<Account />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster position="bottom-right" richColors={false} />
+        </TooltipProvider>
       </SessionProvider>
+      {/* only in development: the production build exports nothing */}
+      <ReactQueryDevtools buttonPosition="bottom-right" />
     </QueryClientProvider>
   )
 }

@@ -1,0 +1,12 @@
+// Cloudflare Workers config for the web app (static SPA built by Vite into ./dist).
+{
+  "name": "hackaton",
+  "compatibility_date": "2026-10-20",
+  "assets": {
+    "directory": "./dist",
+    // BrowserRouter: unknown paths serve index.html so client-side routes load.
+    "not_found_handling": "single-page-application"
+  },
+  // Pull request branches deploy a Preview (`wrangler preview`), which requires this block.
+  "previews": {}
+}

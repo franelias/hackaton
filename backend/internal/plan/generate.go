@@ -84,11 +84,13 @@ func Generate(ctx context.Context, api *fceia.Client, careerID int, ov correctio
 			if o.Elective != nil {
 				sub.Elective = *o.Elective
 			}
-			sub.FinalGoal = o.FinalGoal
 		}
 		in.Subjects = append(in.Subjects, sub)
-		for _, r := range ov.Prerequisites(s.ID, fromAPI[s.ID]) {
-			in.Prerequisites[s.ID] = append(in.Prerequisites[s.ID], Prerequisite{r.SubjectID, r.Condition})
+	}
+	// Corrected and reduced to the direct correlativas, the same graph the tools use.
+	for id, reqs := range ov.Graph(fromAPI) {
+		for _, r := range reqs {
+			in.Prerequisites[id] = append(in.Prerequisites[id], Prerequisite{r.SubjectID, r.Condition})
 		}
 	}
 	return Build(in)

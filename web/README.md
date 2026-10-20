@@ -52,16 +52,29 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
 ## Estructura
 
 - `src/lib/`: `config.ts` (env), `firebase.ts`, `api.ts` (cliente con token y SSE del chat),
-  `types.ts` (contrato), `queries.ts` (caché de TanStack Query: claves y cliente; lo ya visto se muestra
-  al instante y se refresca por detrás), `session.tsx` (usuario, alumno, plan, árbol y alertas, sobre
+  `types.ts` (contrato), `queries.ts` (caché de TanStack Query: claves, cliente y las queries de cada dato; lo ya
+  visto se muestra al instante y se refresca por detrás), `mutations.ts` (los cambios: el árbol, descartar alertas
+  con actualización optimista, recordatorios; cada uno deja la caché como la tiene el server; las devtools
+  aparecen solo en desarrollo), `session.tsx` (usuario, alumno, plan, árbol y alertas, sobre
   TanStack Query; un `401` lleva al login).
+- UI: Tailwind v4 + shadcn/ui (`components.json`, estilo radix-nova). Los componentes de shadcn están en
+  `src/components/ui/` y son nuestros: ya están ajustados (botones y toggles en píldora, inputs de 40 px).
+  Se agregan con `pnpm dlx shadcn@latest add <componente>`. Los tokens (verde de la marca, estados de las
+  materias, salud, modo oscuro) están en `src/index.css`; el tema claro, oscuro o automático en
+  `src/hooks/use-theme.ts`. Íconos: `lucide-react`. Fuente: Nunito, auto-hospedada con `@fontsource-variable`.
+  `src/components/Page.tsx` tiene el encabezado y los estados de carga y error que usan todas las pantallas.
 - `src/components/TreeView.tsx`: el árbol. Es genérico, sirve para cualquier plan.
-  - Forma: cada materia nace de su correlativa del año o cuatrimestre más cercano; el abanico es
-    proporcional a lo que sostiene cada rama y el radio sale de año + cuatrimestre.
-  - Hojas: dependen de `leaves` y `health`, y caen con animación. `flower` y `dry` se dibujan como
-    marcas, y la Tesina (`final_goal`) va arriba.
-  - Nombres: los de las materias bloqueadas se ven al pasar el mouse.
-  - Al tocar una materia se marca su camino de correlativas.
+  - Forma: un pino. Sobre una base de follaje, cada año es un piso de ramas (1.º abajo, el último arriba) y la
+    Tesina (la última materia del camino crítico, que no destraba nada: `goalOf`) es la estrella de la punta. En cada piso, el 1.º cuatrimestre es la fila de abajo y el
+    2.º la de arriba; si una fila no entra, pasa materias a la otra. Cada materia se ubica cerca de sus
+    correlativas, y las de 1.º año que más destraban van al centro.
+  - Ramas: cada materia tiene la suya, que sale del tronco con agujas. Lo tupida que está depende del estado
+    (lo aprobado, llena; lo que se cursa, se llena con `leaves`; lo que viene, una ramita) y lo seca, de `dry`
+    (alerta abierta) y de `health`: se pone amarilla y marrón, se cuelga y pierde agujas, que caen con animación.
+    Una materia aprobada nunca se seca. `flower` se dibuja como marca.
+  - Salud: con `health` los pisos se angostan, se caen un poco y se secan.
+  - Nombres: se ven todos; los de las materias bloqueadas, en gris.
+  - Al tocar una materia se dibujan sus correlativas (lo que necesita y lo que destraba) y el pino se atenúa.
 - `src/pages/`:
   - `Login` (`/login`): Google, mail y "Me olvidé la contraseña".
   - `Onboarding` (`/start`): crear el alumno y marcar las materias.
@@ -99,7 +112,8 @@ Notas:
 1. Probar el tutor con `OPENROUTER_API_KEY` y el login con el proyecto real de Firebase.
 2. Tutor: la foto ya está (`src/lib/photo.ts`: botón con cámara en el celular, pegar con Ctrl+V o arrastrar; se achica a 1600 px en JPEG antes de mandarla; el historial del backend no la guarda, así que al reabrir la conversación se ve "Foto de un ejercicio"). Markdown básico y LaTeX con KaTeX ya están (`src/components/RichText.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TypedText` la muestra de a poco con un fundido por palabra.
 3. Pantalla Fechas: el backend no la expone; hace falta un endpoint, o mostrar los `exam` cargados.
-4. Optativas: dejar elegirlas (`optional: true`) para que entren al árbol.
+4. Electivas: dejar elegirlas (`optional: true`) para que entren al árbol. Optativa I, II y III no son
+   electivas: son obligatorias del plan (sin correlativas).
 5. Celular: barra inferior y zoom o lista para el árbol; lista accesible del árbol.
 6. Backend, pedir a Eugenio:
    - editar o borrar el alumno (nombre, carrera);

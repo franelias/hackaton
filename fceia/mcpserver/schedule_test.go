@@ -34,10 +34,6 @@ func stubSchedule(t *testing.T) *httptest.Server {
 	if err != nil {
 		t.Fatal(err)
 	}
-	relations55, err := os.ReadFile(filepath.Join("testdata", "relations_s55.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/v1")
 		parts := strings.Split(strings.Trim(path, "/"), "/")
@@ -55,10 +51,17 @@ func stubSchedule(t *testing.T) *httptest.Server {
 			serve(subjects, parts[1])
 		case len(parts) == 3 && parts[0] == "subjects" && parts[2] == "sessions":
 			serve(sessions, parts[1])
-		case len(parts) == 3 && parts[0] == "subjects" && parts[2] == "relations" && parts[1] == "55":
-			w.Write(relations55)
 		case len(parts) == 3 && parts[0] == "subjects" && parts[2] == "relations":
-			serve(relations, parts[1])
+			if _, ok := relations[parts[1]]; ok {
+				serve(relations, parts[1])
+				return
+			}
+			// Subjects of other careers (Cálculo II and its neighbours), recorded one per file.
+			if body, err := os.ReadFile(filepath.Join("testdata", "relations_s"+parts[1]+".json")); err == nil {
+				w.Write(body)
+				return
+			}
+			http.NotFound(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -416,8 +419,13 @@ func TestPrerequisitesDropTheWrongCorrelativaTheAPIHas(t *testing.T) {
 	if !reflect.DeepEqual(got.requiredIDs(), []int{12, 15, 16}) {
 		t.Fatalf("requires %v", got.requiredIDs())
 	}
-	if len(prerequisites(t, so2).Unlocks) != 0 {
-		t.Fatalf("Sistemas Operativos II should unlock nothing, got %+v", prerequisites(t, so2).Unlocks)
+	// What it unlocks is Práctica Profesional and Taller de Tesina (SIU Guaraní), not Ingeniería de Software I.
+	var unlocked []int
+	for _, u := range prerequisites(t, so2).Unlocks {
+		unlocked = append(unlocked, u.SubjectID)
+	}
+	if !reflect.DeepEqual(unlocked, []int{28, 29}) {
+		t.Fatalf("Sistemas Operativos II unlocks %v, want [28 29]", unlocked)
 	}
 }
 
@@ -461,11 +469,33 @@ func TestSubjectMissingAnOfficialCorrelativaIsNotEnabled(t *testing.T) {
 func TestBottlenecksFollowTheReviewedGraph(t *testing.T) {
 	t.Parallel()
 	// EDA II clashes with Modelos Físicos and Comunicaciones, which fit together.
-	// With the API's data EDA II unlocks 8 subjects (a bottleneck), so the other
-	// two would be postponed; reviewed, it unlocks 7, so postponing it alone is cheaper.
+	// Reviewed, EDA II unlocks 10 subjects (Práctica Profesional, Taller de Tesina
+	// and the Tesina need it), so it is a bottleneck and the other two, which
+	// unlock 3 each, are postponed instead.
 	got := build(t, map[string]any{"subject_ids": []int{edaII, modelosF, comunic}})
 
-	if !reflect.DeepEqual(got.Postpone, []int{edaII}) || !reflect.DeepEqual(got.Scheduled, []int{modelosF, comunic}) {
+	if !reflect.DeepEqual(got.Postpone, []int{modelosF, comunic}) || !reflect.DeepEqual(got.Scheduled, []int{edaII}) {
 		t.Fatalf("postpone = %v, scheduled = %v", got.Postpone, got.Scheduled)
+	}
+}
+
+func TestPrerequisitesReturnOnlyDirectCorrelativasLikeThePlan(t *testing.T) {
+	t.Parallel()
+	cases := map[int][]int{
+		edaII: {complementosI},                 // EDA I is implied by Complementos de Matemática I
+		24:    {ingles, 21},                    // Inteligencia Artificial: Lógica and EDA II are implied by Teoría de Base de Datos
+		28:    {9, 13, 18, 19, 20, 23, 24, 25}, // Práctica Profesional: 23 correlativas in the SIU Guaraní, 8 direct
+		31:    {26, 27, 28, 29, 30, 197, 198, 199},
+	}
+	for id, want := range cases {
+		if got := prerequisites(t, id).requiredIDs(); !reflect.DeepEqual(got, want) {
+			t.Errorf("subject %d requires %v, want %v", id, got, want)
+		}
+	}
+	// Lógica no longer lists Inteligencia Artificial as something it unlocks directly.
+	for _, u := range prerequisites(t, 12).Unlocks {
+		if u.SubjectID == 24 {
+			t.Error("Lógica should not unlock Inteligencia Artificial directly")
+		}
 	}
 }

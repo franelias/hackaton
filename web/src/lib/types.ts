@@ -23,7 +23,6 @@ export interface Plan {
   min_terms: number
   critical_path: number[]
   subjects: PlanSubject[]
-  final_goal?: { subject_id: number; code: string; name: string; year: number; term: number; requires_all: boolean }
 }
 
 export interface Faculty {
@@ -41,7 +40,13 @@ export interface StudentSubject {
   leaves: number
   flower: boolean
   dry: boolean
+  // the final's grade, only on an approved subject that has it
+  grade?: number
+  // failed finals (aplazos)
+  fails?: Fail[]
 }
+
+export interface Fail { id: number; grade: number }
 
 export interface Tree {
   student_id: string
@@ -96,6 +101,9 @@ export interface ScheduleResult {
   warnings: string[]
 }
 export interface SchedulePreferences { shift?: 'morning' | 'afternoon' | 'evening'; free_days?: number[] }
+
+// Reminder channels (streak at risk, tree about to wilt, idle subject)
+export interface NotificationPrefs { push: boolean; email: boolean }
 
 export interface ApiErrorBody { error: { code: string; message: string } }
 

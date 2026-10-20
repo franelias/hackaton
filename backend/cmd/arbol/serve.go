@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -22,7 +23,8 @@ func serveCmd() *cobra.Command {
 		Use:   "serve",
 		Short: "Run the HTTP API",
 		Long: "Run the HTTP API. Config: DATABASE_URL, PORT, FIREBASE_PROJECT_ID (FIREBASE_AUTH_EMULATOR_HOST for the emulator), " +
-			"FCEIA_API_BASE, OPENROUTER_API_KEY, TUTOR_MODEL, TUTOR_FALLBACK_MODELS (comma-separated).",
+			"FCEIA_API_BASE, OPENROUTER_API_KEY, TUTOR_MODEL, TUTOR_FALLBACK_MODELS (comma-separated). " +
+			"It also sends the reminders every NOTIFY_INTERVAL (see `arbol notify`).",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return serve(cmd.Context()) },
 	}
@@ -47,6 +49,18 @@ func serve(ctx context.Context) error {
 		s.Tutor = tutor.NewOpenRouter(key, env("TUTOR_MODEL", "anthropic/claude-sonnet-5.5"), fallbacks)
 	} else {
 		log.Print("OPENROUTER_API_KEY not set: /api/chat answers 503")
+	}
+
+	if every := env("NOTIFY_INTERVAL", "1h"); every != "off" {
+		d, err := time.ParseDuration(every)
+		if err != nil {
+			return fmt.Errorf("NOTIFY_INTERVAL: %w", err)
+		}
+		n, err := notifier(ctx, g, authClient)
+		if err != nil {
+			return err
+		}
+		go n.Loop(ctx, d)
 	}
 
 	port := env("PORT", "8000")

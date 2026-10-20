@@ -13,7 +13,7 @@ func ImportPlan(g *gorm.DB, faculty string, p plan.Plan) error {
 		if err := tx.Where("faculty = ? AND career_id = ?", faculty, p.CareerID).Delete(&Subject{}).Error; err != nil {
 			return err
 		}
-		if err := tx.Save(&Career{Faculty: faculty, ID: p.CareerID, Name: p.Name, MinTerms: p.MinTerms, CriticalPath: p.CriticalPath, FinalGoal: p.FinalGoal}).Error; err != nil {
+		if err := tx.Save(&Career{Faculty: faculty, ID: p.CareerID, Name: p.Name, MinTerms: p.MinTerms, CriticalPath: p.CriticalPath}).Error; err != nil {
 			return err
 		}
 		var subjects []Subject
