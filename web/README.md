@@ -67,7 +67,7 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
   - Forma: cada materia nace de su correlativa del año o cuatrimestre más cercano; el abanico es
     proporcional a lo que sostiene cada rama y el radio sale de año + cuatrimestre.
   - Hojas: dependen de `leaves` y `health`, y caen con animación. `flower` y `dry` se dibujan como
-    marcas, y la Tesina (`final_goal`) va arriba.
+    marcas. La Tesina es una materia más del plan (la última: depende de todas las obligatorias).
   - Nombres: los de las materias bloqueadas se ven al pasar el mouse.
   - Al tocar una materia se marca su camino de correlativas.
 - `src/pages/`:
@@ -107,7 +107,8 @@ Notas:
 1. Probar el tutor con `OPENROUTER_API_KEY` y el login con el proyecto real de Firebase.
 2. Tutor: la foto ya está (`src/lib/photo.ts`: botón con cámara en el celular, pegar con Ctrl+V o arrastrar; se achica a 1600 px en JPEG antes de mandarla; el historial del backend no la guarda, así que al reabrir la conversación se ve "Foto de un ejercicio"). Markdown básico y LaTeX con KaTeX ya están (`src/components/RichText.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TypedText` la muestra de a poco con un fundido por palabra.
 3. Pantalla Fechas: el backend no la expone; hace falta un endpoint, o mostrar los `exam` cargados.
-4. Optativas: dejar elegirlas (`optional: true`) para que entren al árbol.
+4. Electivas: dejar elegirlas (`optional: true`) para que entren al árbol. Optativa I, II y III no son
+   electivas: son obligatorias del plan (sin correlativas).
 5. Celular: barra inferior y zoom o lista para el árbol; lista accesible del árbol.
 6. Backend, pedir a Eugenio:
    - editar o borrar el alumno (nombre, carrera);

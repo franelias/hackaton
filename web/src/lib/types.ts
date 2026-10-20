@@ -23,7 +23,6 @@ export interface Plan {
   min_terms: number
   critical_path: number[]
   subjects: PlanSubject[]
-  final_goal?: { subject_id: number; code: string; name: string; year: number; term: number; requires_all: boolean }
 }
 
 export interface Faculty {

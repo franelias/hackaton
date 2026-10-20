@@ -90,10 +90,6 @@ export default function TreeView({ plan, tree, selected, onSelect }: Props) {
     // trunk and roots
     o += `<path d="M${CX - 30} ${GROUND + 6} C${CX - 24} ${GROUND - 60} ${CX - 14} ${FORK + 50} ${CX - 11} ${FORK} L${CX + 11} ${FORK} C${CX + 14} ${FORK + 50} ${CX + 24} ${GROUND - 60} ${CX + 30} ${GROUND + 6}Z" fill="${bark}"/>
       <path d="M${CX - 26} ${GROUND} q-40 6 -80 18 l10 5 q36 -10 76 -14Z M${CX + 26} ${GROUND} q40 6 82 16 l-10 5 q-36 -9 -76 -12Z" fill="${bark}"/>`
-    // the thesis on top: the final goal
-    if (plan.final_goal) o += `<g opacity="${path ? .4 : 1}"><path d="M${CX} ${FORK} L${CX} 58" stroke="${bark}" stroke-width="2" stroke-dasharray="3 6" opacity=".45"/>
-      <polygon points="${[...Array(10)].map((_, i) => { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 6 : 13; return `${(CX + rr * Math.cos(a)).toFixed(1)},${(42 + rr * Math.sin(a)).toFixed(1)}` }).join(' ')}" fill="#f2c14e" stroke="#b8863b"/>
-      <text x="${CX + 20}" y="47" font-size="12" font-weight="800" fill="#6f6a5c">${plan.final_goal.name}</text></g>`
     const geo = new Map<number, { a: Point; b: Point; q: Point }>()
     for (const m of [...nodes].sort((x, y) => x.weight - y.weight)) {
       const a = m.parent ? pos(m.parent) : { x: CX + Math.cos(m.ang) * 10, y: FORK + 2 }, b = pos(m), q = { x: a.x + (b.x - a.x) * .2, y: a.y + (b.y - a.y) * .8 - 10 }

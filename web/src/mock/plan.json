@@ -1,7 +1,7 @@
 {
   "career_id": 1,
   "name": "Licenciatura en Ciencias de la Computación",
-  "min_terms": 7,
+  "min_terms": 9,
   "critical_path": [
     1,
     4,
@@ -9,7 +9,9 @@
     10,
     15,
     21,
-    24
+    24,
+    28,
+    31
   ],
   "subjects": [
     {
@@ -23,7 +25,7 @@
       "unlocks": [
         4
       ],
-      "unlocks_total": 13,
+      "unlocks_total": 16,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -39,8 +41,8 @@
       "unlocks": [
         5
       ],
-      "unlocks_total": 5,
-      "bottleneck": false,
+      "unlocks_total": 8,
+      "bottleneck": true,
       "slack": 3,
       "postpone_year_delay": 0
     },
@@ -55,7 +57,7 @@
       "unlocks": [
         6
       ],
-      "unlocks_total": 18,
+      "unlocks_total": 21,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -76,7 +78,7 @@
       "unlocks": [
         7
       ],
-      "unlocks_total": 12,
+      "unlocks_total": 15,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -99,7 +101,7 @@
         14,
         27
       ],
-      "unlocks_total": 4,
+      "unlocks_total": 7,
       "bottleneck": false,
       "slack": 3,
       "postpone_year_delay": 0
@@ -122,7 +124,7 @@
         9,
         12
       ],
-      "unlocks_total": 17,
+      "unlocks_total": 20,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -145,7 +147,7 @@
         13,
         27
       ],
-      "unlocks_total": 11,
+      "unlocks_total": 14,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -165,10 +167,9 @@
       ],
       "unlocks": [
         10,
-        11,
-        15
+        11
       ],
-      "unlocks_total": 12,
+      "unlocks_total": 15,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -187,11 +188,13 @@
         }
       ],
       "unlocks": [
-        26
+        26,
+        28,
+        29
       ],
-      "unlocks_total": 1,
+      "unlocks_total": 4,
       "bottleneck": false,
-      "slack": 3,
+      "slack": 4,
       "postpone_year_delay": 0
     },
     {
@@ -214,7 +217,7 @@
       "unlocks": [
         15
       ],
-      "unlocks_total": 8,
+      "unlocks_total": 11,
       "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
@@ -236,7 +239,7 @@
         20,
         23
       ],
-      "unlocks_total": 2,
+      "unlocks_total": 5,
       "bottleneck": false,
       "slack": 2,
       "postpone_year_delay": 0
@@ -259,10 +262,9 @@
         18,
         21,
         22,
-        24,
         27
       ],
-      "unlocks_total": 10,
+      "unlocks_total": 13,
       "bottleneck": true,
       "slack": 2,
       "postpone_year_delay": 0
@@ -284,8 +286,11 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        28,
+        29
+      ],
+      "unlocks_total": 3,
       "bottleneck": false,
       "slack": 3,
       "postpone_year_delay": 0
@@ -306,7 +311,7 @@
       "unlocks": [
         19
       ],
-      "unlocks_total": 1,
+      "unlocks_total": 4,
       "bottleneck": false,
       "slack": 3,
       "postpone_year_delay": 0
@@ -320,10 +325,6 @@
       "optional": false,
       "requires": [
         {
-          "subject_id": 8,
-          "condition": "approved"
-        },
-        {
           "subject_id": 10,
           "condition": "approved"
         }
@@ -331,12 +332,10 @@
       "unlocks": [
         18,
         21,
-        22,
-        24,
-        26
+        22
       ],
-      "unlocks_total": 7,
-      "bottleneck": false,
+      "unlocks_total": 10,
+      "bottleneck": true,
       "slack": 0,
       "postpone_year_delay": 2
     },
@@ -355,8 +354,8 @@
         26,
         27
       ],
-      "unlocks_total": 7,
-      "bottleneck": false,
+      "unlocks_total": 10,
+      "bottleneck": true,
       "slack": 4,
       "postpone_year_delay": 0
     },
@@ -376,7 +375,7 @@
       "unlocks": [
         23
       ],
-      "unlocks_total": 1,
+      "unlocks_total": 4,
       "bottleneck": false,
       "slack": 2,
       "postpone_year_delay": 0
@@ -399,12 +398,14 @@
         }
       ],
       "unlocks": [
-        26
+        26,
+        28,
+        29
       ],
-      "unlocks_total": 1,
+      "unlocks_total": 4,
       "bottleneck": false,
-      "slack": 0,
-      "postpone_year_delay": 2
+      "slack": 1,
+      "postpone_year_delay": 1
     },
     {
       "subject_id": 19,
@@ -419,8 +420,11 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        28,
+        29
+      ],
+      "unlocks_total": 3,
       "bottleneck": false,
       "slack": 3,
       "postpone_year_delay": 0
@@ -438,8 +442,11 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        28,
+        29
+      ],
+      "unlocks_total": 3,
       "bottleneck": false,
       "slack": 2,
       "postpone_year_delay": 0
@@ -464,7 +471,7 @@
       "unlocks": [
         24
       ],
-      "unlocks_total": 1,
+      "unlocks_total": 4,
       "bottleneck": false,
       "slack": 0,
       "postpone_year_delay": 2
@@ -494,7 +501,7 @@
         25,
         30
       ],
-      "unlocks_total": 2,
+      "unlocks_total": 5,
       "bottleneck": false,
       "slack": 0,
       "postpone_year_delay": 2
@@ -520,8 +527,11 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        28,
+        29
+      ],
+      "unlocks_total": 3,
       "bottleneck": false,
       "slack": 2,
       "postpone_year_delay": 0
@@ -535,14 +545,6 @@
       "optional": false,
       "requires": [
         {
-          "subject_id": 12,
-          "condition": "approved"
-        },
-        {
-          "subject_id": 15,
-          "condition": "approved"
-        },
-        {
           "subject_id": 16,
           "condition": "approved"
         },
@@ -551,8 +553,11 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        28,
+        29
+      ],
+      "unlocks_total": 3,
       "bottleneck": false,
       "slack": 0,
       "postpone_year_delay": 2
@@ -570,8 +575,11 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        28,
+        29
+      ],
+      "unlocks_total": 3,
       "bottleneck": false,
       "slack": 0,
       "postpone_year_delay": 2
@@ -589,10 +597,6 @@
           "condition": "approved"
         },
         {
-          "subject_id": 15,
-          "condition": "approved"
-        },
-        {
           "subject_id": 16,
           "condition": "approved"
         },
@@ -601,11 +605,13 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 0,
-      "postpone_year_delay": 2
+      "slack": 1,
+      "postpone_year_delay": 1
     },
     {
       "subject_id": 27,
@@ -632,10 +638,12 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 3,
+      "slack": 4,
       "postpone_year_delay": 0
     },
     {
@@ -645,12 +653,47 @@
       "year": 5,
       "term": 1,
       "optional": false,
-      "requires": [],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "requires": [
+        {
+          "subject_id": 9,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 13,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 18,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 19,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 20,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 23,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 24,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 25,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 6,
-      "postpone_year_delay": 0
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 29,
@@ -659,12 +702,47 @@
       "year": 5,
       "term": 1,
       "optional": false,
-      "requires": [],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "requires": [
+        {
+          "subject_id": 9,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 13,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 18,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 19,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 20,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 23,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 24,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 25,
+          "condition": "approved"
+        }
+      ],
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 6,
-      "postpone_year_delay": 0
+      "slack": 0,
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 30,
@@ -679,11 +757,13 @@
           "condition": "approved"
         }
       ],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 0,
-      "postpone_year_delay": 2
+      "slack": 1,
+      "postpone_year_delay": 1
     },
     {
       "subject_id": 197,
@@ -691,12 +771,14 @@
       "name": "Optativa I",
       "year": 5,
       "term": 1,
-      "optional": true,
+      "optional": false,
       "requires": [],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 0,
+      "slack": 7,
       "postpone_year_delay": 0
     },
     {
@@ -705,13 +787,62 @@
       "name": "Optativa II",
       "year": 5,
       "term": 1,
-      "optional": true,
+      "optional": false,
       "requires": [],
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
+      "bottleneck": false,
+      "slack": 7,
+      "postpone_year_delay": 0
+    },
+    {
+      "subject_id": 31,
+      "code": "r523",
+      "name": "Tesina",
+      "year": 5,
+      "term": 2,
+      "optional": false,
+      "requires": [
+        {
+          "subject_id": 26,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 27,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 28,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 29,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 30,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 197,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 198,
+          "condition": "approved"
+        },
+        {
+          "subject_id": 199,
+          "condition": "approved"
+        }
+      ],
       "unlocks": [],
       "unlocks_total": 0,
       "bottleneck": false,
       "slack": 0,
-      "postpone_year_delay": 0
+      "postpone_year_delay": 2
     },
     {
       "subject_id": 199,
@@ -719,12 +850,14 @@
       "name": "Optativa III",
       "year": 5,
       "term": 2,
-      "optional": true,
+      "optional": false,
       "requires": [],
-      "unlocks": [],
-      "unlocks_total": 0,
+      "unlocks": [
+        31
+      ],
+      "unlocks_total": 1,
       "bottleneck": false,
-      "slack": 0,
+      "slack": 7,
       "postpone_year_delay": 0
     },
     {
@@ -825,13 +958,5 @@
       "slack": 0,
       "postpone_year_delay": 0
     }
-  ],
-  "final_goal": {
-    "subject_id": 31,
-    "code": "r523",
-    "name": "Tesina",
-    "year": 5,
-    "term": 2,
-    "requires_all": true
-  }
+  ]
 }
