@@ -20,7 +20,7 @@
 ## 1. Convenciones
 
 - **IDs de la API**: enteros, los mismos de la API (`subject_id`, `career_id`, `exam_id`, `session_id`). Ojo: **una materia tiene un `id` distinto en cada carrera**; lo que se comparte entre carreras es el `code` (ej. `FB11`).
-- **IDs propios**: strings con prefijo + serial: alumno `s-001`, conversación `c-12`, alerta `al-17`.
+- **IDs propios**: strings con prefijo + serial: alumno `s-001`, conversación `c-12`, alerta `al-17`, docente `t-3`.
 - **IDs reales de la demo (LCC)**: Análisis Matemático I = `2`, Lógica = `12`, EDyA II = `15`, Arquitectura del Computador = `11`.
 - **Fechas**: ISO 8601 (`2026-11-15`, `2026-10-19T15:00:00-03:00`).
 - **Días de la semana**: ISO, `1` = lunes … `7` = domingo (igual que la API).
@@ -37,7 +37,7 @@ Authorization: Bearer <Firebase ID token>
 
 El backend verifica el token con el Admin SDK y obtiene el `uid`. Cada alumno queda vinculado a un `uid`, y el `uid` tiene que ser dueño del `student_id` de la URL (o del body en `/api/chat` y `/api/schedule`). Token ausente o inválido → `401`; alumno de otro usuario → `403`. `GET /api/faculties` y `GET /api/careers/{career_id}/plan` son públicos.
 
-Flujo de la app: login con Firebase → `GET /api/me` → si `student_id` es `null`, onboarding: elige facultad y carrera (`GET /api/faculties`), `POST /api/students` y carga de lo ya cursado con `PUT /api/students/{id}/subjects`.
+Flujo de la app: login con Firebase → `GET /api/me` → si `teacher_id` no es `null`, la app ofrece la vista docente (2.6); si `student_id` es `null`, onboarding: elige facultad y carrera (`GET /api/faculties`), `POST /api/students` y carga de lo ya cursado con `PUT /api/students/{id}/subjects`.
 
 En desarrollo se usa el Firebase Auth Emulator; para la demo, el proyecto real.
 
@@ -173,7 +173,7 @@ Las alertas se recalculan en cada lectura o escritura del alumno. Una alerta des
 
 | Endpoint | Body | Respuesta |
 |---|---|---|
-| `GET /api/me` | — | `{ "student_id": "s-001" \| null }` |
+| `GET /api/me` | — | `{ "student_id": "s-001" \| null, "teacher_id": "t-3" \| null }`. `teacher_id` solo si el mail verificado del token es el de un docente (2.6) |
 | `GET /api/faculties` | — | `[ { "faculty_id": "fceia", "name", "careers": [ { "career_id", "name" } ] } ]`. Solo las carreras con plan cargado |
 | `POST /api/students` | `{ "name", "faculty_id"?, "career_id" }` | `{ "student_id" }`. Crea el alumno del `uid` del token; `409` si ese `uid` ya tiene uno. `faculty_id` por defecto `fceia` |
 | `PUT /api/students/{id}/subjects` | `{ "subjects": [ { "subject_id", "state": "approved" \| "regular" \| "enrolled" } ] }` | árbol (2.2). Varias materias en un pedido (onboarding); las que no vienen quedan igual. Todo o nada: una materia ajena a la carrera → `404` |
@@ -228,6 +228,89 @@ Antes de abrir el stream, `POST /api/chat` puede responder JSON normal: `400` (m
 2. **Etapa 2, si sobra tiempo:** el backend usa el streaming de OpenRouter y reenvía cada fragmento como un `text`. La app no cambia nada.
 
 Para el cliente: `EventSource` no soporta `POST` ni headers propios, así que la app lee el stream con `fetch` + `response.body.getReader()` (o una librería como `@microsoft/fetch-event-source`).
+
+### 2.6 Vista docente
+
+Un docente dicta materias; **sus alumnos son los que tienen esa materia en estado `enrolled`** (cursando). El alumno no tiene que hacer nada para aparecer. El docente ve a cada alumno con su nombre, para poder intervenir a tiempo; nunca ve las conversaciones con el tutor.
+
+**Quién es docente.** Lo carga el backend, no se autodeclara: tabla `teachers` (mail, nombre) y `teacher_subjects` (las materias que dicta), con `arbol teacher add` o el seed. El docente entra con Firebase como cualquiera; el backend lo reconoce si el **mail del token está verificado** (`email_verified`) y coincide con el de un docente. Con Google el mail viene verificado; con mail + contraseña hay que verificarlo primero. Un mismo usuario puede ser alumno y docente.
+
+Todos los endpoints de esta sección piden el token (1.1). Sin docente para ese mail → `403`; materia que no dicta → `404`.
+
+| Endpoint | Qué trae |
+|---|---|
+| `GET /api/teacher` | El docente y sus materias con un resumen de cada una |
+| `GET /api/teacher/subjects/{subject_id}` | El detalle de una materia: resumen, alumnos, actividad por semana y temas practicados |
+
+#### `GET /api/teacher`
+
+```json
+{
+  "teacher_id": "t-3",
+  "name": "Laura Méndez",
+  "subjects": [
+    {
+      "subject_id": 2,
+      "career_id": 1,
+      "name": "Análisis Matemático I",
+      "year": 1,
+      "term": 1,
+      "students": 9,
+      "health": { "lush": 5, "wilted": 2, "withered": 2 },
+      "open_alerts": 4
+    }
+  ]
+}
+```
+
+#### `GET /api/teacher/subjects/{subject_id}`
+
+```json
+{
+  "subject_id": 2,
+  "career_id": 1,
+  "name": "Análisis Matemático I",
+  "year": 1,
+  "term": 1,
+  "summary": {
+    "students": 9,
+    "health": { "lush": 5, "wilted": 2, "withered": 2 },
+    "active_this_week": 6,
+    "exercises_this_week": 31,
+    "open_alerts": 4
+  },
+  "students": [
+    {
+      "student_id": "s-002",
+      "name": "Beto",
+      "health": { "state": "withered", "last_activity": "2026-10-08T21:10:00-03:00" },
+      "exercises": 8,
+      "correct_rate": 0.62,
+      "mastered_topics": 1,
+      "best_mock_exam": null,
+      "flower": false,
+      "dry": true,
+      "next_exam": null,
+      "alerts": [ { "type": "first_exam_missed", "level": "high", "message": "…" } ]
+    }
+  ],
+  "weeks": [ { "week": "2026-10-12", "exercises": 31, "active_students": 6 } ],
+  "topics": [ { "topic": "límites", "attempts": 24, "correct": 15, "students": 7 } ]
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `summary.health` | Cuántos alumnos hay en cada estado de salud (2.2) |
+| `summary.active_this_week` | Alumnos con al menos un ejercicio, simulacro o chat de **esta materia** en la semana en curso (lunes a domingo, hora de Argentina) |
+| `students` | Ordenados por riesgo: primero los que tienen alertas `high`, después `withered`, `wilted` y `lush`; dentro de cada grupo, por última actividad (la más vieja primero) |
+| `students[].exercises`, `correct_rate`, `mastered_topics` | Solo de esta materia. `correct_rate` es `null` sin ejercicios. Tema dominado: 3 correctos (como en el tutor) |
+| `students[].best_mock_exam` | Mejor nota de simulacro en esta materia (0–100) o `null` |
+| `students[].flower`, `dry` | Los de la rama de esta materia en el árbol del alumno (2.2) |
+| `students[].next_exam` | Próxima fecha de parcial que el alumno cargó para esta materia (`exam` sin `result`, de hoy en adelante) o `null` |
+| `students[].alerts` | Alertas vigentes del alumno que son de esta materia o generales (inactividad). Se calculan en el momento, sin escribir nada; incluyen las que el alumno descartó, porque el docente igual tiene que verlas. `open_alerts` las cuenta |
+| `weeks` | Las últimas 8 semanas (incluida la actual), de la más vieja a la más nueva; `week` es el lunes |
+| `topics` | Temas de los ejercicios de esta materia de todos sus alumnos, los más practicados primero (como `view_my_tree`, ignorando tildes y mayúsculas); `students` es cuántos alumnos distintos lo practicaron |
 
 ---
 
@@ -368,6 +451,7 @@ Resumen para quien integró contra la versión del kickoff (issue #1). El detall
 | — | Antes de abrir el stream, `/api/chat` puede responder JSON con `400`, `403`, `404` o `503 tutor_unavailable` | 2.5 |
 | `POST /api/horario` | `POST /api/schedule` (acepta `preferences`); el backend completa las materias aprobadas y regulares del alumno para chequear correlativas | 2.4, 3 |
 | Reglas de salud, racha y alertas sin definir | Definidas: umbrales, receso, época de parciales, comodines, cuándo aparece y se va cada alerta | 2.2, 2.3 |
+| — | **Vista docente**: `GET /api/me` suma `teacher_id`; nuevos `GET /api/teacher` y `GET /api/teacher/subjects/{subject_id}`. El docente lo carga el backend y se reconoce por el mail verificado del token | 2.6 |
 
 **Para el MCP y el backend:**
 

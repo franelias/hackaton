@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/openai/openai-go/v3"
@@ -140,5 +141,39 @@ func TestFallbackModelsInRequestBody(t *testing.T) {
 	}
 	if body["model"] != "anthropic/claude-sonnet-5.5" || fmt.Sprint(body["models"]) != "[openai/gpt-6-astra google/gemini-3.1-pro-preview]" {
 		t.Errorf("body model=%v models=%v", body["model"], body["models"])
+	}
+}
+
+func TestTurnCapsToolCallsAndResults(t *testing.T) {
+	// One round asks for more tools than MaxToolCalls; only the first ones run.
+	var calls []string
+	for i := range MaxToolCalls + 3 {
+		calls = append(calls, fmt.Sprintf(`{"id":"c%d","type":"function","function":{"name":"big","arguments":"{}"}}`, i))
+	}
+	many := `{"choices":[{"index":0,"finish_reason":"tool_calls","message":{"role":"assistant","content":"","tool_calls":[` + strings.Join(calls, ",") + `]}}]}`
+	llm := &fakeLLM{responses: []string{many, answer("listo")}}
+	runs := 0
+	big := Tool{Name: "big", Parameters: map[string]any{"type": "object"}, Run: func(context.Context, json.RawMessage) (string, bool) {
+		runs++
+		return strings.Repeat("ñ", MaxToolResult), false
+	}}
+	tu := &Tutor{LLM: llm, Model: "m"}
+	added, _, err := tu.Turn(context.Background(), nil, openai.UserMessage("hola"), []Tool{big}, func(string, string) {})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runs != MaxToolCalls {
+		t.Errorf("ran %d tools, want %d", runs, MaxToolCalls)
+	}
+	for _, m := range added {
+		if m.OfTool == nil {
+			continue
+		}
+		if s := m.OfTool.Content.OfString.Value; len(s) > MaxToolResult+len("…[truncated]") || !utf8.ValidString(s) {
+			t.Fatalf("tool result of %d bytes, valid UTF-8 %v", len(s), utf8.ValidString(s))
+		}
+	}
+	if !strings.Contains(llm.requests[1], "too many tool calls") || !strings.Contains(llm.requests[0], `"max_tokens":4096`) {
+		t.Error("want the extra calls refused and max_tokens set")
 	}
 }

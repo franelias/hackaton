@@ -27,7 +27,21 @@ var FacultyNames = map[string]string{
 var migrations embed.FS
 
 func Open(url string) (*gorm.DB, error) {
-	return gorm.Open(postgres.Open(url), &gorm.Config{Logger: logger.Default.LogMode(logger.Warn)})
+	g, err := gorm.Open(postgres.Open(url), &gorm.Config{Logger: logger.Default.LogMode(logger.Warn)})
+	if err != nil {
+		return nil, err
+	}
+	// Keep connections open: to a remote database (Supabase) opening one takes
+	// about 2 seconds, and database/sql keeps only 2 idle by default. The cap
+	// stays under the pooler's client limit.
+	sqlDB, err := g.DB()
+	if err != nil {
+		return nil, err
+	}
+	sqlDB.SetMaxOpenConns(10)
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetConnMaxIdleTime(10 * time.Minute)
+	return g, nil
 }
 
 func Migrate(g *gorm.DB) error {
@@ -138,4 +152,17 @@ type ConversationMessage struct {
 	Content        json.RawMessage `gorm:"type:jsonb"`
 	Text           *string
 	CreatedAt      time.Time
+}
+
+type Teacher struct {
+	ID        int
+	Email     string
+	Name      string
+	CreatedAt time.Time
+}
+
+type TeacherSubject struct {
+	TeacherID int    `gorm:"primaryKey;autoIncrement:false"`
+	Faculty   string `gorm:"primaryKey"`
+	SubjectID int    `gorm:"primaryKey;autoIncrement:false"`
 }

@@ -62,7 +62,7 @@ func upCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&noDocker, "no-docker", false, "do not run docker compose (Postgres and Firebase are already up)")
-	cmd.Flags().BoolVar(&withSeed, "seed", false, "(re)create the demo students Ana and Beto")
+	cmd.Flags().BoolVar(&withSeed, "seed", false, "(re)create the demo students Ana and Beto, their classmates and the demo teacher")
 	return cmd
 }
 

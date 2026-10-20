@@ -1,12 +1,16 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
@@ -54,19 +58,19 @@ func (s *Server) getPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var c db.Career
-	if err := s.DB.First(&c, "faculty = ? AND id = ?", db.Faculty, careerID).Error; err != nil {
-		s.dbErr(w, err, "carrera inexistente")
-		return
-	}
 	var subjects []db.Subject
 	var prereqs []db.Prerequisite
-	if err := s.DB.Order("id").Find(&subjects, "faculty = ? AND career_id = ?", db.Faculty, careerID).Error; err != nil {
-		s.dbErr(w, err, "")
-		return
-	}
-	if err := s.DB.Order("requires_id").Find(&prereqs, "faculty = ? AND subject_id IN (?)", db.Faculty,
-		s.DB.Model(&db.Subject{}).Select("id").Where("faculty = ? AND career_id = ?", db.Faculty, careerID)).Error; err != nil {
-		s.dbErr(w, err, "")
+	if err := parallel(
+		func() error { return s.DB.First(&c, "faculty = ? AND id = ?", db.Faculty, careerID).Error },
+		func() error {
+			return s.DB.Order("id").Find(&subjects, "faculty = ? AND career_id = ?", db.Faculty, careerID).Error
+		},
+		func() error {
+			return s.DB.Order("requires_id").Find(&prereqs, "faculty = ? AND subject_id IN (?)", db.Faculty,
+				s.DB.Model(&db.Subject{}).Select("id").Where("faculty = ? AND career_id = ?", db.Faculty, careerID)).Error
+		},
+	); err != nil {
+		s.dbErr(w, err, "carrera inexistente")
 		return
 	}
 	requires := map[int][]plan.Requirement{}
@@ -93,17 +97,26 @@ func nonNil[T any](s []T) []T {
 }
 
 func (s *Server) getMe(w http.ResponseWriter, r *http.Request) {
-	var st db.Student
-	err := s.DB.First(&st, "firebase_uid = ?", r.Context().Value(uidKey)).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		writeJSON(w, http.StatusOK, map[string]any{"student_id": nil})
-		return
-	}
+	me := map[string]any{"student_id": nil, "teacher_id": nil}
+	var students []db.Student
+	var t *db.Teacher
+	err := parallel(
+		func() error {
+			return s.DB.Limit(1).Find(&students, "firebase_uid = ?", r.Context().Value(uidKey)).Error
+		},
+		func() (err error) { t, err = s.teacher(r); return err },
+	)
 	if err != nil {
 		s.dbErr(w, err, "")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"student_id": formatStudentID(st.ID)})
+	if len(students) > 0 {
+		me["student_id"] = formatStudentID(students[0].ID)
+	}
+	if t != nil {
+		me["teacher_id"] = formatTeacherID(t.ID)
+	}
+	writeJSON(w, http.StatusOK, me)
 }
 
 func (s *Server) createStudent(w http.ResponseWriter, r *http.Request) {
@@ -115,8 +128,12 @@ func (s *Server) createStudent(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &body) {
 		return
 	}
-	if body.Name == "" {
+	if body.Name = strings.TrimSpace(body.Name); body.Name == "" {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", "falta name")
+		return
+	}
+	if utf8.RuneCountInString(body.Name) > 80 || strings.IndexFunc(body.Name, unicode.IsControl) >= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid_argument", "name tiene que ser una línea de hasta 80 caracteres")
 		return
 	}
 	if body.FacultyID == "" {
@@ -329,16 +346,16 @@ func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
 	var acts []db.Activity
 	var periods []db.Period
 	q := s.DB.Model(&db.Subject{}).Select("id").Where("faculty = ? AND career_id = ?", st.Faculty, st.CareerID)
-	for _, err := range []error{
-		s.DB.Find(&subjects, "faculty = ? AND career_id = ?", st.Faculty, st.CareerID).Error,
-		s.DB.Find(&prereqs, "faculty = ? AND subject_id IN (?)", st.Faculty, q).Error,
-		s.DB.Find(&states, "student_id = ?", st.ID).Error,
-		s.DB.Find(&acts, "student_id = ?", st.ID).Error,
-		s.DB.Find(&periods, "faculty = ?", st.Faculty).Error,
-	} {
-		if err != nil {
-			return tree.Tree{}, nil, err
-		}
+	if err := parallel(
+		func() error {
+			return s.DB.Find(&subjects, "faculty = ? AND career_id = ?", st.Faculty, st.CareerID).Error
+		},
+		func() error { return s.DB.Find(&prereqs, "faculty = ? AND subject_id IN (?)", st.Faculty, q).Error },
+		func() error { return s.DB.Find(&states, "student_id = ?", st.ID).Error },
+		func() error { return s.DB.Find(&acts, "student_id = ?", st.ID).Error },
+		func() error { return s.DB.Find(&periods, "faculty = ?", st.Faculty).Error },
+	); err != nil {
+		return tree.Tree{}, nil, err
 	}
 
 	in := tree.Input{Plan: map[int][]tree.Prereq{}, Info: map[int]tree.SubjectInfo{}, States: map[int]string{}, Since: st.CreatedAt, Now: s.Now()}
@@ -384,55 +401,71 @@ func (s *Server) state(st *db.Student) (tree.Tree, []db.Alert, error) {
 // shortcut: two concurrent syncs for the same student can race on the unique key (500); fine for one app per student.
 // syncAlerts makes the student's alert rows match want: new conditions are
 // inserted, a changed key reopens a dismissed alert, and conditions that no
-// longer hold are deleted.
+// longer hold are deleted. Only the rows that change are written: it runs on
+// every read of the tree and the alerts, and most of the time nothing changes.
 func (s *Server) syncAlerts(studentID int, want []tree.Alert) ([]db.Alert, error) {
-	var open []db.Alert
-	err := s.DB.Transaction(func(tx *gorm.DB) error {
-		var rows []db.Alert
-		if err := tx.Find(&rows, "student_id = ?", studentID).Error; err != nil {
-			return err
+	var rows []db.Alert
+	if err := s.DB.Find(&rows, "student_id = ?", studentID).Error; err != nil {
+		return nil, err
+	}
+	key := func(typ string, subject *int) string {
+		if subject == nil {
+			return typ
 		}
-		key := func(typ string, subject *int) string {
-			if subject == nil {
-				return typ
-			}
-			return typ + "/" + strconv.Itoa(*subject)
+		return typ + "/" + strconv.Itoa(*subject)
+	}
+	existing := map[string]db.Alert{}
+	for _, r := range rows {
+		existing[key(r.Type, r.SubjectID)] = r
+	}
+	var open, save []db.Alert
+	for _, a := range want {
+		action, _ := json.Marshal(a.Action)
+		r, ok := existing[key(a.Type, a.SubjectID)]
+		delete(existing, key(a.Type, a.SubjectID))
+		before := r
+		switch {
+		case !ok:
+			r = db.Alert{StudentID: studentID, Type: a.Type, SubjectID: a.SubjectID}
+		case r.CondKey == a.Key:
+			// Same condition: keep it dismissed if it was, refresh the text.
+		default:
+			r.Dismissed = false
 		}
-		existing := map[string]db.Alert{}
-		for _, r := range rows {
-			existing[key(r.Type, r.SubjectID)] = r
+		r.Level, r.Message, r.Action, r.CondKey = a.Level, a.Message, action, a.Key
+		if !ok || r.Dismissed != before.Dismissed || r.Level != before.Level || r.Message != before.Message || r.CondKey != before.CondKey || !bytes.Equal(r.Action, before.Action) {
+			save = append(save, r)
+		} else if !r.Dismissed {
+			open = append(open, r)
 		}
-		for _, a := range want {
-			action, _ := json.Marshal(a.Action)
-			r, ok := existing[key(a.Type, a.SubjectID)]
-			delete(existing, key(a.Type, a.SubjectID))
-			switch {
-			case !ok:
-				r = db.Alert{StudentID: studentID, Type: a.Type, SubjectID: a.SubjectID}
-			case r.CondKey == a.Key:
-				// Same condition: keep it dismissed if it was, refresh the text.
-			default:
-				r.Dismissed = false
+	}
+	if len(save) > 0 || len(existing) > 0 {
+		err := s.DB.Transaction(func(tx *gorm.DB) error {
+			for i := range save {
+				if err := tx.Save(&save[i]).Error; err != nil {
+					return err
+				}
 			}
-			r.Level, r.Message, r.Action, r.CondKey = a.Level, a.Message, action, a.Key
-			if err := tx.Save(&r).Error; err != nil {
-				return err
+			for _, r := range existing {
+				if err := tx.Delete(&r).Error; err != nil {
+					return err
+				}
 			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range save {
 			if !r.Dismissed {
 				open = append(open, r)
 			}
 		}
-		for _, r := range existing {
-			if err := tx.Delete(&r).Error; err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
 	sort.Slice(open, func(i, j int) bool {
 		return levelRank[open[i].Level] > levelRank[open[j].Level] || (open[i].Level == open[j].Level && open[i].ID < open[j].ID)
 	})
-	return open, err
+	return open, nil
 }
 
 var levelRank = map[string]int{tree.Low: 0, tree.Medium: 1, tree.High: 2}

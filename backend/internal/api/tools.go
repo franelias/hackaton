@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"gorm.io/gorm"
 
@@ -12,9 +13,15 @@ import (
 	"github.com/franelias/hackaton/backend/internal/tutor"
 )
 
+// maxRecordsPerTurn caps record_progress per chat turn: a turn closes one
+// exercise or grades one mock exam, so more means the model is being talked
+// into padding the tree.
+const maxRecordsPerTurn = 3
+
 // localTools are the tutor tools backed by our database. The student is fixed
 // by the authenticated request, never chosen by the model.
 func (s *Server) localTools(st *db.Student, conv *db.Conversation) []tutor.Tool {
+	records := 0
 	return []tutor.Tool{
 		{
 			Name:        "view_my_tree",
@@ -41,6 +48,9 @@ func (s *Server) localTools(st *db.Student, conv *db.Conversation) []tutor.Tool 
 			},
 			Status: "Registrando tu progreso…",
 			Run: func(_ context.Context, args json.RawMessage) (string, bool) {
+				if records++; records > maxRecordsPerTurn {
+					return "too many records in one turn; record only what the student actually did now", true
+				}
 				return s.recordProgress(st, conv, args)
 			},
 		},
@@ -67,7 +77,7 @@ func (s *Server) localTools(st *db.Student, conv *db.Conversation) []tutor.Tool 
 				now := s.Now()
 				conv.MockSubjectID, conv.MockMinutes, conv.MockStartedAt = &subjectID, &minutes, &now
 				if err := s.DB.Save(conv).Error; err != nil {
-					return err.Error(), true
+					return internalErr(err)
 				}
 				return "mock exam started", false
 			},
@@ -78,11 +88,11 @@ func (s *Server) localTools(st *db.Student, conv *db.Conversation) []tutor.Tool 
 func (s *Server) viewTree(st *db.Student) (string, bool) {
 	t, alerts, err := s.state(st)
 	if err != nil {
-		return err.Error(), true
+		return internalErr(err)
 	}
 	var subjects []db.Subject
 	if err := s.DB.Find(&subjects, "faculty = ? AND career_id = ?", st.Faculty, st.CareerID).Error; err != nil {
-		return err.Error(), true
+		return internalErr(err)
 	}
 	names := map[int]string{}
 	for _, m := range subjects {
@@ -90,7 +100,7 @@ func (s *Server) viewTree(st *db.Student) (string, bool) {
 	}
 	var exercises []db.Activity
 	if err := s.DB.Find(&exercises, "student_id = ? AND type = 'exercise'", st.ID).Error; err != nil {
-		return err.Error(), true
+		return internalErr(err)
 	}
 	var acts []tree.Activity
 	for _, a := range exercises {
@@ -140,6 +150,10 @@ func (s *Server) recordProgress(st *db.Student, conv *db.Conversation, args json
 	if in.Type == "checkin" {
 		return "type must be exercise, mock_exam or exam", true
 	}
+	// A mock exam is graded only after start_mock_exam, for the same subject.
+	if in.Type == "mock_exam" && (conv.MockStartedAt == nil || conv.MockSubjectID == nil || in.SubjectID == nil || *conv.MockSubjectID != *in.SubjectID) {
+		return "no mock exam of this subject is in progress in this conversation; call start_mock_exam first", true
+	}
 	a := db.Activity{StudentID: st.ID, Type: in.Type, SubjectID: in.SubjectID, Topic: in.Topic, Result: in.Result}
 	if msg := validateActivity(&a, in.Date); msg != "" {
 		return msg, true
@@ -148,7 +162,7 @@ func (s *Server) recordProgress(st *db.Student, conv *db.Conversation, args json
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "subject not in the student's career", true
 		}
-		return err.Error(), true
+		return internalErr(err)
 	}
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&a).Error; err != nil {
@@ -161,7 +175,7 @@ func (s *Server) recordProgress(st *db.Student, conv *db.Conversation, args json
 		return nil
 	})
 	if err != nil {
-		return err.Error(), true
+		return internalErr(err)
 	}
 	// Report the subject's branch so the model can celebrate a new flower.
 	t, _, err := s.state(st)
@@ -175,6 +189,13 @@ func (s *Server) recordProgress(st *db.Student, conv *db.Conversation, args json
 		}
 	}
 	return "saved", false
+}
+
+// internalErr logs err and gives the model a generic error: database errors
+// must not reach the model, which could repeat them to the student.
+func internalErr(err error) (string, bool) {
+	log.Printf("tutor tool: %v", err)
+	return "internal error, try again later", true
 }
 
 // parseMockExam reads start_mock_exam's arguments; msg is set when they are invalid.

@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/openai/openai-go/v3"
@@ -18,7 +21,19 @@ import (
 	"github.com/franelias/hackaton/fceia/tools"
 )
 
-const maxImageBytes = 5 << 20
+const (
+	maxImageBytes   = 5 << 20
+	maxMessageRunes = 8000
+	// maxHistory is how many stored messages of the conversation go to the model.
+	maxHistory = 40
+)
+
+// Image types every model behind OpenRouter accepts.
+var imageTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true}
+
+// promptTags matches the tags that separate server context from student text,
+// so a student (or their name) can't open or close one.
+var promptTags = regexp.MustCompile(`(?i)<\s*/?\s*(context|student_message)\b`)
 
 var weekdays = []string{"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"}
 
@@ -41,6 +56,10 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", "falta message")
 		return
 	}
+	if utf8.RuneCountInString(body.Message) > maxMessageRunes {
+		writeErr(w, http.StatusBadRequest, "invalid_argument", fmt.Sprintf("el mensaje supera los %d caracteres", maxMessageRunes))
+		return
+	}
 	image, msg := imageURL(body.ImageBase64)
 	if msg != "" {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", msg)
@@ -50,6 +69,12 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "tutor_unavailable", "el tutor no está configurado (falta OPENROUTER_API_KEY)")
 		return
 	}
+	release, msg := s.chats.acquire(st.ID, s.Now())
+	if msg != "" {
+		writeErr(w, http.StatusTooManyRequests, "rate_limited", msg)
+		return
+	}
+	defer release()
 
 	conv := db.Conversation{StudentID: st.ID}
 	if body.ConversationID != nil {
@@ -67,7 +92,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		s.dbErr(w, err, "")
 		return
 	}
-	// shortcut: the whole history is sent every turn; trim or summarize if conversations get long.
+	rows = recent(rows, maxHistory)
 	history := make([]openai.ChatCompletionMessageParamUnion, len(rows))
 	for i, m := range rows {
 		if err := json.Unmarshal(m.Content, &history[i]); err != nil {
@@ -76,7 +101,8 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	parts := []openai.ChatCompletionContentPartUnionParam{openai.TextContentPart(s.turnContext(st, &conv) + "\n\n" + body.Message)}
+	parts := []openai.ChatCompletionContentPartUnionParam{openai.TextContentPart(
+		s.turnContext(st, &conv) + "\n\n<student_message>\n" + neutralize(body.Message) + "\n</student_message>")}
 	if image != "" {
 		parts = append(parts, openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{URL: image}))
 	}
@@ -138,17 +164,60 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 }
 
 // turnContext is the per-turn context the model needs: today's date, the
-// student and a mock exam in progress. It goes in the user message so the
-// system prompt stays cacheable.
+// student with their faculty and career, and a mock exam in progress. It goes
+// in the user message so the system prompt stays cacheable and the same for
+// every faculty, in a <context> block the student can't forge.
 func (s *Server) turnContext(st *db.Student, conv *db.Conversation) string {
 	now := s.Now()
-	c := fmt.Sprintf("[Contexto: hoy es %s %s. Alumno: %s.", weekdays[now.Weekday()], now.Format(time.DateOnly), st.Name)
+	c := fmt.Sprintf("<context>Hoy es %s %s. Alumno: %s.", weekdays[now.Weekday()], now.Format(time.DateOnly), studentName(st.Name))
+	if faculty := db.FacultyNames[st.Faculty]; faculty != "" {
+		c += " Facultad: " + faculty + "."
+	}
+	var career db.Career
+	if s.DB.First(&career, "faculty = ? AND id = ?", st.Faculty, st.CareerID).Error == nil {
+		c += " Carrera: " + career.Name + "."
+	}
 	if conv.MockStartedAt != nil && conv.MockSubjectID != nil && conv.MockMinutes != nil {
 		var subj db.Subject
 		s.DB.First(&subj, "faculty = ? AND id = ?", st.Faculty, *conv.MockSubjectID)
 		c += fmt.Sprintf(" Simulacro en curso de %s: pasaron %d de %d minutos.", subj.Name, int(now.Sub(*conv.MockStartedAt).Minutes()), *conv.MockMinutes)
 	}
-	return c + "]"
+	return c + "</context>"
+}
+
+// neutralize breaks any <context> or <student_message> tag in student text.
+func neutralize(s string) string {
+	return promptTags.ReplaceAllStringFunc(s, func(m string) string { return "‹" + m[1:] })
+}
+
+// studentName is the student's name as it goes in the context: one short line
+// with no brackets, since the student chose it.
+func studentName(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || strings.ContainsRune("<>[]{}", r) {
+			return ' '
+		}
+		return r
+	}, name)
+	name = strings.Join(strings.Fields(name), " ")
+	if r := []rune(name); len(r) > 60 {
+		name = string(r[:60])
+	}
+	return name
+}
+
+// recent keeps at most the last n messages, starting at a user message so no
+// tool result is left without the assistant message that called it.
+func recent(rows []db.ConversationMessage, n int) []db.ConversationMessage {
+	if len(rows) <= n {
+		return rows
+	}
+	for i := len(rows) - n; i < len(rows); i++ {
+		if rows[i].Role == "user" {
+			return rows[i:]
+		}
+	}
+	return nil
 }
 
 // imageURL turns image_base64 (raw base64 or a data URL) into a data URL. It
@@ -169,8 +238,8 @@ func imageURL(raw *string) (string, string) {
 		return "", "la imagen supera los 5 MB"
 	}
 	mime := http.DetectContentType(b)
-	if !strings.HasPrefix(mime, "image/") {
-		return "", "image_base64 no es una imagen"
+	if !imageTypes[mime] {
+		return "", "image_base64 tiene que ser una imagen PNG, JPEG, GIF o WebP"
 	}
 	return "data:" + mime + ";base64," + data, ""
 }

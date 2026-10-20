@@ -24,10 +24,12 @@ Chequeo de tipos: `pnpm exec tsc -b`. Build: `pnpm build`.
 | `VITE_MOCK=1` | Fuerza el modo demo |
 
 **Modo demo:** si falta `VITE_API_URL` o Firebase, la app no llama a nada. Usa `src/mock/mockApi.ts`,
-con el plan real copiado en `src/mock/plan.json`, la alumna Ana y un tutor de ejemplo. La salud se
-calcula como en el backend, con los días desde la última actividad: Ana arranca con 11 días (árbol
-seco) y "Estudié hoy" o un mensaje al tutor la reviven. El árbol toma la salud continua de
-`saludVisual()` (en `TreeView.tsx`): el estado del backend más los días dentro de ese estado.
+con el plan real copiado en `src/mock/plan.json`, la alumna Ana (que en el demo también es docente) y un tutor de ejemplo.
+La salud se calcula como en el backend, con los días desde la última actividad (5 mustio, 10 seco):
+Ana arranca con 11 días (árbol seco) y "Estudié hoy" o un mensaje al tutor la reviven.
+Para la demo, `?health=lush`, `?health=wilted` o `?health=withered` muestra el árbol en ese estado
+(también contra el backend; solo cambia el dibujo y el saludo, no los datos ni las alertas). Queda
+para toda la pestaña; `?health=off` vuelve al estado real (`src/lib/healthOverride.ts`).
 
 Para el login real, en la consola de Firebase:
 - habilitar Google y Correo/contraseña en *Sign-in method*;
@@ -47,12 +49,15 @@ VITE_FIREBASE_AUTH_EMULATOR_HOST=localhost:9099
 ```
 
 Entrar con `ana@arbol.demo` o `beto@arbol.demo` (contraseña `DEMO_PASSWORD`, por defecto `arbol-demo`).
+Para la vista docente, con `docente@arbol.demo` (Laura Méndez, dicta Análisis I y Lógica; mail ya verificado).
 El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y la app lo muestra.
 
 ## Estructura
 
 - `src/lib/`: `config.ts` (env), `firebase.ts`, `api.ts` (cliente con token y SSE del chat),
-  `types.ts` (contrato), `session.tsx` (usuario, alumno, plan, árbol y alertas; un `401` lleva al login).
+  `types.ts` (contrato), `queries.ts` (caché de TanStack Query: claves y cliente; lo ya visto se muestra
+  al instante y se refresca por detrás), `session.tsx` (usuario, alumno, plan, árbol y alertas, sobre
+  TanStack Query; un `401` lleva al login).
 - `src/components/TreeView.tsx`: el árbol. Es genérico, sirve para cualquier plan.
   - Forma: cada materia nace de su correlativa del año o cuatrimestre más cercano; el abanico es
     proporcional a lo que sostiene cada rama y el radio sale de año + cuatrimestre.
@@ -61,13 +66,16 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
   - Nombres: los de las materias bloqueadas se ven al pasar el mouse.
   - Al tocar una materia se marca su camino de correlativas.
 - `src/pages/`:
-  - `Login`: Google, mail y "Me olvidé la contraseña".
-  - `Onboarding`: crear el alumno y marcar las materias.
-  - `MiArbol`: árbol, alertas, "Estudié hoy" y la ficha de la materia (estado, fecha de parcial,
+  - `Login` (`/login`): Google, mail y "Me olvidé la contraseña".
+  - `Onboarding` (`/start`): crear el alumno y marcar las materias.
+  - `MyTree` (`/`): árbol, alertas, "Estudié hoy" y la ficha de la materia (estado, fecha de parcial,
     practicar).
-  - `Tutor`: chat SSE, lista de conversaciones y simulacro con cronómetro.
-  - `Horarios`: `POST /api/schedule` con una grilla semanal.
-  - `Cuenta`: nombre, mail, verificación, contraseña y cerrar sesión.
+  - `Tutor` (`/tutor`): chat SSE, lista de conversaciones y simulacro con cronómetro.
+  - `Schedule` (`/schedule`): `POST /api/schedule` con una grilla semanal.
+  - `Account` (`/account`): nombre, mail, verificación, contraseña y cerrar sesión.
+  - `TeacherHome` (`/teacher`) y `TeacherSubject` (`/teacher/subjects/:subjectId`): vista docente (contrato 2.6).
+    Se ve si `/api/me` trae `teacher_id`; un docente que no es alumno no ve Mi árbol, Tutor ni Horarios.
+    En modo demo Ana también es docente (`src/mock/classes.ts`).
 
 ## Estado (2026-10-19)
 
@@ -92,7 +100,7 @@ Notas:
 ## Pendientes
 
 1. Probar el tutor con `OPENROUTER_API_KEY` y el login con el proyecto real de Firebase.
-2. Tutor: subir foto (`image_base64`, máx. 5 MB). Markdown básico y LaTeX con KaTeX ya están (`src/components/Texto.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TextoQueAparece` la muestra de a poco con un fundido por palabra.
+2. Tutor: la foto ya está (`src/lib/photo.ts`: botón con cámara en el celular, pegar con Ctrl+V o arrastrar; se achica a 1600 px en JPEG antes de mandarla; el historial del backend no la guarda, así que al reabrir la conversación se ve "Foto de un ejercicio"). Markdown básico y LaTeX con KaTeX ya están (`src/components/RichText.tsx`); como el backend manda la respuesta entera en un solo evento `text`, `TypedText` la muestra de a poco con un fundido por palabra.
 3. Pantalla Fechas: el backend no la expone; hace falta un endpoint, o mostrar los `exam` cargados.
 4. Optativas: dejar elegirlas (`optional: true`) para que entren al árbol.
 5. Celular: barra inferior y zoom o lista para el árbol; lista accesible del árbol.
@@ -101,6 +109,10 @@ Notas:
    - listar conversaciones;
    - endpoint de fechas.
 7. Tests (Vitest), code splitting de Firebase y deploy.
+8. Idea para la ficha de la materia (MyTree): al tocar una materia del árbol se abre la ventanita de la
+   derecha con sus datos; abajo de esos datos, dibujar su "rama": el camino de correlativas que lleva a
+   ella (lo que hay que aprobar antes, de la raíz a la materia), con el estado de cada una. Hoy ese camino
+   solo se resalta en el árbol.
 
 ## Árbol en 3D (`src/components/TreeView3D.tsx`, three.js 0.180)
 
@@ -112,9 +124,9 @@ para no sumarle three.js a la carga inicial, y sin WebGL arranca en 2D.
   - un eje central del que salen las ramas, y la copa es un elipsoide;
   - cada materia es una rama que nace de su correlativa, o del eje si no tiene;
   - la rama termina en un punto cerca de la superficie de la copa: la altura sale del año y
-    cuatrimestre, y el ángulo alrededor del tronco, del orden de las correlativas (`armar()`), así
+    cuatrimestre, y el ángulo alrededor del tronco, del orden de las correlativas (`layout()`), así
     cada rama queda cerca de la que la habilita;
-  - las ramas se afinan (`tuboAfinado`), tienen grosor por lo que sostienen y ramitas decorativas.
+  - las ramas se afinan (`taperedTube`), tienen grosor por lo que sostienen y ramitas decorativas.
 - **Follaje:** unas 4.000 hojas en un `InstancedMesh`, en las materias, en las ramitas y de relleno
   en la copa. Se mueven con el viento. Al bajar la salud cambian de color, caen balanceándose (solo
   las que estaban visibles) y quedan en el pasto; al revivir rebrotan.
@@ -122,24 +134,30 @@ para no sumarle three.js a la carga inicial, y sin WebGL arranca en 2D.
   y la Tesina, una estrella arriba.
 - **Interacción:** girar arrastrando (gira solo hasta que lo tocás) y zoom. Al tocar una materia o
   su rama se ilumina el camino y se abre la ficha.
-- **Nombres:** etiquetas HTML (`CSS2DRenderer`); las de las materias bloqueadas aparecen al pasar
-  el mouse.
+- **Nombres:** etiquetas HTML (`CSS2DRenderer`). Por defecto solo los de lo que se cursa y sus
+  relacionadas; el resto aparece al tocar, al pasar el mouse o al buscar. No se pisan: cada 6 cuadros
+  se proyectan a pantalla y se ocultan las de menos prioridad que choquen (elegida > camino >
+  cursando > regular > aprobada > podés cursar > bloqueada). "Todos los nombres" los muestra todos.
+- **Buscador** arriba del árbol: al elegir una materia se selecciona, se marca su camino y la cámara
+  gira hacia ella.
+- **Salud continua:** `visualHealth()` (en `TreeView.tsx`) toma el estado del backend y, dentro de
+  ese estado, los días desde la última actividad, así el árbol se seca de a poco y no en 3 saltos.
+- "Mi árbol" va a lo ancho: margen izquierdo chico, panel de la materia pegado al borde derecho y el
+  3D con el alto de la pantalla. Abajo, `Summary`: avance por año, cuatrimestres mínimos que faltan
+  (la cadena más larga de correlativas pendientes), materias que se cursan y lo que más destraba.
+  Todo se calcula con el plan y el árbol, sin endpoints nuevos.
 - **Probado:** con Chrome por software (SwiftShader) en frondoso, mustio y seco, sin errores en
   consola.
 
 Pendiente del 3D:
-- etiquetas: no se pisan (cada 6 cuadros se proyectan a pantalla y se ocultan las de menos prioridad que choquen; prioridad: elegida > camino > cursando > regular > aprobada > podés cursar > bloqueada; aparecen al pasar el mouse);
 - probar el rendimiento en celulares (sombras de 2048 px, 4.000 hojas);
-- falta una prueba de clic automatizada.
-- Árbol más grande (copa 5,4 × 3,7 m, tronco 3,2 m) con 34 ramas internas sin datos y ramitas en cada rama.
-- Las materias aprobadas florecen: una flor grande en la punta y 3 por ramita; no se caen al secarse.
-- **Siguiente:** más estados intermedios de salud (hoy son 3: `lush`, `wilted`, `withered`).
-- "Mi árbol" va a lo ancho: margen izquierdo chico, panel de la materia pegado al borde derecho y el
-  3D con el alto de la pantalla. Abajo, `Resumen`: avance por año, cuatrimestres mínimos que faltan
-  (la cadena más larga de correlativas pendientes), materias que se cursan (ejercicios, lista para
-  rendir, se está secando) y lo que más destraba. Todo se calcula con el plan y el árbol, sin
-  endpoints nuevos.
-- Nombres en el 3D: por defecto solo los de lo que se cursa y sus relacionadas (lo que necesitan y
-  lo que destraban). El resto aparece al tocar, al pasar el mouse o al buscar. Hay un buscador de
-  materias arriba del árbol: al elegir una se selecciona, se marca su camino y la cámara gira hacia
-  ella. El interruptor "Todos los nombres" muestra todos, sin pisarse (los que chocan se ocultan).
+- falta una prueba de clic automatizada;
+- más estados intermedios de salud (hoy son 3: `lush`, `wilted`, `withered`).
+
+## Convenciones
+
+- El código va en inglés: archivos, componentes, funciones, variables, tipos, clases CSS, rutas y
+  comentarios. En español van los textos que ve el alumno y la prosa de los docs, igual que en
+  `backend/` (ver `backend/AGENTS.md`).
+- Rutas: `/` (MyTree), `/tutor` (`?subject=<id>` para arrancar con una materia), `/schedule`,
+  `/account`, `/login`, `/start` (onboarding).
