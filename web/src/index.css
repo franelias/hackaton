@@ -134,11 +134,9 @@
   button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
 }
 
-/* The tree (SVG drawn by TreeView): names of locked subjects show on hover, focus or when a path is selected */
+/* The tree (SVG drawn by TreeView) */
 @layer components {
   .tree-svg .node { cursor: pointer; outline: none; }
-  .tree-svg .hidden-label { opacity: 0; transition: opacity .15s; }
-  .tree-svg .node:hover .hidden-label, .tree-svg .node:focus-visible .hidden-label { opacity: 1; }
   .tree-svg .node:hover .pill, .tree-svg .node:focus-visible .pill { filter: drop-shadow(0 2px 4px oklch(0.27 0.012 110 / .25)); }
 
   /* Tutor: rich text inside a reply */

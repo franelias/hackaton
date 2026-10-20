@@ -64,12 +64,17 @@ El tutor necesita `OPENROUTER_API_KEY` en `backend/.env`; sin eso responde 503 y
   `src/hooks/use-theme.ts`. Íconos: `lucide-react`. Fuente: Nunito, auto-hospedada con `@fontsource-variable`.
   `src/components/Page.tsx` tiene el encabezado y los estados de carga y error que usan todas las pantallas.
 - `src/components/TreeView.tsx`: el árbol. Es genérico, sirve para cualquier plan.
-  - Forma: cada materia nace de su correlativa del año o cuatrimestre más cercano; el abanico es
-    proporcional a lo que sostiene cada rama y el radio sale de año + cuatrimestre.
-  - Hojas: dependen de `leaves` y `health`, y caen con animación. `flower` y `dry` se dibujan como
-    marcas, y la Tesina (`final_goal`) va arriba.
-  - Nombres: los de las materias bloqueadas se ven al pasar el mouse.
-  - Al tocar una materia se marca su camino de correlativas.
+  - Forma: un pino. Sobre una base de follaje, cada año es un piso de ramas (1.º abajo, el último arriba) y la
+    Tesina (`final_goal`) es la estrella de la punta. En cada piso, el 1.º cuatrimestre es la fila de abajo y el
+    2.º la de arriba; si una fila no entra, pasa materias a la otra. Cada materia se ubica cerca de sus
+    correlativas, y las de 1.º año que más destraban van al centro.
+  - Ramas: cada materia tiene la suya, que sale del tronco con agujas. Lo tupida que está depende del estado
+    (lo aprobado, llena; lo que se cursa, se llena con `leaves`; lo que viene, una ramita) y lo seca, de `dry`
+    (alerta abierta) y de `health`: se pone amarilla y marrón, se cuelga y pierde agujas, que caen con animación.
+    Una materia aprobada nunca se seca. `flower` se dibuja como marca.
+  - Salud: con `health` los pisos se angostan, se caen un poco y se secan.
+  - Nombres: se ven todos; los de las materias bloqueadas, en gris.
+  - Al tocar una materia se dibujan sus correlativas (lo que necesita y lo que destraba) y el pino se atenúa.
 - `src/pages/`:
   - `Login` (`/login`): Google, mail y "Me olvidé la contraseña".
   - `Onboarding` (`/start`): crear el alumno y marcar las materias.
