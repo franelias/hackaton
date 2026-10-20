@@ -260,6 +260,7 @@ Todos los endpoints de esta sección piden el token (1.1). Sin docente para ese 
 |---|---|
 | `GET /api/teacher` | El docente y sus materias con un resumen de cada una |
 | `GET /api/teacher/subjects/{subject_id}` | El detalle de una materia: resumen, alumnos, actividad por semana y temas practicados |
+| `POST /api/teacher/chat`, `GET /api/teacher/conversations/{id}` | El asistente del docente (abajo) |
 
 #### `GET /api/teacher`
 
@@ -330,6 +331,17 @@ Todos los endpoints de esta sección piden el token (1.1). Sin docente para ese 
 | `students[].alerts` | Alertas vigentes del alumno que son de esta materia o generales (inactividad). Se calculan en el momento, sin escribir nada; incluyen las que el alumno descartó, porque el docente igual tiene que verlas. `open_alerts` las cuenta |
 | `weeks` | Las últimas 8 semanas (incluida la actual), de la más vieja a la más nueva; `week` es el lunes |
 | `topics` | Temas de los ejercicios de esta materia de todos sus alumnos, los más practicados primero (como `view_my_tree`, ignorando tildes y mayúsculas); `students` es cuántos alumnos distintos lo practicaron |
+
+#### Asistente del docente
+
+Un chat con el mismo modelo y las mismas tools de la FCEIA que el tutor (parciales reales, temas frecuentes, apuntes, bibliografía, correlativas y fechas), con otro prompt: ayuda a preparar exámenes y simulacros, guías de ejercicios, resoluciones y criterios de corrección. Ejemplo: "armame un parcial de Análisis Matemático I con límites, continuidad, derivadas y función inversa". **No ve datos de alumnos**; en el contexto solo van la fecha, el nombre del docente, su facultad y las materias que dicta.
+
+| Endpoint | Body | Respuesta |
+|---|---|---|
+| `POST /api/teacher/chat` | `{ "message", "conversation_id"?, "image_base64"? }` | SSE igual que `/api/chat` (2.5): `status`, `text`, `done` con `{ "conversation_id" }` (sin `tree_changed`) y `error`. Sin `conversation_id` crea una conversación nueva. Mismos límites y errores previos al stream (`400`, `429`, `503`) |
+| `GET /api/teacher/conversations/{conversation_id}` | — | `{ "conversation_id", "messages": [ { "role", "text", "created_at" } ] }`. Solo las conversaciones del docente (`404` si no es suya) |
+
+Las conversaciones se guardan en las mismas tablas que las del tutor (`conversations` con `teacher_id`). La lista de conversaciones la guarda la app, como en el tutor.
 
 ---
 
@@ -474,6 +486,7 @@ Resumen para quien integró contra la versión del kickoff (issue #1). El detall
 | `POST /api/horario` | `POST /api/schedule` (acepta `preferences`); el backend completa las materias aprobadas y regulares del alumno para chequear correlativas | 2.4, 3 |
 | Reglas de salud, racha y alertas sin definir | Definidas: umbrales, receso, época de parciales, comodines, cuándo aparece y se va cada alerta | 2.2, 2.3 |
 | — | **Vista docente**: `GET /api/me` suma `teacher_id`; nuevos `GET /api/teacher` y `GET /api/teacher/subjects/{subject_id}`. El docente lo carga el backend y se reconoce por el mail verificado del token | 2.6 |
+| — | **Asistente del docente**: nuevos `POST /api/teacher/chat` (SSE) y `GET /api/teacher/conversations/{id}`, con las tools de la FCEIA y sin datos de alumnos | 2.6 |
 
 **Para el MCP y el backend:**
 

@@ -70,6 +70,19 @@ async function chat(body: { message: string; conversation_id?: string; image_bas
   h.onDone?.({ tree_changed: true, conversation_id: id })
 }
 
+// the teacher's assistant: an example exam, whatever is asked
+async function teacherChat(body: { message: string; conversation_id?: string }, h: ChatHandlers) {
+  const id = body.conversation_id ?? `c-${nextConversation++}`, hist = conversations.get(id) ?? []
+  h.onStatus?.({ tool: 'exercises', message: 'Buscando parciales de la cátedra…' }); await wait(700)
+  const reply = 'Modo demo (sin backend): este es un examen de ejemplo.\n\n## Primer parcial de Análisis Matemático I\n\nDuración: 2 horas. Total: 100 puntos.\n\n'
+    + '**Ejercicio 1 (25 puntos).** Calculá $\\lim_{x \\to 0} \\frac{\\sin(3x)}{x}$.\n\n**Ejercicio 2 (25 puntos).** Estudiá la continuidad de $f(x) = \\frac{x^2 - 1}{x - 1}$ en $x = 1$ y clasificá la discontinuidad.\n\n'
+    + '**Ejercicio 3 (25 puntos).** Hallá la recta tangente a $y = x^3 - 2x$ en $x = 1$.\n\n**Ejercicio 4 (25 puntos).** Mostrá que $f(x) = 2x + 3$ es inyectiva y calculá su inversa.\n\n'
+    + '¿Querés que agregue la resolución y los criterios de corrección?'
+  for (const chunk of reply.match(/[^]{1,40}(\s|$)/g) ?? [reply]) { h.onText?.(chunk); await wait(20) }
+  conversations.set(id, [...hist, { role: 'user', text: body.message, created_at: new Date().toISOString() }, { role: 'assistant', text: reply, created_at: new Date().toISOString() }])
+  h.onDone?.({ conversation_id: id })
+}
+
 export const mockApi: Api = {
   faculties: async () => [{ faculty_id: 'fceia', name: 'Facultad de Ciencias Exactas, Ingeniería y Agrimensura (UNR)', careers: [{ career_id: plan.career_id, name: plan.name }] }],
   plan: async () => { await wait(150); return plan },
@@ -102,6 +115,8 @@ export const mockApi: Api = {
     return r
   },
   teacher: async () => { await wait(200); return mockTeacher(plan) },
+  teacherConversation: async conversation_id => ({ conversation_id, messages: conversations.get(conversation_id) ?? [] }),
+  teacherChat,
   teacherSubject: async (subjectId) => { await wait(200); const c = mockClass(plan, subjectId); if (!c) throw new ApiError(404, 'not_found', 'no dictás esa materia'); return c },
   chat,
 }

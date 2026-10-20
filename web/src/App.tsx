@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
-import { BookOpen, GraduationCap, MessagesSquare, CalendarDays, NotebookPen, Sprout } from 'lucide-react'
+import { BookOpen, Bot, GraduationCap, MessagesSquare, CalendarDays, NotebookPen, Sprout } from 'lucide-react'
 import { MOCK } from './lib/config'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
@@ -21,6 +21,7 @@ import Grades from './pages/Grades'
 import Account from './pages/Account'
 import TeacherHome from './pages/TeacherHome'
 import TeacherSubject from './pages/TeacherSubject'
+import TeacherAssistant from './pages/TeacherAssistant'
 
 function Avatar() {
   const { user } = useSession()
@@ -36,7 +37,7 @@ function AppSidebar() {
   useEffect(() => { setOpenMobile(false) }, [pathname, setOpenMobile])
   const items = [
     ...(studentId ? [{ to: '/', label: 'Mi árbol', icon: Sprout, end: true }, { to: '/subjects', label: 'Materias', icon: BookOpen }, { to: '/grades', label: 'Notas', icon: NotebookPen }, { to: '/tutor', label: 'Tutor', icon: MessagesSquare }, { to: '/schedule', label: 'Horarios', icon: CalendarDays }] : []),
-    ...(teacherId ? [{ to: '/teacher', label: 'Mis cursos', icon: GraduationCap }] : []),
+    ...(teacherId ? [{ to: '/teacher', label: 'Mis cursos', icon: GraduationCap }, { to: '/assistant', label: 'Asistente', icon: Bot }] : []),
   ]
   const active = (to: string, end?: boolean) => end ? pathname === to : pathname === to || pathname.startsWith(`${to}/`)
   return (
@@ -129,6 +130,7 @@ export default function App() {
                 <Route element={<TeacherOnly />}>
                   <Route path="teacher" element={<TeacherHome />} />
                   <Route path="teacher/subjects/:subjectId" element={<TeacherSubject />} />
+                  <Route path="assistant" element={<TeacherAssistant />} />
                 </Route>
                 <Route path="account" element={<Account />} />
               </Route>

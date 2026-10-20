@@ -33,16 +33,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 export interface ChatHandlers {
   onStatus?: (s: { tool?: string; message: string }) => void
   onText?: (delta: string) => void
-  onDone?: (d: { tree_changed: boolean; conversation_id: string }) => void
+  onDone?: (d: { tree_changed?: boolean; conversation_id: string }) => void
   onError?: (e: { code: string; message: string }) => void
 }
 
-// POST /api/chat answers with SSE; EventSource does not support POST, so it is read with fetch + a reader.
-async function chat(body: { student_id: string; message: string; conversation_id?: string; image_base64?: string }, h: ChatHandlers, signal?: AbortSignal) {
+// The chats answer with SSE; EventSource does not support POST, so it is read with fetch + a reader.
+async function stream(path: string, body: object, h: ChatHandlers, signal?: AbortSignal) {
   const t = await token()
-  const res = await fetch(`${API_URL}/api/chat`, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify(body) })
+  const res = await fetch(`${API_URL}${path}`, { method: 'POST', signal, headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', ...(t ? { Authorization: `Bearer ${t}` } : {}) }, body: JSON.stringify(body) })
   if (!res.ok || !res.body) {
-    let e = { code: 'http_' + res.status, message: 'No pudimos hablar con el tutor.' }
+    let e = { code: 'http_' + res.status, message: 'No pudimos conectarnos con el chat.' }
     try { e = ((await res.json()) as ApiErrorBody).error } catch { /* no body */ }
     h.onError?.(e); return
   }
@@ -70,6 +70,9 @@ async function chat(body: { student_id: string; message: string; conversation_id
   }
 }
 
+const chat = (body: { student_id: string; message: string; conversation_id?: string; image_base64?: string }, h: ChatHandlers, signal?: AbortSignal) => stream('/api/chat', body, h, signal)
+const teacherChat = (body: { message: string; conversation_id?: string; image_base64?: string }, h: ChatHandlers, signal?: AbortSignal) => stream('/api/teacher/chat', body, h, signal)
+
 export type SubjectMark = { subject_id: number; state: Exclude<SubjectState, 'available' | 'locked'> }
 
 const real = {
@@ -94,6 +97,8 @@ const real = {
   schedule: (student_id: string, subject_ids: number[], preferences?: SchedulePreferences) => request<ScheduleResult>('/api/schedule', { method: 'POST', body: JSON.stringify({ student_id, subject_ids, preferences }) }),
   teacher: () => request<Teacher>('/api/teacher'),
   teacherSubject: (subjectId: number) => request<ClassDetail>(`/api/teacher/subjects/${subjectId}`),
+  teacherConversation: (conversationId: string) => request<{ conversation_id: string; messages: ChatMessage[] }>(`/api/teacher/conversations/${conversationId}`),
+  teacherChat,
   chat,
 }
 

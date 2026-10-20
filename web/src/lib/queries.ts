@@ -27,6 +27,7 @@ export const keys = {
   push: (studentId: string) => ['push', studentId],
   teacher: ['teacher'],
   teacherSubject: (subjectId: number) => ['teacher', 'subjects', subjectId],
+  teacherConversation: (id: string) => ['teacher', 'conversations', id],
 }
 
 // public data that does not change while the app is open
