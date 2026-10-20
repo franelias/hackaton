@@ -175,6 +175,7 @@ func (s *Server) putSubject(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		State string `json:"state"`
+		Grade *int   `json:"grade"` // optional, approved only; without it the grade stays
 	}
 	if !decode(w, r, &body) {
 		return
@@ -185,8 +186,73 @@ func (s *Server) putSubject(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid_argument", "state debe ser approved, regular o enrolled")
 		return
 	}
-	if err := db.UpsertSubjectStates(s.DB, []db.StudentSubject{{StudentID: st.ID, SubjectID: subjectID, State: body.State, Since: s.Now()}}); err != nil {
+	if body.Grade != nil && (body.State != tree.Approved || !validGrade(*body.Grade)) {
+		writeErr(w, http.StatusBadRequest, "invalid_argument", "grade va de 1 a 10 y solo en una materia approved")
+		return
+	}
+	if err := db.UpsertSubjectStates(s.DB, []db.StudentSubject{{StudentID: st.ID, SubjectID: subjectID, State: body.State, Since: s.Now(), Grade: body.Grade}}); err != nil {
 		s.dbErr(w, err, "")
+		return
+	}
+	s.writeTree(w, st)
+}
+
+// deleteSubject clears the state the student marked, so the subject goes back to
+// available or locked by its correlativas. Clearing an unmarked subject is not an error.
+func (s *Server) deleteSubject(w http.ResponseWriter, r *http.Request) {
+	st := studentFrom(r)
+	subjectID, ok := s.careerSubject(w, st, chi.URLParam(r, "subject_id"))
+	if !ok {
+		return
+	}
+	if err := s.DB.Delete(&db.StudentSubject{}, "student_id = ? AND subject_id = ?", st.ID, subjectID).Error; err != nil {
+		s.dbErr(w, err, "")
+		return
+	}
+	s.writeTree(w, st)
+}
+
+func validGrade(g int) bool { return g >= 1 && g <= 10 }
+
+// postFail records a failed final (aplazo) of a subject.
+func (s *Server) postFail(w http.ResponseWriter, r *http.Request) {
+	st := studentFrom(r)
+	subjectID, ok := s.careerSubject(w, st, chi.URLParam(r, "subject_id"))
+	if !ok {
+		return
+	}
+	var body struct {
+		Grade int `json:"grade"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	if !validGrade(body.Grade) {
+		writeErr(w, http.StatusBadRequest, "invalid_argument", "grade va de 1 a 10")
+		return
+	}
+	if err := s.DB.Create(&db.FailedExam{StudentID: st.ID, SubjectID: subjectID, Grade: body.Grade}).Error; err != nil {
+		s.dbErr(w, err, "")
+		return
+	}
+	s.writeTree(w, st)
+}
+
+// deleteFail removes an aplazo loaded by mistake.
+func (s *Server) deleteFail(w http.ResponseWriter, r *http.Request) {
+	st := studentFrom(r)
+	id, err := strconv.Atoi(chi.URLParam(r, "fail_id"))
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "not_found", "aplazo inexistente")
+		return
+	}
+	res := s.DB.Delete(&db.FailedExam{}, "id = ? AND student_id = ?", id, st.ID)
+	if res.Error != nil {
+		s.dbErr(w, res.Error, "")
+		return
+	}
+	if res.RowsAffected == 0 {
+		writeErr(w, http.StatusNotFound, "not_found", "aplazo inexistente")
 		return
 	}
 	s.writeTree(w, st)

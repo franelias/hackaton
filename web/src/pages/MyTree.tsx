@@ -1,30 +1,27 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CircleAlert, Droplets, Flame, X } from 'lucide-react'
+import { CircleAlert, Droplets, Flame } from 'lucide-react'
 import { toast } from 'sonner'
-import TreeView from '../components/TreeView'
+import TreeView, { BOTTLENECK, DRY_BRANCH, PILL, mark } from '../components/TreeView'
 import { hasWebGL } from '../components/webgl'
 import { useDismissAlert, useTreeChange, type TreeChange } from '../lib/mutations'
+import { isSlot, useElectives } from '../lib/electives'
 import { useSession } from '../lib/session'
-import type { Alert as StudentAlert, PlanSubject, SubjectState } from '../lib/types'
+import type { Alert as StudentAlert, SubjectState } from '../lib/types'
 import { Page, PageError, PageHeader, PageLoading } from '@/components/Page'
-import { SubjectBadge } from '@/components/StateBadge'
+import SubjectCard from '@/components/SubjectCard'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 
-const STATE_LABEL: Record<SubjectState, string> = { approved: 'Aprobada', regular: 'Regular (debe el final)', enrolled: 'Cursando', available: 'La podés cursar', locked: 'Todavía no' }
 const HEALTH_LABEL = { lush: 'frondoso', wilted: 'mustio', withered: 'seco' }
-// the marks the tree draws for each state (see TreeView)
-const LEGEND: [string, string][] = [
-  ['bg-white shadow-[inset_0_0_0_3px_#f2c14e,0_0_0_1px_#7a5236]', 'Aprobada'], ['bg-[#f2c14e]', 'Regular'], ['bg-white shadow-[inset_0_0_0_2.5px_#5b84b1]', 'Cursando'],
-  ['bg-[#c9e0b0] shadow-[0_0_0_1px_#6f9866]', 'La podés cursar'], ['bg-[#ead9c4] shadow-[0_0_0_1px_#b99c80]', 'Todavía no'], ['bg-white shadow-[0_0_0_2px_#c98a2b]', 'Destraba mucho'], ['bg-[#c9a06a] shadow-[0_0_0_1px_#8a7258]', 'Rama seca: tiene una alerta'],
-]
+// the legend draws the same mark and name tag the tree uses for each state (see TreeView)
+const LEGEND: [SubjectState, string][] = [['approved', 'Aprobada'], ['regular', 'Regular'], ['enrolled', 'Cursando'], ['available', 'La podés cursar'], ['locked', 'Todavía no']]
 
 // three.js is loaded only when the 3D view is shown
 const TreeView3D = lazy(() => import('../components/TreeView3D'))
@@ -39,15 +36,17 @@ export default function MyTree() {
   const [view, setView] = useState<'2d' | '3d'>(() => { try { const g = localStorage.getItem(VIEW_KEY); if (g === '2d' || g === '3d') return g } catch { /* no storage */ } return hasWebGL() ? '3d' : '2d' })
   const [allNames, setAllNames] = useState(false), [search, setSearch] = useState('')
   const changeView = (x: '2d' | '3d') => { setView(x); try { localStorage.setItem(VIEW_KEY, x) } catch { /* no storage */ } }
-  // picking a subject from the list selects it, which highlights its prerequisite path
-  const searchFor = (text: string) => { setSearch(text); const n = text.trim().toLowerCase(); const s = plan?.subjects.find(x => x.name.toLowerCase() === n); if (s) { setSel(s.subject_id); setSearch('') } }
   const treeChange = useTreeChange(studentId ?? ''), dismiss = useDismissAlert(studentId ?? '')
   const busy = treeChange.isPending
   const states = useMemo(() => new Map((tree?.subjects ?? []).map(s => [s.subject_id, s])), [tree])
   const stateOf = (id: number): SubjectState => states.get(id)?.state ?? 'locked'
   const byId = useMemo(() => new Map((plan?.subjects ?? []).map(s => [s.subject_id, s])), [plan])
+  const electives = useElectives(studentId ?? '', plan)
   if (error && !tree) return <PageError message={error} />
   if (!plan || !tree || !studentId) return <PageLoading label="Cargando tu árbol" />
+  const treePlan = electives.treePlan ?? plan
+  // picking a subject from the list selects it, which highlights its prerequisite path
+  const searchFor = (text: string) => { setSearch(text); const n = text.trim().toLowerCase(); const s = treePlan.subjects.find(x => x.name.toLowerCase() === n); if (s) { setSel(s.subject_id); setSearch('') } }
 
   const firstName = (user?.displayName ?? '').split(' ')[0]
   const health = tree.health.state
@@ -57,8 +56,10 @@ export default function MyTree() {
   const subtitle = health === 'lush' ? `Tu árbol está frondoso. Llevás ${approvedCount} de ${total} materias aprobadas.`
     : `Tu árbol está ${HEALTH_LABEL[health]}: tu última actividad fue ${ago(tree.health.last_activity)}. Lo que aprobaste sigue ahí.`
 
-  const OK: Record<TreeChange['kind'], string> = { checkin: '¡Listo! Tu árbol recibió agua.', mark: 'Guardado.', exam: 'Anotamos la fecha del parcial.' }
-  const apply = (c: TreeChange) => treeChange.mutate(c, { onSuccess: () => toast.success(OK[c.kind]), onError: e => toast.error(e.message) })
+  const OK: Record<TreeChange['kind'], string> = { checkin: '¡Listo! Tu árbol recibió agua.', mark: 'Guardado.', unmark: 'Listo, la desmarcamos.', exam: 'Anotamos la fecha del parcial.', fail: 'Anotamos el aplazo.', unfail: 'Borramos el aplazo.' }
+  // one change can be several (an Optativa and its elective): one after the other, so the last tree has them all
+  const run = async (cs: TreeChange[], ok: string) => { try { for (const c of cs) await treeChange.mutateAsync(c); toast.success(ok) } catch (e) { toast.error((e as Error).message) } }
+  const apply = (c: TreeChange) => run(electives.expand(c), OK[c.kind])
   const act = (a: StudentAlert) => { const t = a.action.type
     if (t === 'open_tutor') nav(`/tutor${a.action.subject_id ? `?subject=${a.action.subject_id}` : ''}`)
     else if (t === 'build_schedule') nav('/schedule')
@@ -66,6 +67,7 @@ export default function MyTree() {
     else toast('Las fechas de mesas todavía no están cargadas.') }
   const actionLabel: Record<StudentAlert['action']['type'], string> = { open_tutor: 'Practicar con el tutor', build_schedule: 'Armar horario', view_dates: 'Ver fechas', contact_tutor: 'Hablar con un tutor' }
   const streak = tree.streak.weeks
+  const counts = (electives.treePlan ?? plan).subjects.filter(x => !x.optional || ['approved', 'regular', 'enrolled'].includes(stateOf(x.subject_id))).reduce((c, x) => c.set(stateOf(x.subject_id), (c.get(stateOf(x.subject_id)) ?? 0) + 1), new Map<SubjectState, number>())
 
   const m = sel != null ? byId.get(sel) : null
   return (
@@ -80,22 +82,22 @@ export default function MyTree() {
       </PageHeader>
 
       {/* the tree is the page; everything else lives in the side column */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-5">
-        <Card className="relative gap-0 overflow-hidden rounded-3xl bg-[#eef0e4] py-0 ring-foreground/5">
-          {view === '3d' ? <Suspense fallback={<div className="tree-3d loading">Preparando el árbol en 3D…</div>}><TreeView3D plan={plan} tree={tree} selected={sel} onSelect={setSel} allNames={allNames} /></Suspense>
-            : <TreeView plan={plan} tree={tree} selected={sel} onSelect={setSel} />}
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_17rem] xl:gap-5">
+        <Card className="tree-enter relative gap-0 overflow-hidden rounded-3xl bg-[#eef0e4] py-0 ring-foreground/5">
+          {view === '3d' ? <Suspense fallback={<div className="tree-3d loading">Preparando el árbol en 3D…</div>}><TreeView3D plan={treePlan} tree={tree} selected={sel} onSelect={setSel} allNames={allNames} /></Suspense>
+            : <TreeView plan={treePlan} tree={tree} selected={sel} onSelect={setSel} />}
           {/* over the scene: 2D/3D, subject search and (3D) all names */}
           <div className="absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2">
             <ToggleGroup type="single" variant="outline" size="sm" spacing={0} aria-label="Vista del árbol" className="bg-card/95" value={view} onValueChange={v => { if (v) changeView(v as '2d' | '3d') }}>
               <ToggleGroupItem value="2d">2D</ToggleGroupItem><ToggleGroupItem value="3d">3D</ToggleGroupItem>
             </ToggleGroup>
             <Input className="h-8 w-64 rounded-full bg-card/95" list="plan-subjects" value={search} onChange={e => searchFor(e.target.value)} placeholder="Buscar una materia…" aria-label="Buscar una materia" />
-            <datalist id="plan-subjects">{plan.subjects.map(s => <option key={s.subject_id} value={s.name} />)}</datalist>
+            <datalist id="plan-subjects">{treePlan.subjects.map(s => <option key={s.subject_id} value={s.name} />)}</datalist>
             {view === '3d' && <Label className="h-8 rounded-full border bg-card/95 px-3 text-sm"><Checkbox checked={allNames} onCheckedChange={v => setAllNames(v === true)} />Todos los nombres</Label>}
           </div>
         </Card>
 
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+        <aside className="side-enter grid items-start gap-4 md:grid-cols-2 xl:sticky xl:top-6 xl:flex xl:flex-col">
           {alerts.map(a => (
             <Alert key={a.id} role="status" className={cn('flex flex-col gap-3 rounded-2xl border-transparent px-4 py-3.5', a.level === 'high' ? 'bg-destructive/10' : 'bg-warning')}>
               <div className="flex gap-2.5">
@@ -109,10 +111,12 @@ export default function MyTree() {
             </Alert>))}
 
           <Card aria-live="polite" className="gap-4 rounded-2xl px-5 py-5">
-            {m ? <SubjectCard key={m.subject_id} m={m} state={stateOf(m.subject_id)} dry={states.get(m.subject_id)?.dry ?? false} stateOf={stateOf} byId={byId} busy={busy}
-                onChange={state => apply({ kind: 'mark', subjectId: m.subject_id, state })}
+            {m ? <SubjectCard key={m.subject_id} m={m} state={stateOf(m.subject_id)} dry={states.get(m.subject_id)?.dry ?? false} grade={states.get(m.subject_id)?.grade ?? null} fails={states.get(m.subject_id)?.fails?.length ?? 0} stateOf={stateOf} byId={byId} busy={busy}
+                onChange={(state, grade) => apply({ kind: 'mark', subjectId: m.subject_id, state, grade })}
+                onClear={() => apply({ kind: 'unmark', subjectId: m.subject_id })}
                 onExamDate={date => apply({ kind: 'exam', subjectId: m.subject_id, date })}
-                onTutor={() => nav(`/tutor?subject=${m.subject_id}`)} onClose={() => setSel(null)} />
+                choice={isSlot(m) ? { options: electives.optionsFor(m.subject_id), picked: electives.pickOf(m.subject_id), onPick: e => run(electives.pick(m.subject_id, e, stateOf), 'Guardado.') } : undefined}
+                onTutor={() => nav(`/tutor?subject=${electives.pickOf(m.subject_id)?.subject_id ?? m.subject_id}`)} onClose={() => setSel(null)} />
               : <>
                   <h2 className="text-lg font-extrabold">Tu próximo paso</h2>
                   {enrolled[0] ? <><p className="text-pretty">Practicá un ejercicio de <b>{enrolled[0].name}</b>: destraba {enrolled[0].unlocks_total} materias.</p>
@@ -124,8 +128,15 @@ export default function MyTree() {
 
           <Card className="gap-3 rounded-2xl px-5 py-4">
             <h2 className="text-sm font-extrabold">Cómo leer el árbol</h2>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm font-semibold text-muted-foreground lg:grid-cols-1">
-              {LEGEND.map(([dot, label]) => <li key={label} className="flex items-center gap-2"><i className={cn('inline-block size-3 shrink-0 rounded-full', dot)} />{label}</li>)}
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm font-semibold text-muted-foreground xl:grid-cols-1">
+              {LEGEND.map(([st, label]) => { const [fill, border, text] = PILL[st]
+                return <li key={st} className="flex items-center gap-2">
+                  <Swatch svg={mark(st, 12, 14)} />
+                  <span className={cn('rounded-full border-[1.5px] px-2.5 py-0.5 text-xs font-bold', st === 'locked' && 'border-dashed')} style={{ background: fill, borderColor: border, color: text }}>{label}</span>
+                  <span className="ml-auto tabular-nums">{counts.get(st) ?? 0}</span>
+                </li> })}
+              <li className="flex items-center gap-2"><span className="w-6" /><span className="rounded-full border-2 bg-white px-2.5 py-0.5 text-xs font-bold text-[#3d4a37]" style={{ borderColor: BOTTLENECK }}>Destraba mucho</span></li>
+              <li className="flex items-center gap-2"><Swatch svg={DRY_BRANCH} />Rama seca: tiene una alerta</li>
             </ul>
           </Card>
         </aside>
@@ -134,47 +145,5 @@ export default function MyTree() {
   )
 }
 
-function SubjectCard({ m, state, dry, stateOf, byId, busy, onChange, onExamDate, onTutor, onClose }: { m: PlanSubject; state: SubjectState; dry: boolean; stateOf: (id: number) => SubjectState; byId: Map<number, PlanSubject>; busy: boolean;
-  onChange: (s: 'approved' | 'regular' | 'enrolled') => void; onExamDate: (date: string) => void; onTutor: () => void; onClose: () => void }) {
-  const [date, setDate] = useState('')
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col gap-1.5">
-          <h2 className="text-lg leading-snug font-extrabold">{m.name}</h2>
-          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">{m.year ? `${m.year}.º año, ${m.term}.º cuatrimestre` : 'Optativa'}<SubjectBadge state={state}>{STATE_LABEL[state]}</SubjectBadge></p>
-        </div>
-        <Button variant="ghost" size="icon-sm" className="-mt-1 -mr-2" onClick={onClose} aria-label="Cerrar"><X /></Button>
-      </div>
-      {dry && state !== 'approved' && <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">Su rama se está secando: tenés una alerta abierta sobre esta materia. Practicala para que vuelva a crecer.</p>}
-      {m.bottleneck && <p className="rounded-xl bg-warning px-3 py-2 text-sm font-bold text-warning-foreground">Destraba {m.unlocks_total} materias: conviene no atrasarla.</p>}
+const Swatch = ({ svg }: { svg: string }) => <svg viewBox="0 0 24 24" className="size-6 shrink-0" aria-hidden dangerouslySetInnerHTML={{ __html: svg }} />
 
-      <section className="flex flex-col gap-1">
-        <h3 className="text-xs font-extrabold text-muted-foreground">Necesita</h3>
-        <ul className="flex flex-col text-sm">{m.requires.length ? m.requires.map(r => (
-          <li key={r.subject_id} className="flex items-baseline justify-between gap-3 py-1">{byId.get(r.subject_id)?.name}
-            <span className="shrink-0 text-xs text-muted-foreground">{r.condition === 'regular' ? 'regular' : 'aprobada'}, {STATE_LABEL[stateOf(r.subject_id)].toLowerCase()}</span></li>))
-          : <li className="py-1 text-muted-foreground">Nada, se cursa desde el principio</li>}</ul>
-      </section>
-      <section className="flex flex-col gap-1">
-        <h3 className="text-xs font-extrabold text-muted-foreground">Destraba</h3>
-        <ul className="flex flex-col text-sm">{m.unlocks.length ? m.unlocks.map(u => <li key={u} className="py-1">{byId.get(u)?.name}</li>)
-          : <li className="py-1 text-muted-foreground">Es de las últimas de la carrera</li>}</ul>
-      </section>
-
-      <div className="flex flex-col gap-3 border-t pt-4">
-        <Button className="w-full" onClick={onTutor}>Practicar con el tutor</Button>
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-bold">Marcar como</span>
-          <ToggleGroup type="single" variant="outline" size="sm" spacing={1} aria-label="Marcar como" value={['enrolled', 'regular', 'approved'].includes(state) ? state : ''}
-            onValueChange={v => { if (v) onChange(v as 'approved' | 'regular' | 'enrolled') }} disabled={busy}>
-            <ToggleGroupItem value="enrolled">La curso</ToggleGroupItem><ToggleGroupItem value="regular">Regular</ToggleGroupItem><ToggleGroupItem value="approved">Aprobada</ToggleGroupItem>
-          </ToggleGroup>
-        </div>
-        {state === 'enrolled' && <form className="flex items-end gap-2" onSubmit={e => { e.preventDefault(); if (date) onExamDate(date) }}>
-          <div className="flex flex-1 flex-col gap-2"><Label htmlFor="exam-date">Fecha del parcial</Label><Input id="exam-date" type="date" value={date} onChange={e => setDate(e.target.value)} /></div>
-          <Button variant="outline" className="h-10" disabled={!date || busy}>Anotar</Button></form>}
-      </div>
-    </div>
-  )
-}

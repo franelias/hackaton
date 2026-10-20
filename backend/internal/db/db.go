@@ -101,6 +101,16 @@ type StudentSubject struct {
 	SubjectID int `gorm:"primaryKey;autoIncrement:false"`
 	State     string
 	Since     time.Time // when it got this state
+	Grade     *int      // the final's grade, only while approved
+}
+
+// FailedExam is a failed final (aplazo).
+type FailedExam struct {
+	ID        int
+	StudentID int
+	SubjectID int
+	Grade     int
+	CreatedAt time.Time
 }
 
 type Activity struct {

@@ -43,7 +43,22 @@ export const shortName = (n: string) => {
 let measureCtx: CanvasRenderingContext2D | null = null
 const measure = (t: string, size = 11) => { measureCtx ??= document.createElement('canvas').getContext('2d')!; measureCtx.font = `700 ${size}px Nunito`; return measureCtx.measureText(t).width }
 const leafPath = (x: number, y: number, rot: number, k: number, col: string, op = 1) => `<path d="M0 -8C5.5 -4.5 5.5 4.5 0 9C-5.5 4.5 -5.5 -4.5 0 -8Z" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot.toFixed(0)}) scale(${k.toFixed(2)})" fill="${col}" opacity="${op}"/>`
-const PILL: Record<SubjectState, [string, string, string]> = { approved: ['#e8f0df', '#bfd3ac', '#2b2a22'], regular: ['#fbecc9', '#efcf86', '#2b2a22'], enrolled: ['#e4edf6', '#b9cde2', '#2b2a22'], available: ['#ffffff', '#cfd8c4', '#3d4a37'], locked: ['#f6f5f0', '#dcdcd4', '#8a867a'] }
+// a subject's name tag: [fill, border, text]; also used by the legend in MyTree
+export const PILL: Record<SubjectState, [string, string, string]> = { approved: ['#e8f0df', '#bfd3ac', '#2b2a22'], regular: ['#fbecc9', '#efcf86', '#2b2a22'], enrolled: ['#e4edf6', '#b9cde2', '#2b2a22'], available: ['#ffffff', '#cfd8c4', '#3d4a37'], locked: ['#f6f5f0', '#dcdcd4', '#8a867a'] }
+export const BOTTLENECK = '#c98a2b'
+
+// the mark on a subject's tip: a flower when approved (pink when it bloomed with practice), a yellow fruit
+// when regular, a blue ring while being taken, and a bud (green if it can be taken) otherwise
+export function mark(state: SubjectState, x: number, y: number, flower = false, op = 1) {
+  const petals = (c: string, center: string) => `<g opacity="${op}">${[0, 72, 144, 216, 288].map(a => `<circle cx="${(x + 6 * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(y + 6 * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="5" fill="${c}" stroke="#7a5236" stroke-width=".6"/>`).join('')}<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="${center}"/></g>`
+  if (state === 'approved') return petals('#ffffff', '#f2c14e')
+  if (flower) return petals('#ffc2dc', '#d9822b')
+  if (state === 'regular') return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="#f2c14e" stroke="#b8863b" opacity="${op}"/>`
+  if (state === 'enrolled') return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="#fff" stroke="#5b84b1" stroke-width="2.2" opacity="${op}"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.6" fill="#5b84b1" opacity="${op}"/>`
+  return `<path d="M${x.toFixed(1)} ${(y + 6).toFixed(1)}C${(x - 6).toFixed(1)} ${y.toFixed(1)} ${(x - 4).toFixed(1)} ${(y - 9).toFixed(1)} ${x.toFixed(1)} ${(y - 12).toFixed(1)}C${(x + 4).toFixed(1)} ${(y - 9).toFixed(1)} ${(x + 6).toFixed(1)} ${y.toFixed(1)} ${x.toFixed(1)} ${(y + 6).toFixed(1)}Z" fill="${state === 'available' ? '#c9e0b0' : '#ead9c4'}" stroke="${state === 'available' ? '#6f9866' : '#b99c80'}" opacity="${op}"/>`
+}
+// a dry branch, as the tree draws one with an open alert, for the legend
+export const DRY_BRANCH = `<path d="M2 8Q12 6 22 16" stroke="#8a7a68" stroke-width="3" fill="none" stroke-linecap="round"/>${[[8, 7, 150], [13, 9, 30], [17, 12, 160]].map(([x, y, r]) => leafPath(x, y, r, .7, '#b08a4a')).join('')}`
 
 // drawing helpers (internal)
 const SHADE = '#26391d', SHINE = '#f3f0c4', FADE = '#eef1e8'
@@ -369,12 +384,7 @@ export default function TreeView({ plan, tree, selected, onSelect }: Props) {
     let labelsSvg = ''
     for (const m of nodes) { const p = geo.get(m.s.subject_id)!.b, o2 = op(m.s.subject_id), id = m.s.subject_id
       o += `<circle cx="${fx(p.x)}" cy="${fx(p.y)}" r="11" fill="#fffdf4" opacity="${(.85 * o2).toFixed(2)}" stroke="#2b2a22" stroke-opacity=".1"/>`
-      const flower = (c: string, center: string) => `<g opacity="${o2}">${[0, 72, 144, 216, 288].map(a => `<circle cx="${(p.x + 6 * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(p.y + 6 * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="5" fill="${c}" stroke="#7a5236" stroke-width=".6"/>`).join('')}<circle cx="${fx(p.x)}" cy="${fx(p.y)}" r="3.2" fill="${center}"/></g>`
-      if (m.state === 'approved') o += flower('#ffffff', '#f2c14e')
-      else if (m.info?.flower) o += flower('#ffc2dc', '#d9822b')
-      else if (m.state === 'regular') o += `<circle cx="${fx(p.x)}" cy="${fx(p.y)}" r="6" fill="#f2c14e" stroke="#b8863b" opacity="${o2}"/>`
-      else if (m.state === 'enrolled') o += `<circle cx="${fx(p.x)}" cy="${fx(p.y)}" r="6.5" fill="#fff" stroke="#5b84b1" stroke-width="2.2" opacity="${o2}"/><circle cx="${fx(p.x)}" cy="${fx(p.y)}" r="2.6" fill="#5b84b1" opacity="${o2}"/>`
-      else o += `<path d="M${fx(p.x)} ${fx(p.y + 6)}C${fx(p.x - 6)} ${fx(p.y)} ${fx(p.x - 4)} ${fx(p.y - 9)} ${fx(p.x)} ${fx(p.y - 12)}C${fx(p.x + 4)} ${fx(p.y - 9)} ${fx(p.x + 6)} ${fx(p.y)} ${fx(p.x)} ${fx(p.y + 6)}Z" fill="${m.state === 'available' ? '#c9e0b0' : '#ead9c4'}" stroke="${m.state === 'available' ? '#6f9866' : '#b99c80'}" opacity="${o2}"/>`
+      o += mark(m.state, p.x, p.y, !!m.info?.flower, o2)
       const t = shortName(m.s.name), w = measure(t) + 18, h = 21, [fill, border, ink] = PILL[m.state], sel = id === e.sel, hidden = m.state === 'locked' && !sel && !path?.has(id)
       // visible names try a few spots around their mark (below, above, further down, to the sides) until one is free
       const clampX = (x: number) => Math.max(w / 2 + 6, Math.min(W - w / 2 - 6, x))
@@ -387,7 +397,7 @@ export default function TreeView({ plan, tree, selected, onSelect }: Props) {
       labelsSvg += `<g class="node" data-id="${id}" opacity="${o2}" tabindex="0" role="button" aria-label="${name}"><title>${name}</title>
         <circle cx="${fx(p.x)}" cy="${fx(p.y)}" r="18" fill="transparent"/>
         <g class="pill${hidden ? ' hidden-label' : ''}"><rect x="${fx(px - w / 2)}" y="${fx(y - h / 2 + 2)}" width="${fx(w)}" height="${h}" rx="${h / 2}" fill="${SHADE}" opacity=".18"/>
-        <rect x="${fx(px - w / 2)}" y="${fx(y - h / 2)}" width="${fx(w)}" height="${h}" rx="${h / 2}" fill="${fill}" stroke="${sel ? '#2b2a22' : neck ? '#c98a2b' : border}" stroke-width="${sel ? 2 : neck ? 1.4 : 1}"/>
+        <rect x="${fx(px - w / 2)}" y="${fx(y - h / 2)}" width="${fx(w)}" height="${h}" rx="${h / 2}" fill="${fill}" stroke="${sel ? '#2b2a22' : neck ? BOTTLENECK : border}" stroke-width="${sel ? 2 : neck ? 1.4 : 1}"/>
         <text x="${fx(px)}" y="${fx(y + 4)}" text-anchor="middle" font-size="11" font-weight="700" fill="${ink}">${esc(t)}</text></g></g>` }
     o += labelsSvg
     for (const f of e.falling) o += leafPath(f.x, f.y, f.rot, f.k, f.col, f.onGround ? Math.max(0, 1 - (f.fade ?? 0)) : 1)

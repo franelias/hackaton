@@ -108,7 +108,7 @@ Solo el estado del alumno; nada que ya esté en el plan.
   "health": { "state": "wilted", "last_activity": "2026-10-08T21:10:00-03:00" },
   "streak": { "weeks": 0, "best": 8, "wildcards": 1 },
   "subjects": [
-    { "subject_id": 6,  "state": "approved", "leaves": 14, "flower": false, "dry": false },
+    { "subject_id": 6,  "state": "approved", "leaves": 14, "flower": false, "dry": false, "grade": 8, "fails": [ { "id": 3, "grade": 4 } ] },
     { "subject_id": 12, "state": "enrolled", "leaves": 2,  "flower": false, "dry": true }
   ]
 }
@@ -125,6 +125,8 @@ Solo el estado del alumno; nada que ya esté en el plan.
 | `leaves` | entero | Hojas: ejercicios y sesiones registradas en esa materia |
 | `flower` | bool | Flor: simulacro aprobado (≥ 60/100) y la materia no está aprobada; lista para rendir |
 | `dry` | bool | Rama seca: hay una alerta abierta sobre esa materia. **Una materia aprobada nunca se seca** |
+| `grade` | entero 1–10, opcional | Nota del final; solo en una materia `approved` que la tiene cargada |
+| `fails` | `[ { "id", "grade" } ]`, opcional | Aplazos (finales desaprobados) cargados por el alumno, del más viejo al más nuevo. Cuentan en el promedio "con aplazos" |
 
 ### 2.3 `GET /api/students/{student_id}/alerts`
 
@@ -191,7 +193,10 @@ El push es solo de datos (`{title, body, url}`); lo muestra `web/public/firebase
 | `GET /api/faculties` | — | `[ { "faculty_id": "fceia", "name", "careers": [ { "career_id", "name" } ] } ]`. Solo las carreras con plan cargado |
 | `POST /api/students` | `{ "name", "faculty_id"?, "career_id" }` | `{ "student_id" }`. Crea el alumno del `uid` del token; `409` si ese `uid` ya tiene uno. `faculty_id` por defecto `fceia` |
 | `PUT /api/students/{id}/subjects` | `{ "subjects": [ { "subject_id", "state": "approved" \| "regular" \| "enrolled" } ] }` | árbol (2.2). Varias materias en un pedido (onboarding); las que no vienen quedan igual. Todo o nada: una materia ajena a la carrera → `404` |
-| `PUT /api/students/{id}/subjects/{subject_id}` | `{ "state": "approved" \| "regular" \| "enrolled" }` | árbol (2.2) |
+| `PUT /api/students/{id}/subjects/{subject_id}` | `{ "state": "approved" \| "regular" \| "enrolled", "grade"? }` | árbol (2.2). `grade` (1–10) solo con `approved`; si no viene, la nota que tenía queda. Pasar a otro estado borra la nota |
+| `DELETE /api/students/{id}/subjects/{subject_id}` | — | árbol (2.2). Borra la marca del alumno: la materia vuelve a `available` o `locked` según sus correlativas. Borrar una materia sin marca no es error |
+| `POST /api/students/{id}/subjects/{subject_id}/fails` | `{ "grade" }` (1–10) | árbol (2.2). Carga un aplazo |
+| `DELETE /api/students/{id}/fails/{fail_id}` | — | árbol (2.2). Borra un aplazo; `404` si no es del alumno |
 | `POST /api/students/{id}/activity` | `{ "type": "checkin" \| "exercise" \| "mock_exam" \| "exam", "subject_id"?, "topic"?, "result"?, "date"? }` | árbol (2.2) |
 | `POST /api/chat` | `{ "student_id", "message", "conversation_id"?, "image_base64"? }` | Stream SSE (ver 2.5) |
 | `GET /api/students/{id}/conversations/{conversation_id}` | — | `{ "conversation_id", "messages": [ { "role": "user" \| "assistant", "text", "created_at" } ] }` |

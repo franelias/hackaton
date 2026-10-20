@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { conversationQuery, keys, queryClient } from '../lib/queries'
 import { PhotoError, preparePhoto } from '../lib/photo'
 import RichText, { TypedText } from '../components/RichText'
 import { useSession } from '../lib/session'
 import type { ChatMessage } from '../lib/types'
-import { Camera, MessageSquarePlus, Send, Timer, X } from 'lucide-react'
+import { ArrowLeft, Camera, MessageSquarePlus, Send, Timer, X } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Page, PageHeader } from '@/components/Page'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -30,7 +31,13 @@ const clock = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); re
 
 export default function Tutor() {
   const { studentId, plan, tree, user, refresh } = useSession()
-  const [params] = useSearchParams()
+  const [params, setParams] = useSearchParams()
+  const navigate = useNavigate(), location = useLocation()
+  // on the phone the list and the chat are two screens: ?chat is the chat one (so the back button returns to the list)
+  const isMobile = useIsMobile(), chatOpen = params.has('chat')
+  const focused = isMobile && chatOpen, listView = isMobile && !chatOpen
+  const openChat = () => { if (isMobile && !chatOpen) setParams(p => { p.set('chat', ''); return p }, { state: { fromList: true } }) }
+  const closeChat = () => { if (location.state?.fromList) navigate(-1); else setParams(p => { p.delete('chat'); return p }, { replace: true }) }
   const uid = user?.uid ?? 'anon', LIST_KEY = `arbol.conversations.${uid}`, EXAM_KEY = `arbol.mockExam.${uid}`
   const subject = plan?.subjects.find(s => s.subject_id === Number(params.get('subject')))
   const [list, setList] = useState<Conversation[]>(() => load(LIST_KEY, []))
@@ -66,7 +73,7 @@ export default function Tutor() {
   const history = useQuery({ ...conversationQuery(studentId ?? '', opened ?? ''), enabled: !!studentId && !!opened && !sending })
   useEffect(() => { if (!opened) return; setAnimating(false); setMessages(history.data?.messages ?? []) }, [opened, history.data])
   const loadingConversation = !!opened && history.isPending
-  const open = (id: string) => { if (id === conversation) return; justCreated.current = null; setConversation(id) }
+  const open = (id: string) => { openChat(); if (id === conversation) return; justCreated.current = null; setConversation(id) }
 
   const send = useCallback(async (msg: string, opts: { fresh?: boolean; mockExam?: boolean; image?: string | null } = {}) => {
     msg = msg.trim(); const image = opts.image ?? null; if ((!msg && !image) || !studentId || sending) return
@@ -95,12 +102,14 @@ export default function Tutor() {
 
   const newConversation = () => { setConversation(null); setMessages([]); setAnimating(false) }
   const remove = (id: string) => { setList(l => l.filter(c => c.id !== id)); if (id === conversation) newConversation() }
-  const submit = (ev?: FormEvent) => { ev?.preventDefault(); send(text, { image: photo }) }
+  const submit = (ev?: FormEvent) => { ev?.preventDefault(); if ((text.trim() || photo) && !sending) openChat(); send(text, { image: photo }) }
+  // the phone's list screen always writes a new conversation
+  useEffect(() => { if (listView) { setConversation(null); setMessages([]); setAnimating(false) } }, [listView])
 
   // mock exam
   const examSubjects = useMemo(() => { const states = new Map((tree?.subjects ?? []).map(s => [s.subject_id, s.state]))
     return (plan?.subjects ?? []).filter(s => ['enrolled', 'regular', 'available'].includes(states.get(s.subject_id) ?? '')).sort((a, b) => (states.get(a.subject_id) === 'enrolled' ? -1 : 0) - (states.get(b.subject_id) === 'enrolled' ? -1 : 0)) }, [plan, tree])
-  const startExam = (name: string, minutes: number) => { setSettingUpExam(false); setExam({ conversation: null, subject: name, minutes, start: Date.now() })
+  const startExam = (name: string, minutes: number) => { setSettingUpExam(false); openChat(); setExam({ conversation: null, subject: name, minutes, start: Date.now() })
     send(`Quiero hacer un simulacro de ${name} de ${minutes} minutos, con ejercicios al estilo de los parciales de la cátedra. Dame el enunciado completo y no me ayudes hasta que entregue.`, { fresh: true, mockExam: true }) }
   const remaining = exam ? exam.start + exam.minutes * 60000 - now : 0
   const handIn = () => { if (!exam) return; const inTime = remaining > 0; setExam(null)
@@ -108,9 +117,8 @@ export default function Tutor() {
 
   const suggestions = ['¿Qué temas se toman más en el parcial?', 'Dame un ejercicio de un parcial viejo', 'Armemos un plan hasta el parcial']
   const bubble = 'max-w-[85%] rounded-2xl px-4 py-3 break-words bubble-in'
-  const chat = (
-    <>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-1" aria-busy={loadingConversation}>
+  const thread = (
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-1 no-scrollbar" aria-busy={loadingConversation}>
         {loadingConversation && <div className="flex flex-col gap-3" role="status" aria-label="Cargando la conversación">
           {['user', 'assistant', 'user', 'assistant'].map((r, i) => <Skeleton key={i} className={cn('rounded-2xl', r === 'user' ? 'h-11 w-2/5 self-end' : 'h-24 w-3/4')} />)}</div>}
         {messages.length === 0 && !exam && !loadingConversation && <div className="m-auto flex max-w-lg flex-col items-center gap-4 px-2 text-center">
@@ -129,6 +137,8 @@ export default function Tutor() {
         {status && <div className="flex items-center gap-2 self-start text-sm font-bold text-muted-foreground" role="status"><i className="pulse-dot size-2.5 rounded-full bg-primary" /><span key={status} className="shimmer-text">{status}</span></div>}
         <div ref={end} />
       </div>
+  )
+  const composer = (
       <form className={cn('flex flex-col gap-2 rounded-2xl border bg-card p-2 outline-2 outline-offset-4 outline-transparent transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/30', dragging && 'border-dashed border-primary bg-accent')} onSubmit={submit}
         onDragOver={e => { if ([...e.dataTransfer.items].some(i => i.kind === 'file')) { e.preventDefault(); setDragging(true) } }}
         onDragLeave={() => setDragging(false)}
@@ -149,8 +159,8 @@ export default function Tutor() {
           <Button disabled={(!text.trim() && !photo) || sending || preparing}>Enviar<Send data-icon="inline-end" /></Button>
         </div>
       </form>
-    </>
   )
+  const chat = <>{thread}{composer}</>
 
   if (exam) return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -168,15 +178,25 @@ export default function Tutor() {
     </div>
   )
 
+  if (focused) return (
+    <Page className="h-[calc(100dvh-3.5rem)] gap-3 py-3">
+      <div className="flex min-w-0 items-center gap-1">
+        <Button variant="ghost" size="icon" onClick={closeChat} aria-label="Volver a las conversaciones"><ArrowLeft /></Button>
+        <b className="truncate">{list.find(c => c.id === conversation)?.title ?? 'Conversación nueva'}</b>
+      </div>
+      <section className="flex min-h-0 flex-1 flex-col gap-3">{chat}</section>
+    </Page>
+  )
+
   return (
     <Page className="h-[calc(100dvh-3.5rem)] gap-5 md:h-dvh">
       <PageHeader title="Tutor" description="Practicá con ejercicios de parciales reales de la FCEIA. Te da pistas antes que la solución.">
         <Button variant="outline" onClick={() => setSettingUpExam(true)}><Timer data-icon="inline-start" />Hacer un simulacro</Button>
       </PageHeader>
       <MockExamForm key={settingUpExam ? `open-${subject?.subject_id ?? ""}` : "closed"} open={settingUpExam} subjects={examSubjects.map(s => s.name)} initial={subject?.name} onStart={startExam} onCancel={() => setSettingUpExam(false)} />
-      <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1 md:gap-6">
-        <aside className="flex max-h-40 min-h-0 flex-col gap-2 md:max-h-none" aria-label="Conversaciones">
-          <Button variant="secondary" className="w-full justify-start" onClick={newConversation}><MessageSquarePlus data-icon="inline-start" />Conversación nueva</Button>
+      <div className={cn('grid min-h-0 flex-1 gap-4 md:grid-cols-[16rem_minmax(0,1fr)] md:grid-rows-1 md:gap-6', listView ? 'grid-rows-[minmax(0,1fr)_auto]' : 'grid-rows-[auto_minmax(0,1fr)]')}>
+        <aside className={cn('flex min-h-0 flex-col gap-2 md:max-h-none', !listView && 'max-h-40')} aria-label="Conversaciones">
+          <Button variant="secondary" className="w-full justify-start" onClick={() => { newConversation(); openChat() }}><MessageSquarePlus data-icon="inline-start" />Conversación nueva</Button>
           {list.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">Tus conversaciones van a aparecer acá.</p>}
           <ul className="flex min-h-0 flex-col gap-0.5 overflow-y-auto">{list.map(c => (
             <li key={c.id} className={cn('group flex items-stretch rounded-xl hover:bg-muted', c.id === conversation && 'bg-accent hover:bg-accent')}>
@@ -185,7 +205,7 @@ export default function Tutor() {
               <Button variant="ghost" size="icon-sm" className="my-auto mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" aria-label={`Quitar "${c.title}" de la lista`} onClick={() => remove(c.id)}><X /></Button>
             </li>))}</ul>
         </aside>
-        <section className="flex min-h-0 flex-col gap-3">{chat}</section>
+        <section className="flex min-h-0 flex-col gap-3">{listView ? composer : chat}</section>
       </div>
     </Page>
   )

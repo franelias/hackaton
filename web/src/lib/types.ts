@@ -40,7 +40,13 @@ export interface StudentSubject {
   leaves: number
   flower: boolean
   dry: boolean
+  // the final's grade, only on an approved subject that has it
+  grade?: number
+  // failed finals (aplazos)
+  fails?: Fail[]
 }
+
+export interface Fail { id: number; grade: number }
 
 export interface Tree {
   student_id: string

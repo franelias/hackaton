@@ -5,7 +5,7 @@
 import planJson from './plan.json'
 import { ApiError, type Api, type ChatHandlers } from '../lib/api'
 import { mockClass, mockTeacher } from './classes'
-import type { Activity, Alert, ChatMessage, NotificationPrefs, Plan, ScheduleResult, StudentSubject, SubjectState, Tree } from '../lib/types'
+import type { Activity, Alert, ChatMessage, Fail, NotificationPrefs, Plan, ScheduleResult, StudentSubject, SubjectState, Tree } from '../lib/types'
 
 const plan = planJson as unknown as Plan
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -17,6 +17,10 @@ const healthOf = (): Tree['health']['state'] => inactiveDays() >= 10 ? 'withered
 // Ana: passed almost all of 1st year and is taking 2nd-year subjects
 const states = new Map<number, Exclude<SubjectState, 'available' | 'locked'>>([[1, 'approved'], [2, 'approved'], [3, 'approved'], [4, 'approved'], [6, 'regular'], [5, 'enrolled'], [8, 'enrolled']])
 const leaves = new Map<number, number>([[5, 9], [8, 4], [1, 12], [2, 10], [3, 14], [4, 8], [6, 6]])
+// the finals she passed, and one she failed before passing
+const grades = new Map<number, number>([[1, 8], [2, 9], [3, 7], [4, 10]])
+const fails = new Map<number, Fail[]>([[3, [{ id: 1, grade: 4 }]]])
+let nextFail = 2
 let studentId: string | null = 's-001'
 const dismissed = new Set<string>()
 // inactivity alerts (contract §2.3); a dismissed one does not come back while the level is the same
@@ -36,7 +40,8 @@ function buildTree(): Tree {
     const ok = (id: number, cond: string) => { const e = states.get(id); return e === 'approved' || (cond === 'regular' && e === 'regular') }
     const state: SubjectState = st ?? (s.requires.every(r => ok(r.subject_id, r.condition)) ? 'available' : 'locked')
     if (state === 'locked') continue
-    subjects.push({ subject_id: s.subject_id, state, leaves: leaves.get(s.subject_id) ?? 0, flower: s.subject_id === 8, dry: health === 'withered' && s.subject_id === 5 })
+    subjects.push({ subject_id: s.subject_id, state, leaves: leaves.get(s.subject_id) ?? 0, flower: s.subject_id === 8, dry: health === 'withered' && s.subject_id === 5,
+      ...(state === 'approved' && grades.has(s.subject_id) ? { grade: grades.get(s.subject_id) } : {}), ...(fails.get(s.subject_id)?.length ? { fails: fails.get(s.subject_id) } : {}) })
   }
   return { student_id: studentId ?? 's-001', career_id: plan.career_id, health: { state: health, last_activity: new Date(lastActivity).toISOString() }, streak: { weeks: health === 'lush' ? 1 : 0, best: 8, wildcards: 1 }, subjects }
 }
@@ -73,8 +78,12 @@ export const mockApi: Api = {
   tree: async () => { await wait(150); return buildTree() },
   alerts: async () => alerts(),
   dismissAlert: async (_id, alertId) => { dismissed.add(alertId) },
-  setSubject: async (_id, subjectId, state) => { states.set(subjectId, state); return buildTree() },
-  setSubjects: async (_id, subjects) => { for (const s of subjects) states.set(s.subject_id, s.state); return buildTree() },
+  // like the backend: a grade only lives while approved, and without one the old one stays
+  setSubject: async (_id, subjectId, state, grade) => { states.set(subjectId, state); if (state !== 'approved') grades.delete(subjectId); else if (grade != null) grades.set(subjectId, grade); return buildTree() },
+  clearSubject: async (_id, subjectId) => { states.delete(subjectId); grades.delete(subjectId); return buildTree() },
+  addFail: async (_id, subjectId, grade) => { fails.set(subjectId, [...(fails.get(subjectId) ?? []), { id: nextFail++, grade }]); return buildTree() },
+  removeFail: async (_id, failId) => { for (const [k, v] of fails) fails.set(k, v.filter(f => f.id !== failId)); return buildTree() },
+  setSubjects: async (_id, subjects) => { for (const s of subjects) { states.set(s.subject_id, s.state); if (s.state !== 'approved') grades.delete(s.subject_id) } return buildTree() },
   activity: async (_id, a: Activity) => { lastActivity = Date.now(); dismissed.clear(); if (a.subject_id && a.type !== 'checkin') leaves.set(a.subject_id, (leaves.get(a.subject_id) ?? 0) + 1); return buildTree() },
   conversation: async (_id, conversation_id) => ({ conversation_id, messages: conversations.get(conversation_id) ?? [] }),
   notifications: async () => notificationPrefs,

@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
-import { GraduationCap, MessagesSquare, CalendarDays, Sprout } from 'lucide-react'
+import { BookOpen, GraduationCap, MessagesSquare, CalendarDays, NotebookPen, Sprout } from 'lucide-react'
 import { MOCK } from './lib/config'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
@@ -16,6 +16,8 @@ import Onboarding from './pages/Onboarding'
 import MyTree from './pages/MyTree'
 import Tutor from './pages/Tutor'
 import Schedule from './pages/Schedule'
+import Subjects from './pages/Subjects'
+import Grades from './pages/Grades'
 import Account from './pages/Account'
 import TeacherHome from './pages/TeacherHome'
 import TeacherSubject from './pages/TeacherSubject'
@@ -33,7 +35,7 @@ function AppSidebar() {
   // on the phone the menu is a sheet: close it after navigating
   useEffect(() => { setOpenMobile(false) }, [pathname, setOpenMobile])
   const items = [
-    ...(studentId ? [{ to: '/', label: 'Mi árbol', icon: Sprout, end: true }, { to: '/tutor', label: 'Tutor', icon: MessagesSquare }, { to: '/schedule', label: 'Horarios', icon: CalendarDays }] : []),
+    ...(studentId ? [{ to: '/', label: 'Mi árbol', icon: Sprout, end: true }, { to: '/subjects', label: 'Materias', icon: BookOpen }, { to: '/grades', label: 'Notas', icon: NotebookPen }, { to: '/tutor', label: 'Tutor', icon: MessagesSquare }, { to: '/schedule', label: 'Horarios', icon: CalendarDays }] : []),
     ...(teacherId ? [{ to: '/teacher', label: 'Mis cursos', icon: GraduationCap }] : []),
   ]
   const active = (to: string, end?: boolean) => end ? pathname === to : pathname === to || pathname.startsWith(`${to}/`)
@@ -84,7 +86,7 @@ function Shell() {
       <AppSidebar />
       <SidebarInset className="min-w-0">
         {/* phone: a top bar with the menu, the brand and the account */}
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur md:hidden">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur md:hidden print:hidden">
           <SidebarTrigger className="size-9" />
           <span className="mr-auto flex items-center gap-2 text-lg font-extrabold"><Logo size={22} />Árbol</span>
           <NavLink to="/account" aria-label="Mi cuenta" className="rounded-full"><Avatar /></NavLink>
@@ -119,6 +121,8 @@ export default function App() {
               <Route element={<Guard />}>
                 <Route element={<StudentOnly />}>
                   <Route index element={<MyTree />} />
+                  <Route path="subjects/:subjectId?" element={<Subjects />} />
+                  <Route path="grades" element={<Grades />} />
                   <Route path="tutor" element={<Tutor />} />
                   <Route path="schedule" element={<Schedule />} />
                 </Route>

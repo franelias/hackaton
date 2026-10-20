@@ -51,6 +51,28 @@ func TestSubjectStates(t *testing.T) {
 	}
 }
 
+// The grade shows only on an approved subject; aplazos show on any visible one.
+func TestGradesAndFails(t *testing.T) {
+	in := Input{Plan: plan, States: map[int]string{1: Approved, 3: Regular}, Grades: map[int]int{1: 8, 3: 9},
+		Fails: map[int][]Fail{1: {{ID: 5, Grade: 2}}, 3: {{ID: 6, Grade: 4}}}, Since: now, Now: now}
+	by := map[int]Subject{}
+	for _, s := range Build(in).Subjects {
+		by[s.SubjectID] = s
+	}
+	if g := by[1].Grade; g == nil || *g != 8 {
+		t.Errorf("approved grade = %v, want 8", g)
+	}
+	if by[3].Grade != nil {
+		t.Errorf("regular has grade %d", *by[3].Grade)
+	}
+	if len(by[1].Fails) != 1 || by[1].Fails[0].ID != 5 || len(by[3].Fails) != 1 {
+		t.Errorf("fails = %v, %v", by[1].Fails, by[3].Fails)
+	}
+	if by[2].Grade != nil || by[2].Fails != nil {
+		t.Errorf("available subject = %+v", by[2])
+	}
+}
+
 func TestLeavesAndFlower(t *testing.T) {
 	score := func(s int) json.RawMessage { b, _ := json.Marshal(map[string]int{"score": s}); return b }
 	in := Input{

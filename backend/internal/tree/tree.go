@@ -57,6 +57,8 @@ type Input struct {
 	Info       map[int]SubjectInfo
 	Activities []Activity
 	Periods    []Period
+	Grades     map[int]int    // subject_id -> final's grade (approved only)
+	Fails      map[int][]Fail // subject_id -> failed finals
 	// Since is when the student joined; it counts as activity so a new tree is lush.
 	Since time.Time
 	Now   time.Time
@@ -79,6 +81,14 @@ type Subject struct {
 	Leaves    int    `json:"leaves"`
 	Flower    bool   `json:"flower"`
 	Dry       bool   `json:"dry"`
+	Grade     *int   `json:"grade,omitempty"`
+	Fails     []Fail `json:"fails,omitempty"`
+}
+
+// Fail is a failed final (aplazo).
+type Fail struct {
+	ID    int `json:"id"`
+	Grade int `json:"grade"`
 }
 
 type Tree struct {
@@ -118,12 +128,17 @@ func Build(in Input) Tree {
 			}
 			state = Available
 		}
-		subjects = append(subjects, Subject{
+		sub := Subject{
 			SubjectID: id,
 			State:     state,
 			Leaves:    leaves[id],
 			Flower:    flower[id] && state != Approved,
-		})
+			Fails:     in.Fails[id],
+		}
+		if g, ok := in.Grades[id]; ok && state == Approved {
+			sub.Grade = &g
+		}
+		subjects = append(subjects, sub)
 	}
 	sort.Slice(subjects, func(i, j int) bool { return subjects[i].SubjectID < subjects[j].SubjectID })
 
