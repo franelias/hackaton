@@ -21,7 +21,7 @@ const HEALTH_LABEL = { lush: 'frondoso', wilted: 'mustio', withered: 'seco' }
 // the marks the tree draws for each state (see TreeView)
 const LEGEND: [string, string][] = [
   ['bg-white shadow-[inset_0_0_0_3px_#f2c14e,0_0_0_1px_#7a5236]', 'Aprobada'], ['bg-[#f2c14e]', 'Regular'], ['bg-white shadow-[inset_0_0_0_2.5px_#5b84b1]', 'Cursando'],
-  ['bg-[#c9e0b0] shadow-[0_0_0_1px_#6f9866]', 'La podés cursar'], ['bg-[#ead9c4] shadow-[0_0_0_1px_#b99c80]', 'Todavía no'], ['bg-white shadow-[0_0_0_2px_#c98a2b]', 'Destraba mucho'],
+  ['bg-[#c9e0b0] shadow-[0_0_0_1px_#6f9866]', 'La podés cursar'], ['bg-[#ead9c4] shadow-[0_0_0_1px_#b99c80]', 'Todavía no'], ['bg-white shadow-[0_0_0_2px_#c98a2b]', 'Destraba mucho'], ['bg-[#c9a06a] shadow-[0_0_0_1px_#8a7258]', 'Rama seca: tiene una alerta'],
 ]
 
 const ago = (iso: string | null) => { if (!iso) return null; const d = Math.floor((Date.now() - new Date(iso).getTime()) / 864e5); return d <= 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días` }
@@ -58,7 +58,7 @@ export default function MyTree() {
 
   const m = sel != null ? byId.get(sel) : null
   return (
-    <Page>
+    <Page className="max-w-[1600px] gap-5">
       <PageHeader title={`¡Buenas${firstName ? `, ${firstName}` : ''}!`} description={subtitle}>
         <div className="flex items-center gap-2.5 rounded-full border bg-card py-1.5 pr-4 pl-2">
           <span className="grid size-8 place-items-center rounded-full bg-[#fde3cf] text-[#d9682b] dark:bg-[#4a2c1a] dark:text-[#f5a46e]"><Flame className="size-4.5" /></span>
@@ -68,45 +68,52 @@ export default function MyTree() {
         <Button size="lg" onClick={() => apply({ kind: 'checkin' })} disabled={busy}><Droplets data-icon="inline-start" />Estudié hoy</Button>
       </PageHeader>
 
-      {alerts.length > 0 && <div className="flex flex-col gap-3">
-        {alerts.map(a => (
-          <Alert key={a.id} role="status" className={cn('flex flex-col gap-3 rounded-2xl border-transparent px-4 py-3 sm:flex-row sm:items-center', a.level === 'high' ? 'bg-destructive/10' : 'bg-warning')}>
-            <CircleAlert className={cn('hidden size-5 shrink-0 sm:block', a.level === 'high' ? 'text-destructive' : 'text-warning-foreground')} />
-            <AlertDescription className="flex-1 font-semibold text-foreground">{a.message}</AlertDescription>
-            <div className="flex shrink-0 items-center gap-1">
-              <Button size="sm" onClick={() => act(a)}>{actionLabel[a.action.type]}</Button>
-              <Button size="sm" variant="ghost" onClick={() => dismiss.mutate(a.id, { onError: e => toast.error(e.message) })}>Descartar</Button>
-            </div>
-          </Alert>))}
-      </div>}
-
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Card className="gap-0 rounded-2xl py-0">
-          <div className="bg-[#eef0e4]"><TreeView plan={plan} tree={tree} selected={sel} onSelect={setSel} /></div>
-          <ul aria-label="Referencias" className="flex flex-wrap gap-x-4 gap-y-2 border-t px-4 py-3 text-xs font-bold text-muted-foreground">
-            {LEGEND.map(([dot, label]) => <li key={label} className="flex items-center gap-1.5"><i className={cn('inline-block size-2.5 rounded-full', dot)} />{label}</li>)}
-          </ul>
+      {/* the tree is the page; everything else lives in the side column */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_19rem] lg:gap-5">
+        <Card className="gap-0 overflow-hidden rounded-3xl bg-[#eef0e4] py-0 ring-foreground/5">
+          <TreeView plan={plan} tree={tree} selected={sel} onSelect={setSel} />
         </Card>
 
-        <Card aria-live="polite" className="gap-4 rounded-2xl px-5 py-5 lg:sticky lg:top-6">
-          {m ? <SubjectCard key={m.subject_id} m={m} state={stateOf(m.subject_id)} stateOf={stateOf} byId={byId} busy={busy}
-              onChange={state => apply({ kind: 'mark', subjectId: m.subject_id, state })}
-              onExamDate={date => apply({ kind: 'exam', subjectId: m.subject_id, date })}
-              onTutor={() => nav(`/tutor?subject=${m.subject_id}`)} onClose={() => setSel(null)} />
-            : <>
-                <h2 className="text-lg font-extrabold">Tu próximo paso</h2>
-                {enrolled[0] ? <><p className="text-pretty">Practicá un ejercicio de <b>{enrolled[0].name}</b>: destraba {enrolled[0].unlocks_total} materias.</p>
-                  <Button className="w-full" onClick={() => nav(`/tutor?subject=${enrolled[0].subject_id}`)}>Practicar con el tutor</Button></>
-                  : <p className="text-pretty">Marcá cuáles estás cursando para que te sugiramos qué practicar.</p>}
-                <p className="text-sm text-muted-foreground">Tocá cualquier materia del árbol para ver qué necesita y qué te destraba.</p>
-              </>}
-        </Card>
+        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+          {alerts.map(a => (
+            <Alert key={a.id} role="status" className={cn('flex flex-col gap-3 rounded-2xl border-transparent px-4 py-3.5', a.level === 'high' ? 'bg-destructive/10' : 'bg-warning')}>
+              <div className="flex gap-2.5">
+                <CircleAlert className={cn('mt-0.5 size-4.5 shrink-0', a.level === 'high' ? 'text-destructive' : 'text-warning-foreground')} />
+                <AlertDescription className="font-semibold text-pretty text-foreground">{a.message}</AlertDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-1 pl-7">
+                <Button size="sm" onClick={() => act(a)}>{actionLabel[a.action.type]}</Button>
+                <Button size="sm" variant="ghost" onClick={() => dismiss.mutate(a.id, { onError: e => toast.error(e.message) })}>Descartar</Button>
+              </div>
+            </Alert>))}
+
+          <Card aria-live="polite" className="gap-4 rounded-2xl px-5 py-5">
+            {m ? <SubjectCard key={m.subject_id} m={m} state={stateOf(m.subject_id)} dry={states.get(m.subject_id)?.dry ?? false} stateOf={stateOf} byId={byId} busy={busy}
+                onChange={state => apply({ kind: 'mark', subjectId: m.subject_id, state })}
+                onExamDate={date => apply({ kind: 'exam', subjectId: m.subject_id, date })}
+                onTutor={() => nav(`/tutor?subject=${m.subject_id}`)} onClose={() => setSel(null)} />
+              : <>
+                  <h2 className="text-lg font-extrabold">Tu próximo paso</h2>
+                  {enrolled[0] ? <><p className="text-pretty">Practicá un ejercicio de <b>{enrolled[0].name}</b>: destraba {enrolled[0].unlocks_total} materias.</p>
+                    <Button className="w-full" onClick={() => nav(`/tutor?subject=${enrolled[0].subject_id}`)}>Practicar con el tutor</Button></>
+                    : <p className="text-pretty">Marcá cuáles estás cursando para que te sugiramos qué practicar.</p>}
+                  <p className="text-sm text-muted-foreground">Tocá cualquier materia del árbol para ver qué necesita y qué te destraba.</p>
+                </>}
+          </Card>
+
+          <Card className="gap-3 rounded-2xl px-5 py-4">
+            <h2 className="text-sm font-extrabold">Cómo leer el árbol</h2>
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm font-semibold text-muted-foreground lg:grid-cols-1">
+              {LEGEND.map(([dot, label]) => <li key={label} className="flex items-center gap-2"><i className={cn('inline-block size-3 shrink-0 rounded-full', dot)} />{label}</li>)}
+            </ul>
+          </Card>
+        </aside>
       </div>
     </Page>
   )
 }
 
-function SubjectCard({ m, state, stateOf, byId, busy, onChange, onExamDate, onTutor, onClose }: { m: PlanSubject; state: SubjectState; stateOf: (id: number) => SubjectState; byId: Map<number, PlanSubject>; busy: boolean;
+function SubjectCard({ m, state, dry, stateOf, byId, busy, onChange, onExamDate, onTutor, onClose }: { m: PlanSubject; state: SubjectState; dry: boolean; stateOf: (id: number) => SubjectState; byId: Map<number, PlanSubject>; busy: boolean;
   onChange: (s: 'approved' | 'regular' | 'enrolled') => void; onExamDate: (date: string) => void; onTutor: () => void; onClose: () => void }) {
   const [date, setDate] = useState('')
   return (
@@ -118,6 +125,7 @@ function SubjectCard({ m, state, stateOf, byId, busy, onChange, onExamDate, onTu
         </div>
         <Button variant="ghost" size="icon-sm" className="-mt-1 -mr-2" onClick={onClose} aria-label="Cerrar"><X /></Button>
       </div>
+      {dry && state !== 'approved' && <p className="rounded-xl bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">Su rama se está secando: tenés una alerta abierta sobre esta materia. Practicala para que vuelva a crecer.</p>}
       {m.bottleneck && <p className="rounded-xl bg-warning px-3 py-2 text-sm font-bold text-warning-foreground">Destraba {m.unlocks_total} materias: conviene no atrasarla.</p>}
 
       <section className="flex flex-col gap-1">
